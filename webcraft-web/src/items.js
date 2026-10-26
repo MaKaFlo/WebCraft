@@ -132,9 +132,14 @@ export function iconCanvas(palette, key) {
     const sideRgb = key === 'grass_block' && !(palette.packed[id] & 2) ? palette.dirtRgb : rgb;
     const top = faceCanvas(palette.tileTop[id], rgb, palette.packed[id] & 1);
     const side = faceCanvas(palette.tileSide[id], sideRgb, palette.packed[id] & 2);
-    const m = size / 2, w = size * 0.42, h = size * 0.24;
-    const y0 = size * 0.12;
-    const hs = (size - y0 - h + 2) - (y0 + h);
+    // Real isometric cube: the sides are as tall as the edges of the top (they were too short before,
+    // so every block looked like a slab). Slabs, snow layers ... keep their own height.
+    const m = size / 2, w = size * 0.4, h = w * Math.tan(Math.PI / 6);
+    const edge = w / Math.cos(Math.PI / 6);
+    const box = palette.box[id];
+    const frac = box ? Math.max(0.15, Math.min(1, box[4] - box[1])) : 1;
+    const hs = edge * frac;
+    const y0 = (size - 2 * h - edge) / 2 + edge * (1 - frac);
     const k = 1 / TILE_PX;
     const face = (img, a, b, cc, d, e, f, dark) => {
       ctx.setTransform(a * k, b * k, cc * k, d * k, e, f);
