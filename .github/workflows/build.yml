@@ -16,9 +16,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '25'
@@ -27,7 +27,7 @@ jobs:
       # The plugin compiles against the Paper server itself (not in any Maven repository)
       - name: Cache Paper server
         id: paper
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .paper
           key: paper-26.3-${{ hashFiles('tools/fetch-paper.sh') }}
@@ -43,7 +43,7 @@ jobs:
       - name: Build (Paper plugin and web page)
         run: mvn -B package
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
 
       - name: Build the Fabric mod
         working-directory: webcraft-fabric
@@ -59,7 +59,7 @@ jobs:
           cp webcraft-web/target/webcraft.html out/
           ls -l out
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: webcraft
           path: out/
@@ -72,12 +72,12 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: webcraft
           path: out
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           name: WebCraft ${{ github.ref_name }}
           files: out/*
