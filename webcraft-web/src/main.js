@@ -212,7 +212,11 @@ function connect(url, name) {
         player.setPosition(msg.x, msg.y, msg.z);
         player.yaw = msg.yaw; player.pitch = msg.pitch;
         lastSent = null;
-        send({ t: 'tp_ok', id: msg.id, x: msg.x, y: msg.y, z: msg.z, yaw: msg.yaw, pitch: msg.pitch });
+        // Not send(): the login teleport arrives before 'welcome'. Without this answer the server
+        // ignores every move and the player stays at the spawn (no new chunks, stuck at the edge).
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ t: 'tp_ok', id: msg.id, x: msg.x, y: msg.y, z: msg.z, yaw: msg.yaw, pitch: msg.pitch }));
+        }
         break;
       case 'vel':
         player.push(msg.x, msg.y, msg.z);
@@ -329,7 +333,9 @@ async function decodeChunk(buf) {
 function sendMove() {
   if (!connected || dead) return;
   const r = (v) => Math.round(v * 1000) / 1000;
-  const m = { t: 'move', x: r(player.x), y: r(player.y), z: r(player.z), yaw: r(player.yaw), pitch: r(player.pitch), g: player.onGround };
+  // Position unrounded: standing at a wall (x = 15.6999), rounding gives 15.7 and the server (player box a
+  // tiny bit wider) sees us inside the wall and teleports us back again and again ("stuck at the wall").
+  const m = { t: 'move', x: player.x, y: player.y, z: player.z, yaw: r(player.yaw), pitch: r(player.pitch), g: player.onGround };
   if (lastSent && lastSent.x === m.x && lastSent.y === m.y && lastSent.z === m.z
       && lastSent.yaw === m.yaw && lastSent.pitch === m.pitch && lastSent.g === m.g) return;
   lastSent = m;

@@ -177,6 +177,7 @@ public final class WcFakePlayer {
             listener().tick();
             ticks++;
             if (pendingStopAt >= 0 && (ticks >= pendingStopAt || digDone())) flushPendingStop();
+            resendLostTeleport();
         } catch (Exception e) {
             plugin.getLogger().warning("WebCraft player tick failed for " + bukkit.getName() + ": " + e);
         }
@@ -218,6 +219,29 @@ public final class WcFakePlayer {
         }
         Vec3 pos = (Vec3) awaitingPos(l);
         l.handleAcceptTeleportPacket(new ServerboundAcceptTeleportationPacket(id, pos.x, pos.y, pos.z, yaw, pitch));
+    }
+
+    private int awaitingTicks;
+
+    /**
+     * While a teleport is not confirmed the server ignores every move. If the browser's answer got lost
+     * (e.g. the login teleport arrives before "welcome"), the player would stay there forever while the
+     * browser walks on: no new chunks, stuck at the edge. Tell the browser again after 2 seconds.
+     */
+    private void resendLostTeleport() {
+        ServerGamePacketListenerImpl l = listener();
+        Vec3 pos = (Vec3) awaitingPos(l);
+        if (pos == null) {
+            awaitingTicks = 0;
+            return;
+        }
+        if (++awaitingTicks < 40) return;
+        awaitingTicks = 0;
+        try {
+            ServerPlayer sp = handle();
+            session.teleported(AWAITING_ID.getInt(l), pos.x, pos.y, pos.z, sp.getYRot(), sp.getXRot());
+        } catch (IllegalAccessException ignored) {
+        }
     }
 
     private static Object awaitingPos(ServerGamePacketListenerImpl l) {
