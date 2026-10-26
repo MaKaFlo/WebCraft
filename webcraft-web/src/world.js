@@ -89,6 +89,9 @@ export class World {
     this.matTrans = new THREE.MeshBasicMaterial({
       vertexColors: true, map, transparent: true, side: THREE.DoubleSide, depthWrite: false,
     });
+    // Ice: see-through, but it writes depth and only shows its outside, so the faces of an ice sheet
+    // don't shine through each other in random order (drawn before water and glass)
+    this.matIce = new THREE.MeshBasicMaterial({ vertexColors: true, map, transparent: true, depthWrite: true });
     // Same, with the atlas of animated textures (fire, water, lava ...)
     const amap = atlas.animTexture;
     this.matAnimOpaque = new THREE.MeshBasicMaterial({ vertexColors: true, map: amap, alphaTest: 0.5 });
@@ -249,7 +252,7 @@ export class World {
     if (!sec) return;
 
     const P = this.palette;
-    const opaque = new GeoBuilder(), cross = new GeoBuilder(), trans = new GeoBuilder();
+    const opaque = new GeoBuilder(), cross = new GeoBuilder(), trans = new GeoBuilder(), ice = new GeoBuilder();
     const aOpaque = new GeoBuilder(), aCross = new GeoBuilder(), aTrans = new GeoBuilder();
     const animTarget = (b) => (b === opaque ? aOpaque : b === cross ? aCross : aTrans);
     const uvOf = (tile, s, t) => { const k = atlas.animOf(tile); return k === undefined ? tileUV(tile, s, t) : animUV(k, s, t); };
@@ -334,7 +337,8 @@ export class World {
           const lc = kind === KIND_LIQUID ? liquidCorners(lx, ly, lz, id) : null;
           if (lc) box = FULL;
           const full = box[0] <= 0 && box[1] <= 0 && box[2] <= 0 && box[3] >= 1 && box[4] >= 1 && box[5] >= 1;
-          const target = kind === KIND_CUBE && P.alpha[id] >= 1 ? opaque : trans;
+          const target = kind === KIND_CUBE && P.alpha[id] >= 1 ? opaque
+            : kind === KIND_GLASS && P.alpha[id] >= 0.7 && P.solid[id] ? ice : trans;
           const alpha = P.alpha[id];
           const glow = P.glow[id];
 
@@ -349,6 +353,8 @@ export class World {
             if (lc) {
               // Same liquid next to it: no wall in between; the top is only hidden by liquid above
               if (P.fluid[nid] === P.fluid[id]) continue;
+              // Under or next to ice and glass there is no water surface (like Minecraft)
+              if (P.kind[nid] === KIND_GLASS && P.solid[nid]) continue;
               if (F.n[1] > 0 ? P.occluding[nid] && lc.every((v) => v >= 1) : P.occluding[nid]) continue;
             } else if (flush) {
               if (P.occluding[nid]) continue;
@@ -435,10 +441,11 @@ export class World {
     };
     add(opaque, this.matOpaque, 0);
     add(cross, this.matCross, 0);
-    add(trans, this.matTrans, 1);
+    add(ice, this.matIce, 1);
+    add(trans, this.matTrans, 2);
     add(aOpaque, this.matAnimOpaque, 0);
     add(aCross, this.matAnimCross, 0);
-    add(aTrans, this.matAnimTrans, 1);
+    add(aTrans, this.matAnimTrans, 2);
     if (meshes.length) c.meshes.set(sy, meshes);
   }
 
