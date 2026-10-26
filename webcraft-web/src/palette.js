@@ -48,6 +48,9 @@ export class Palette {
     this.height = [];      // top of the drawn shape (for outlines)
     this.glow = [];        // drawn without shading (portals, lava)
     this.fire = [];        // fire: drawn as burning walls
+    this.fluid = [];       // 1 water, 2 lava, 0 no liquid (several ids per fluid: one per water level)
+    this.liquidH = [];     // surface height of a liquid block (source 0.89, flowing lower)
+    this.liquidFall = [];  // falling water (a waterfall column)
     this.tileTop = [];
     this.tileSide = [];
     this.tileBottom = [];
@@ -88,6 +91,9 @@ export class Palette {
     this.height[i] = e.r ? e.r[4] : 1;
     this.glow[i] = /portal|end_gateway|lava|magma|glowstone|sea_lantern|shroomlight|^fire$|soul_fire|froglight/.test(name) ? 1 : 0;
     this.fire[i] = name === 'fire' || name === 'soul_fire' ? 1 : 0;
+    this.fluid[i] = kind === KIND_LIQUID ? (name === 'lava' ? 2 : 1) : 0;
+    this.liquidH[i] = e.lh ?? 0.875;
+    this.liquidFall[i] = e.lf ? 1 : 0;
     this.applyTiles(i);
 
     let color = COLOR_OVERRIDES[name] ?? e.c;

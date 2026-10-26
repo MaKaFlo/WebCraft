@@ -89,6 +89,16 @@ public final class BlockPalette {
         if (liquid) flags |= 4;
         e.addProperty("f", flags);
 
+        // Water and lava: how full the block is (flowing water gets lower, falling water is a full column)
+        if (liquid) {
+            var fluid = state.getFluidState();
+            if (!fluid.isEmpty()) {
+                e.addProperty("lh", Math.round(fluid.getOwnHeight() * 1000) / 1000.0);
+                if (!fluid.isSource() && fluid.hasProperty(net.minecraft.world.level.material.FlowingFluid.FALLING)
+                        && fluid.getValue(net.minecraft.world.level.material.FlowingFluid.FALLING)) e.addProperty("lf", 1);
+            }
+        }
+
         // Shapes as one box each (good enough for drawing and for walking around)
         if (!liquid && !shape.isEmpty() && !fullShape) e.add("r", box(shape.bounds()));
         if (solid && !isFull(collision)) e.add("b", box(collision.bounds()));

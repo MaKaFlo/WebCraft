@@ -17,7 +17,6 @@ const FACES = [
 ];
 const CORNERS = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
 const AO_LEVELS = [0.5, 0.68, 0.84, 1.0];
-const LIQUID_TOP = [0, 0, 0, 1, 0.875, 1];
 
 export const chunkKey = (cx, cz) => cx + ',' + cz;
 
@@ -265,6 +264,38 @@ export class World {
     };
     const occ = (lx, ly, lz) => P.occluding[idAt(lx, ly, lz)];
 
+    // Liquid surface like Minecraft: each top corner is the average height of the (up to) four liquid
+    // blocks around it, so flowing water slopes down and the texture runs downhill.
+    const liquidHeight = (lx, ly, lz, fluid) => {
+      const nid = idAt(lx, ly, lz);
+      if (P.fluid[nid] === fluid) return P.fluid[idAt(lx, ly + 1, lz)] === fluid ? 1 : P.liquidH[nid];
+      return P.solid[nid] ? -1 : 0;   // solid blocks don't count, air pulls the edge down
+    };
+    const liquidCorners = (lx, ly, lz, id) => {
+      const fluid = P.fluid[id];
+      if (P.fluid[idAt(lx, ly + 1, lz)] === fluid) return [1, 1, 1, 1];
+      const h = [];
+      for (let dz = -1; dz <= 1; dz++) {
+        h.push([-1, 0, 1].map((dx) => (dx === 0 && dz === 0 ? (P.liquidFall[id] ? 1 : P.liquidH[id]) : liquidHeight(lx + dx, ly, lz + dz, fluid))));
+      }
+      // corner (cx, cz) touches the blocks dx in {cx-1, cx}, dz in {cz-1, cz}
+      const corner = (cx, cz) => {
+        let sum = 0, n = 0;
+        for (const dz of [cz - 1, cz]) {
+          for (const dx of [cx - 1, cx]) {
+            const v = h[dz + 1][dx + 1];
+            if (v >= 1) return 1;
+            if (v < 0) continue;
+            // full-ish neighbours weigh more, like in Minecraft
+            const w = v >= 0.8 ? 10 : 1;
+            sum += v * w; n += w;
+          }
+        }
+        return n ? sum / n : P.liquidH[id];
+      };
+      return [corner(0, 0), corner(0, 1), corner(1, 1), corner(1, 0)];   // (x,z) = 00, 01, 11, 10
+    };
+
     for (let ly = 0; ly < 16; ly++) {
       for (let lz = 0; lz < 16; lz++) {
         for (let lx = 0; lx < 16; lx++) {
@@ -299,7 +330,9 @@ export class World {
           const shapeBoxes = kind === KIND_CUBE && P.boxes[id] ? P.boxes[id] : null;
           for (let bi = 0; bi < (shapeBoxes ? shapeBoxes.length : 1); bi++) {
           let box = shapeBoxes ? shapeBoxes[bi] : (P.box[id] || FULL);
-          if (kind === KIND_LIQUID) box = idAt(lx, ly + 1, lz) === id ? FULL : LIQUID_TOP;
+          // Liquids: a full box whose top corners are moved down to the surface height
+          const lc = kind === KIND_LIQUID ? liquidCorners(lx, ly, lz, id) : null;
+          if (lc) box = FULL;
           const full = box[0] <= 0 && box[1] <= 0 && box[2] <= 0 && box[3] >= 1 && box[4] >= 1 && box[5] >= 1;
           const target = kind === KIND_CUBE && P.alpha[id] >= 1 ? opaque : trans;
           const alpha = P.alpha[id];
@@ -313,7 +346,11 @@ export class World {
             const flush = F.n[0] > 0 ? box[3] >= 1 : F.n[0] < 0 ? box[0] <= 0
               : F.n[1] > 0 ? box[4] >= 1 : F.n[1] < 0 ? box[1] <= 0
               : F.n[2] > 0 ? box[5] >= 1 : box[2] <= 0;
-            if (flush) {
+            if (lc) {
+              // Same liquid next to it: no wall in between; the top is only hidden by liquid above
+              if (P.fluid[nid] === P.fluid[id]) continue;
+              if (F.n[1] > 0 ? P.occluding[nid] && lc.every((v) => v >= 1) : P.occluding[nid]) continue;
+            } else if (flush) {
               if (P.occluding[nid]) continue;
               if (nid === id && (kind !== KIND_CUBE || (full && !P.occluding[id]))) continue;
             }
@@ -330,6 +367,14 @@ export class World {
             }
 
             const pts = new Array(4), cols = new Array(4), ao = new Array(4), uvs = new Array(4);
+            // Slope of the liquid surface (null when flat): from high corners to low ones
+            let flowAngle = null;
+            if (lc && F.n[1] > 0) {
+              const gx = (lc[0] + lc[1]) - (lc[2] + lc[3]);   // higher at x=0 -> flows to +x
+              const gz = (lc[0] + lc[3]) - (lc[1] + lc[2]);   // higher at z=0 -> flows to +z
+              // Quarter turns only: other angles would reach outside the tile into its atlas neighbours
+              if (Math.abs(gx) + Math.abs(gz) > 0.01) flowAngle = Math.round(Math.atan2(gx, gz) / (Math.PI / 2)) * (Math.PI / 2);
+            }
             const tile = F.n[1] > 0 ? P.tileTop[id] : F.n[1] < 0 ? P.tileBottom[id] : P.tileSide[id];
             const useAo = kind === KIND_CUBE && full && !glow;
             for (let i = 0; i < 4; i++) {
@@ -339,7 +384,7 @@ export class World {
               const uy = 0.5 + 0.5 * (F.n[1] + du * F.u[1] + dv * F.v[1]);
               const uz = 0.5 + 0.5 * (F.n[2] + du * F.u[2] + dv * F.v[2]);
               const vx = ux > 0.5 ? box[3] : box[0];
-              const vy = uy > 0.5 ? Math.min(box[4], 1) : box[1];
+              const vy = uy > 0.5 ? (lc ? lc[(ux > 0.5 ? 2 : 0) + ((ux > 0.5) !== (uz > 0.5) ? 1 : 0)] : Math.min(box[4], 1)) : box[1];
               const vz = uz > 0.5 ? box[5] : box[2];
               pts[i] = [lx + vx, ly + vy, lz + vz];
               // Texture coordinates follow the real size so small blocks are not squashed
@@ -347,6 +392,13 @@ export class World {
               if (F.n[1] !== 0) { su = F.n[1] > 0 ? vz : vx; tv = F.n[1] > 0 ? vx : vz; }
               else if (F.n[0] !== 0) { su = vz; tv = vy; }
               else { su = vx; tv = vy; }
+              if (lc && F.n[1] > 0 && flowAngle !== null) {
+                // Rotate the texture so the water runs downhill
+                const cs = Math.cos(flowAngle), sn = Math.sin(flowAngle);
+                const a0 = su - 0.5, b0 = tv - 0.5;
+                su = 0.5 + a0 * cs - b0 * sn;
+                tv = 0.5 + a0 * sn + b0 * cs;
+              }
               uvs[i] = uvOf(tile, su, tv);
 
               let a = 3;
