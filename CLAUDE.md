@@ -97,7 +97,6 @@ cd webcraft-web && npm ci && npm run build   # web only -> webcraft-web/dist/ind
 | `WcItems` | ItemStack → `{k, c, d, e}` JSON |
 | `WcScoreboard` | Sidebar scoreboard capture |
 | `WcBlockLog` | `blocklog.csv` against griefing |
-| `WcWorlds` | `/welt`: own worlds `welt_<name>` (Bukkit `WorldCreator`, `worlds.yml`), permissions `webcraft.server.create/join/admin` (default: op) |
 
 Important details learned the hard way:
 
@@ -116,7 +115,6 @@ Important details learned the hard way:
   `PlayerLoginEvent` (in `WcFakePlayer.join`, before `placeNewPlayer`). Without them LuckPerms never loads
   the user ("A user for wc_X could not be found") and permissions don't work for WebCraft players.
   Compiling needs `org.jetbrains:annotations` (provided) because of the Paper API's annotations.
-- Paper 26 stores extra worlds as dimensions: `world/dimensions/minecraft/<name>`.
 - Same WebCraft name logging in again takes over: the old session is kicked and removed first (player data is
   saved on removal), then the new one loads it. A saved position inside blocks is moved up on login
   (`freeFromBlocks`). The client pushes the player out of blocks (`player.js unstuck()`) and lets you walk
@@ -216,6 +214,5 @@ built-in textures (aliases, recolors for newer blocks, spawn eggs, animations.js
 
 - Skins for WebCraft players (they look like Steve to others)
 - Particles, day/night sky
-- `/welt` for Fabric (needs runtime dimensions, e.g. the Fantasy library, and a permission API)
 - Real mob textures (mobs are colored block figures)
 - ~230 newer blocks without own texture (see make_pack output `.missing.txt`)

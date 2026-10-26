@@ -69,7 +69,6 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
     private final Set<BlockPos> pendingBlocks = new HashSet<>();
     private long tickCounter;
     private WcBlockLog blockLog;
-    private WcWorlds worlds;
 
     record BlockPos(String world, int x, int y, int z) {}
 
@@ -85,13 +84,6 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         textures.load();
         blockLog = new WcBlockLog(new File(getDataFolder(), "blocklog.csv"), getLogger());
         getServer().getPluginManager().registerEvents(new WcListener(this), this);
-        worlds = new WcWorlds(this);
-        worlds.load(Math.max(0, getConfig().getInt("worlds-per-player", 1)));
-        var welt = getCommand("welt");
-        if (welt != null) {
-            welt.setExecutor(worlds);
-            welt.setTabCompleter(worlds);
-        }
         Bukkit.getScheduler().runTaskTimer(this, this::tick, 1L, 1L);
         startServer();
     }

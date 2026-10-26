@@ -34,7 +34,3 @@ allowed-origins: []
 # Write every block a WebCraft player breaks or places to plugins/WebCraft/blocklog.csv (handy against griefing).
 log-blocks: true
 
-
-# Own worlds (/welt): how many worlds one player may create. Needs the permission webcraft.server.create,
-# entering other worlds webcraft.server.join (OPs have them, give them to others with e.g. LuckPerms).
-worlds-per-player: 1
