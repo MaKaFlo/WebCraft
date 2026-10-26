@@ -329,6 +329,7 @@ public final class WcMod implements ModInitializer, WcHost {
                 case "interact" -> f.interact(integer(json, "id"), num(json, "hx"), num(json, "hy"), num(json, "hz"));
                 case "button" -> { f.menuButton(integer(json, "id")); s.invDirty = true; }
                 case "trade" -> { f.selectTrade(integer(json, "i")); s.invDirty = true; }
+                case "beacon" -> { f.beacon(str(json, "p"), str(json, "s")); s.invDirty = true; }
                 case "rename" -> { f.rename(str(json, "name")); s.invDirty = true; }
                 case "swing" -> f.swing();   // only the animation (digging), no click
                 case "slot" -> f.selectSlot(Math.max(0, Math.min(8, integer(json, "i"))));

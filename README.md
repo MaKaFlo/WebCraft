@@ -2,7 +2,7 @@
 
 Ein Block-Spiel im Browser, das sich mit einem **Minecraft-Server** verbindet: **Paper** (als Plugin) oder **Fabric** (als Mod, damit auch für Vanilla). WebCraft-Spieler sind auf dem Server **echte Spieler**: Sie stehen in der Tab-Liste, bekommen Schaden, sterben, benutzen Befehle und Menüs von Plugins und Mods. Für den Server gibt es keinen Unterschied zu einem Minecraft-Spieler. So können Leute ohne Minecraft-Account mit Freunden auf dem Server spielen.
 
-Version 0.8.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
+Version 0.8.1 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
 
 ## Aufbau
 
@@ -37,7 +37,7 @@ mvn package
 
 Ergebnis:
 
-- `webcraft-plugin/target/webcraft-0.8.0.jar`: das Plugin
+- `webcraft-plugin/target/webcraft-0.8.1.jar`: das Plugin
 - `webcraft-web/target/webcraft.html`: das Spiel (gleiche Datei wie `webcraft-web/dist/index.html`)
 
 Warum Paper herunterladen? Das Plugin benutzt die Server-Interna (`net.minecraft.*`, Mojang-Namen), die es in keinem Maven-Repository gibt. Statt `.paper/` geht auch jeder andere Paper-26.3-Ordner, der einmal gestartet wurde: `mvn package -Dpaper.dir=/pfad/zum/server`.
@@ -48,7 +48,7 @@ Die **Fabric-Mod** wird mit Gradle gebaut (Minecraft und Fabric lädt Gradle sel
 
 ```bash
 cd webcraft-fabric
-./gradlew build                # -> build/libs/webcraft-fabric-0.8.0.jar
+./gradlew build                # -> build/libs/webcraft-fabric-0.8.1.jar
 ```
 
 Die Version steht für die Mod in `webcraft-fabric/gradle.properties` (bei einem Versionswechsel dort mit ändern).
@@ -64,7 +64,7 @@ git push origin v0.7.1
 
 ## Plugin installieren
 
-1. Alte `webcraft-*.jar` aus `plugins/` löschen, `webcraft-0.8.0.jar` reinlegen.
+1. Alte `webcraft-*.jar` aus `plugins/` löschen, `webcraft-0.8.1.jar` reinlegen.
 2. Server neu starten. Die Einstellungen stehen in `plugins/WebCraft/config.yml`.
 3. Der Port aus `config.yml` (Standard `25007`) muss von außen erreichbar sein, oder der nginx-Container leitet ihn weiter (siehe unten).
 
@@ -79,7 +79,7 @@ git push origin v0.7.1
 Vanilla-Server können keine Plugins oder Mods laden. Für Vanilla installiert man deshalb **Fabric** (https://fabricmc.net/use/server/): Die Welt und das Spiel bleiben wie Vanilla, und Minecraft-Spieler brauchen nichts extra.
 
 1. Fabric-Server für Minecraft 26.3 aufsetzen.
-2. In den Ordner `mods/` legen: **`webcraft-fabric-0.8.0.jar`** und die **Fabric API** für 26.3 (https://modrinth.com/mod/fabric-api).
+2. In den Ordner `mods/` legen: **`webcraft-fabric-0.8.1.jar`** und die **Fabric API** für 26.3 (https://modrinth.com/mod/fabric-api).
 3. Server starten. Die Einstellungen stehen in `config/webcraft/webcraft.properties` (gleiche Werte wie die `config.yml` des Plugins, `allowed-origins` mit Komma getrennt). Danach `/webcraft reload`.
 4. Port `25007` freigeben oder den nginx-Container nehmen, genau wie beim Plugin.
 
@@ -165,6 +165,7 @@ Das Bild wird auf 32×32 Pixel verkleinert (bei Items wird der Hintergrund entfe
 - ✅ Lifesteal: mehr als 10 Herzen werden angezeigt, verlorene und gewonnene Herzen auch
 - ✅ Plugin-Befehle und Plugin-Menüs (Truhen-GUIs), Rechts- und Linksklick-Abilities
 - ✅ Truhen, Öfen, Werkbank, Türen, Betten, Eimer: alles über den echten Server
+- ✅ Steinsäge (Rezept auswählen), Webstuhl (Muster auswählen), Leuchtfeuer (Effekte auswählen und bezahlen)
 - ✅ Mobs und Tiere als Blockfiguren mit eigener Form: Creeper, Spinne, Huhn, Biene, Fledermaus, Papagei, Fische, Delfin, Tintenfisch, Ghast, Blaze, Breeze, Phantom, Wächter, Schleim, Shulker, Wither, Enderdrache ... Tiere mit Schwanz, Hörnern, Ohren, langem Hals. Flügel schlagen, Tentakel wackeln
 - ✅ Echte Blockformen: Stufen oben/unten, Schnee-Schichten, Türen und Falltüren offen/zu, Zäune, Portale
 - ✅ Hologramme und Schilder von Plugins, Text-Anzeigen, fallender Sand und Kies
@@ -195,7 +196,6 @@ Das Bild wird auf 32×32 Pixel verkleinert (bei Items wird der Hintergrund entfe
 
 - ⏳ Skins (WebCraft-Spieler sehen für andere wie Steve aus)
 - ⏳ Partikel, Tag/Nacht am Himmel, fließendes Wasser
-- ⏳ Menüs für Steinsäge, Webstuhl, Leuchtfeuer
 - ⏳ Mobs haben Farben, aber noch keine echten Texturen
 - ⏳ Rund 230 neuere Blöcke haben noch keine eigene Textur
 

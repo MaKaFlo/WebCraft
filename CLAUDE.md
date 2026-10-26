@@ -27,7 +27,7 @@ to `wc.*`; the IndexedDB for own textures is still called `gg`.
 | Path | What |
 |---|---|
 | `pom.xml` | Parent (packaging pom), version for everything |
-| `webcraft-common/` | Sources shared by plugin and mod (no Bukkit, no Fabric): `BlockPalette`, `ChunkEncoder`, `WcScoreboard`, `WcTextures`, `WcSession`, `WcServer`, `WcHost` |
+| `webcraft-common/` | Sources shared by plugin and mod (no Bukkit, no Fabric): `BlockPalette`, `ChunkEncoder`, `WcScoreboard`, `WcTextures`, `WcSession`, `WcServer`, `WcHost`, `WcMenus` |
 | `webcraft-plugin/` | Paper plugin "WebCraft" (Java 25, Mojang mappings) |
 | `webcraft-fabric/` | Fabric server mod "webcraft" (Gradle + Loom, Minecraft 26.3 is unobfuscated, so the same Mojang names) |
 | `webcraft-web/` | Browser client (plain ES modules, three.js r186, bundled by esbuild into ONE html file) + nginx Docker image |
@@ -145,6 +145,11 @@ Differences learned on vanilla:
 - Testing: Fabric server jar from `https://meta.fabricmc.net/v2/versions/loader/26.3/<loader>/<installer>/server/jar`,
   plus Fabric API in `mods/`. New 26.x servers have `white-list=true` in server.properties.
 
+Screens with a choice (`webcraft-common/WcMenus`): the menu message's `trades` carries `cut` (stonecutter
+results, button id = index) and `sel`, `patterns` (loom pattern keys, button id = index) and `sel`, or
+`beacon` {levels, pay, primary, secondary, tiers}. The beacon's "Fertig" sends `beacon` (like
+`ServerboundSetBeaconPacket`). `ClientboundContainerSetDataPacket` marks the inventory dirty (progress bars).
+
 ## Protocol
 
 WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
@@ -155,7 +160,7 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
   dead dig_info board tab pack error`.
 - Client → server `t`: `hello move input tp_ok slot click close inv_open drop swap_hands use use_on
   dig_start dig_stop dig_abort attack punch swing interact release button trade rename creative
-  respawn resync items chat pack_upload status kick reload`.
+  respawn resync items chat pack_upload status kick reload beacon` (`beacon`: `p`/`s` effect keys).
 - Teleports must be acknowledged with `tp_ok` (same id), like the vanilla client.
 
 ## Client architecture (`webcraft-web/src`)
@@ -200,6 +205,5 @@ built-in textures (aliases, recolors for newer blocks, spawn eggs, animations.js
 
 - Skins for WebCraft players (they look like Steve to others)
 - Particles, day/night sky, flowing water visuals
-- Stonecutter, loom, beacon menus
 - Real mob textures (mobs are colored block figures)
 - ~230 newer blocks without own texture (see make_pack output `.missing.txt`)

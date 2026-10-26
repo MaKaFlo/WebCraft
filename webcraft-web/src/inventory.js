@@ -24,15 +24,43 @@ function layoutFor(type, count) {
   if (type === 'anvil') return { kind: 'io', inputs: [0, 1], result: 2, rename: true, ...playerFrom(3) };
   if (type === 'grindstone' || type === 'cartography_table') return { kind: 'io', inputs: [0, 1], result: 2, ...playerFrom(3) };
   if (type === 'smithing') return { kind: 'io', inputs: [0, 1, 2], result: 3, ...playerFrom(4) };
-  if (type === 'stonecutter') return { kind: 'io', inputs: [0], result: 1, ...playerFrom(2) };
-  if (type === 'loom') return { kind: 'io', inputs: [0, 1, 2], result: 3, ...playerFrom(4) };
-  if (type === 'beacon') return { kind: 'io', inputs: [0], ...playerFrom(1) };
+  if (type === 'stonecutter') return { kind: 'stonecutter', input: 0, result: 1, ...playerFrom(2) };
+  if (type === 'loom') return { kind: 'loom', inputs: [0, 1, 2], result: 3, ...playerFrom(4) };
+  if (type === 'beacon') return { kind: 'beacon', payment: 0, ...playerFrom(1) };
   const top = Math.max(0, count - 36);
   let cols = 9;
   if (type === 'generic_3x3' || type === 'crafter_3x3') cols = 3;
   else if (type === 'hopper') cols = 5;
   return { kind: 'grid', top: range(0, top - 1), cols, ...playerFrom(top) };
 }
+
+// Beacon effects (keys from the server) and banner patterns, in German
+const EFFECTS = {
+  speed: '⚡ Schnelligkeit', haste: '⛏️ Eile', resistance: '🛡️ Resistenz', jump_boost: '🐇 Sprungkraft',
+  strength: '💪 Stärke', regeneration: '❤️ Regeneration',
+};
+const PATTERNS = {
+  base: 'Hintergrund', square_bottom_left: 'Ecke unten links', square_bottom_right: 'Ecke unten rechts',
+  square_top_left: 'Ecke oben links', square_top_right: 'Ecke oben rechts', stripe_bottom: 'Balken unten',
+  stripe_top: 'Balken oben', stripe_left: 'Pfahl links', stripe_right: 'Pfahl rechts', stripe_center: 'Pfahl',
+  stripe_middle: 'Balken', stripe_downright: 'Schrägbalken', stripe_downleft: 'Schräglinksbalken',
+  small_stripes: 'Gestreift', cross: 'Andreaskreuz', straight_cross: 'Kreuz', triangle_bottom: 'Spitze unten',
+  triangle_top: 'Spitze oben', triangles_bottom: 'Zacken unten', triangles_top: 'Zacken oben',
+  diagonal_left: 'Schräg links', diagonal_right: 'Schräg rechts', diagonal_up_left: 'Schräg links unten',
+  diagonal_up_right: 'Schräg rechts unten', circle: 'Kugel', rhombus: 'Raute', half_vertical: 'Hälfte links',
+  half_horizontal: 'Hälfte oben', half_vertical_right: 'Hälfte rechts', half_horizontal_bottom: 'Hälfte unten',
+  border: 'Bord', curly_border: 'Gezackter Bord', gradient: 'Verlauf', gradient_up: 'Verlauf von unten',
+  bricks: 'Mauer', globe: 'Globus', creeper: 'Creeper', skull: 'Schädel', flower: 'Blume', mojang: 'Mojang',
+  piglin: 'Rüssel', flow: 'Fluss', guster: 'Böe',
+};
+const patternName = (k) => PATTERNS[k] || prettyName(k);
+const TITLES = {
+  Stonecutter: 'Steinsäge', Loom: 'Webstuhl', Beacon: 'Leuchtfeuer', 'Crafting Table': 'Werkbank', Crafting: 'Werkbank',
+  Furnace: 'Ofen', 'Blast Furnace': 'Schmelzofen', Smoker: 'Räucherofen', 'Brewing Stand': 'Braustand',
+  Anvil: 'Amboss', Grindstone: 'Schleifstein', 'Smithing Table': 'Schmiedetisch', 'Cartography Table': 'Kartentisch',
+  Chest: 'Truhe', 'Large Chest': 'Große Truhe', Barrel: 'Fass', 'Ender Chest': 'Endertruhe', Hopper: 'Trichter',
+  Dispenser: 'Werfer', Dropper: 'Spender', 'Shulker Box': 'Shulker-Kiste', 'Enchant': 'Zaubertisch',
+};
 
 function slotElement(index) {
   const el = document.createElement('div');
@@ -314,6 +342,52 @@ export class Inventory {
       box.appendChild(grid([layout.result], 1, 'result'));
       top.appendChild(box);
       this.extra = { trades: list, tradesKey: '' };
+    } else if (layout.kind === 'stonecutter') {
+      // Stone in, choose what to cut, take the result
+      top.appendChild(grid([layout.input], 1));
+      const choices = document.createElement('div');
+      choices.className = 'choice-grid';
+      top.appendChild(choices);
+      top.appendChild(arrow());
+      top.appendChild(grid([layout.result], 1, 'result'));
+      this.extra = { cut: choices, cutKey: '' };
+    } else if (layout.kind === 'loom') {
+      // Banner, dye and (optional) pattern item; choose a pattern, take the result
+      const col = document.createElement('div');
+      col.className = 'furnace-col';
+      col.appendChild(grid([layout.inputs[0], layout.inputs[1]], 2));
+      col.appendChild(grid([layout.inputs[2]], 1));
+      top.appendChild(col);
+      const list = document.createElement('div');
+      list.className = 'menu-options pattern-list';
+      top.appendChild(list);
+      top.appendChild(arrow());
+      top.appendChild(grid([layout.result], 1, 'result'));
+      this.extra = { patterns: list, patternsKey: '' };
+    } else if (layout.kind === 'beacon') {
+      // Effects by pyramid level, payment (iron, gold, emerald, diamond, netherite ingot) and "Fertig"
+      const opts = document.createElement('div');
+      opts.className = 'beacon';
+      const pay = document.createElement('div');
+      pay.className = 'furnace-col';
+      const hint = document.createElement('small');
+      hint.textContent = 'Bezahlen: Eisen, Gold, Smaragd, Diamant oder Netherit';
+      pay.appendChild(grid([layout.payment], 1));
+      pay.appendChild(hint);
+      const done = document.createElement('button');
+      done.className = 'opt done';
+      done.textContent = '✔️ Fertig';
+      done.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const b = this.extra?.beacon;
+        if (!b || !b.primary) return;
+        this.send({ t: 'beacon', p: b.primary, s: b.secondary || '' });
+        this.setOpen(false);
+      });
+      pay.appendChild(done);
+      top.append(opts, pay);
+      this.extra = { beacon: { el: opts, done, key: '', primary: null, secondary: null } };
     } else if (layout.kind === 'io') {
       top.appendChild(grid(layout.inputs, layout.inputs.length));
       if (layout.result !== undefined) {
@@ -436,7 +510,9 @@ export class Inventory {
       this.pickerGrid = null;
       this.buildScreen({ ...layoutFor(m.type, m.slots.length), creative });
     }
-    this.titleEl.textContent = m.type === 'player' ? 'Inventar & Crafting' : (m.title || 'Behälter');
+    // The server's English default names in German (custom names of plugins/mods stay as they are)
+    const title = TITLES[m.title] || m.title;
+    this.titleEl.textContent = m.type === 'player' ? 'Inventar & Crafting' : (title || 'Behälter');
     this.updateExtras(m);
     const palette = this.getPalette();
     for (const [index, el] of this.slotEls) fillSlot(el, m.slots[index] ?? null, palette);
@@ -494,7 +570,88 @@ export class Inventory {
         });
       }
     }
+    if (x.cut) {
+      const list = m.trades?.cut || [];
+      const key = JSON.stringify(list);
+      if (key !== x.cutKey) {
+        x.cutKey = key;
+        const palette = this.getPalette();
+        x.cut.innerHTML = '';
+        if (!list.length) x.cut.innerHTML = '<small>Lege Stein oder ähnliches links hinein</small>';
+        list.forEach((it, i) => {
+          const b = document.createElement('button');
+          b.className = 'choice';
+          b.innerHTML = `<img src="${iconFor(palette, it.k)}">${it.c > 1 ? `<em>${it.c}</em>` : ''}`;
+          b.dataset.tip = prettyName(it.k) + (it.c > 1 ? ` (${it.c})` : '');
+          b.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); this.send({ t: 'button', id: i }); });
+          x.cut.appendChild(b);
+        });
+      }
+      [...x.cut.children].forEach((b, i) => b.classList.toggle('sel', i === m.trades?.sel));
+    }
+    if (x.patterns) {
+      const list = m.trades?.patterns || [];
+      const key = JSON.stringify(list);
+      if (key !== x.patternsKey) {
+        x.patternsKey = key;
+        x.patterns.innerHTML = '';
+        if (!list.length) x.patterns.innerHTML = '<small>Lege ein Banner und einen Farbstoff hinein</small>';
+        list.forEach((p, i) => {
+          const b = document.createElement('button');
+          b.className = 'opt';
+          b.textContent = patternName(p);
+          b.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); this.send({ t: 'button', id: i }); });
+          x.patterns.appendChild(b);
+        });
+      }
+      [...x.patterns.children].forEach((b, i) => b.classList.toggle('sel', i === m.trades?.sel));
+    }
+    if (x.beacon && m.trades?.beacon) this.updateBeacon(x.beacon, m.trades.beacon);
     if (x.cost) x.cost.textContent = d[0] > 0 ? `Kosten: ${d[0]} Level` : '';
+  }
+
+  /** Beacon: primary effect from the levels you have, secondary (regeneration or the primary stronger) at 4 levels. */
+  updateBeacon(b, info) {
+    const key = JSON.stringify([info.levels, info.primary, info.secondary, info.tiers]);
+    if (key !== b.key) {
+      // The server's choice (after "Fertig" or when someone else changed it)
+      b.key = key;
+      b.primary = info.primary || null;
+      b.secondary = info.secondary || null;
+    }
+    const tiers = info.tiers || [];
+    const levels = info.levels || 0;
+    b.el.innerHTML = '';
+    const row = (title, effects, enabled, isSel, pick) => {
+      const r = document.createElement('div');
+      r.className = 'beacon-row';
+      const h = document.createElement('b');
+      h.textContent = title;
+      r.appendChild(h);
+      for (const e of effects) {
+        const btn = document.createElement('button');
+        btn.className = 'opt' + (isSel(e) ? ' sel' : '');
+        btn.textContent = EFFECTS[e] || prettyName(e);
+        btn.disabled = !enabled;
+        btn.addEventListener('mousedown', (ev) => { ev.preventDefault(); ev.stopPropagation(); pick(e); this.updateBeacon(b, info); });
+        r.appendChild(btn);
+      }
+      b.el.appendChild(r);
+    };
+    const first = (tiers[0] || []).concat(tiers[1] || [], tiers[2] || []);
+    tiers.slice(0, 3).forEach((t, i) => row(`Stufe ${i + 1}`, t, levels > i, (e) => b.primary === e, (e) => {
+      b.primary = e;
+      if (b.secondary && b.secondary !== 'regeneration') b.secondary = null;
+    }));
+    // Level 4: regeneration, or the primary effect a second time (stronger)
+    const second = (tiers[3] || []).concat(b.primary && first.includes(b.primary) ? [b.primary] : []);
+    row('Stufe 4 (zweiter Effekt)', [...new Set(second)], levels >= 4 && !!b.primary, (e) => b.secondary === e,
+      (e) => { b.secondary = b.secondary === e ? null : e; });
+    const status = document.createElement('small');
+    status.textContent = levels ? `Pyramide: ${levels} Stufe${levels > 1 ? 'n' : ''}` : 'Keine Pyramide unter dem Leuchtfeuer';
+    b.el.appendChild(status);
+    b.done.disabled = !b.primary || !info.pay;
+    b.done.title = !info.pay ? 'Erst ein Bezahl-Item in das Feld legen' : '';
   }
 
   // ------------------------------------------------------------------ hotbar

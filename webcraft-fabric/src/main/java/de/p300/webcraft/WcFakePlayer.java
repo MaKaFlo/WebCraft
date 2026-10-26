@@ -551,12 +551,18 @@ public final class WcFakePlayer {
             o.addProperty("lapis", em.getGoldCount());
             return o;
         }
-        return null;
+        // Stonecutter recipes, loom patterns, beacon effects
+        return WcMenus.extras(handle(), menu);
     }
 
     /** Buttons of a screen (enchanting options, stonecutter recipe, loom pattern ...). */
     public void menuButton(int id) {
         listener().handleContainerButtonClick(new ServerboundContainerButtonClickPacket(handle().containerMenu.containerId, id));
+    }
+
+    /** Beacon "Done": primary and secondary effect (keys like "speed", empty for none). */
+    public void beacon(String primary, String secondary) {
+        WcMenus.setBeacon(listener(), primary, secondary);
     }
 
     public void selectTrade(int index) {
@@ -633,6 +639,8 @@ public final class WcFakePlayer {
                 session.invDirty = true;
             }
             case ClientboundContainerClosePacket c -> session.invDirty = true;
+            // Furnace progress, the stonecutter/loom choice, beacon levels ...
+            case ClientboundContainerSetDataPacket c -> session.invDirty = true;
             case ClientboundSetHeldSlotPacket c -> session.invDirty = true;
             case ClientboundSetExperiencePacket c -> session.statsDirty = true;
             case ClientboundDisconnectPacket d -> session.kicked(d.reason().getString());
