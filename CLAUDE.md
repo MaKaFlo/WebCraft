@@ -180,12 +180,13 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
 | `world.js` | Chunk storage, greedy-ish meshing with atlas UVs, multi-box shapes, fire walls, raycast, `remeshAll`, collision boxes |
 | `player.js` | Movement/physics, multi-box collision, world border wall, auto-jump |
 | `interact.js` | Mouse: attack charge, dig with crack stages, place prediction, use/eat/bow, entity interact |
+| `skins.js` | Textured mob models with the classic Minecraft box layout (`MODELS`, built in Minecraft model space: y down, ground y = 24, front -z, then turned half around x). `SKINS` maps mob type (+ variant) to model and picture, `GLOW` eye layers, armor from `armor/<material>_layer_1/2`. Scaled to the hitbox height; players always 1.8 |
 | `entities.js` | Mob/player models (humanoid, quadruped, part specs from `mobs.js`), variants/colors (`VARIANTS`, `JOBS`), held item in right arm, armor, swing/hurt anims, projectiles, items, holograms. Rebuild when `lookKey(d)` changes |
 | `models.js` | `blockMesh`, `itemExtruded` (pixel-extruded 3D item, front/back one-sided), `itemModel` |
 | `hand.js` | First-person arm/item, swing, eat/drink/bow animations, crumbs |
 | `textures.js` | Atlas: 64×64 tiles of 32 px + 8×8 animation atlas; pack tiles; gray detection for tinting |
 | `palette.js` | Palette from server: tiles per block (`texnames.js` candidates), tints, boxes |
-| `pack.js` | Texture sources: builtin (`texturen.zip` in the html) < server pack < local (IndexedDB). Import of MC packs incl. `.mcmeta` |
+| `pack.js` | Texture sources: builtin (`texturen.zip` in the html) < server pack < local (IndexedDB). Import of MC packs incl. `.mcmeta`. `entity/` and `armor/` pictures stay out of the block atlas (`pack.image(path)`) |
 | `zip.js` | Minimal zip read/write (DecompressionStream). **Inflates in parallel**: sequential awaits took minutes on a busy page |
 | `items.js` | Inventory icons (pack picture, isometric block, emoji fallback), names |
 | `inventory.js` | Inventory/creative/menus (brewing, furnace, enchanting, merchant, anvil ...) |
@@ -194,7 +195,10 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
 | `index.html` | All markup and CSS; `<!-- WC_SCRIPT -->` is replaced by the bundle |
 
 `tools/make_pack.py <PixelPerfectionCE folder> tools/items.json webcraft-web/src/texturen.zip` rebuilds the
-built-in textures (aliases, recolors for newer blocks, spawn eggs, animations.json, destroy stages).
+built-in textures (aliases, recolors for newer blocks, spawn eggs, animations.json, destroy stages, mob and armor
+textures). `tools/make_pack.py --entities <PixelPerfectionCE folder> webcraft-web/src/texturen.zip` only adds/replaces the
+mob and armor textures (`ENTITY_FILES`, `ARMOR_FILES`). The pack's mob pictures use the old (1.12) layouts, which
+`skins.js` follows; the pack draws some mobs its own way (enderman: stone body with one eye on the chest).
 
 ## Testing locally
 
@@ -214,5 +218,6 @@ built-in textures (aliases, recolors for newer blocks, spawn eggs, animations.js
 
 - Skins for WebCraft players (they look like Steve to others)
 - Particles, day/night sky
-- Real mob textures (mobs are colored block figures)
+- Textured models for the remaining mobs (horse, cat, fox, bee, iron golem ... are still block figures); the
+  pack has more pictures in `entity/` (e.g. horse, cat, fox, bee, iron golem, slime 128x64)
 - ~230 newer blocks without own texture (see make_pack output `.missing.txt`)

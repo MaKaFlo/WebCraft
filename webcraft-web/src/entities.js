@@ -1,7 +1,9 @@
-// Players, mobs and dropped items, drawn as simple block figures (no Minecraft models or textures).
+// Players, mobs and dropped items. Common mobs get textured models (skins.js, pictures from the texture
+// pack); the others are simple block figures.
 import * as THREE from 'three';
 import { blockMesh, itemModel } from './models.js';
 import { MOBS } from './mobs.js';
+import { buildSkin, hasSkin } from './skins.js';
 
 const SKIN = 0xd8a27a;
 const HUMANOID = {
@@ -190,6 +192,7 @@ class Entity {
     if (d.type === 'item_display') return this.buildItem(d);
     if (d.type === 'item') return this.buildItem(d);
     if (d.proj) return this.buildProjectile(d);
+    if (hasSkin(d) && this.buildSkinned(d)) return;
     if (d.type === 'player' || HUMANOID[d.type]) return this.buildHumanoid(d);
     if (QUADRUPED[d.type] !== undefined) return this.buildQuadruped(d);
     if (MOBS[d.type]) return this.buildParts(MOBS[d.type]);
@@ -271,6 +274,46 @@ class Entity {
       this.tag.position.y = this.h + 0.35;
       this.group.add(this.tag);
     }
+  }
+
+  /** Textured mob with Minecraft proportions (skins.js). */
+  buildSkinned(d) {
+    const root = new THREE.Group();
+    const r = buildSkin(d, root, { height: this.h });
+    if (!r) return false;
+    this.group.add(root);
+    this.limbs = r.limbs;
+    this.head = r.head;
+    this.mcFrame = true;    // the model is turned half around x: head yaw goes the other way
+    this.headScale = 1;
+    if (this.limbs?.legL) this.root = root;
+    if (/zombie|husk|drowned|giant/.test(d.type) && this.limbs?.armL) {
+      this.limbs.armL.rotation.x = -1.4;
+      this.limbs.armR.rotation.x = -1.4;
+      this.armsForward = true;
+    }
+    // The item in the hand (the arm is in model pixels and upside down: turn back and scale to blocks)
+    if (d.hand && this.palette && r.rightArm) {
+      const hold = new THREE.Group();
+      hold.position.set(-1, 10, -1);
+      hold.rotation.x = Math.PI;
+      hold.scale.setScalar(16);
+      const it = itemModel(this.palette, d.hand, 0.28, 0.5);
+      if (it.userData.flat) {
+        it.rotation.set(0, Math.PI / 2, Math.PI / 2);
+        it.position.set(0, 0.17, 0.2);
+      } else {
+        it.position.set(0, 0, 0.1);
+      }
+      hold.add(it);
+      r.rightArm.add(hold);
+    }
+    if (d.n) {
+      this.tag = nameTag(d.n, !!d.wc);
+      this.tag.position.y = (d.type === 'player' ? 1.8 : this.h) + 0.35;
+      this.group.add(this.tag);
+    }
+    return true;
   }
 
   buildQuadruped(d) {
@@ -585,7 +628,7 @@ class Entity {
     } else {
       this.group.rotation.y = -this.yaw * Math.PI / 180;
       if (this.head) {
-        this.head.rotation.y = -(this.headYaw - this.yaw) * Math.PI / 180;
+        this.head.rotation.y = (this.mcFrame ? 1 : -1) * (this.headYaw - this.yaw) * Math.PI / 180;
         this.head.rotation.x = this.pitch * Math.PI / 180 - (d.sw && this.root ? Math.PI / 2 : 0);   // swimming: look ahead
       }
       if (this.bob) this.group.scale.y = 1 + Math.abs(Math.sin(this.walk)) * 0.15;
@@ -627,7 +670,7 @@ class Entity {
     scene.remove(this.group);
     this.group.traverse((o) => {
       if (o.geometry) o.geometry.dispose();
-      if (o.material && !o.material.userData.shared) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); }
+      if (o.material && !o.material.userData.shared) { if (o.material.map && !o.material.userData.keepMap) o.material.map.dispose(); o.material.dispose(); }
     });
   }
 }

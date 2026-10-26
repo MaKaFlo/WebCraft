@@ -1,6 +1,7 @@
 """Builds texturen.zip for WebCraft from the Pixel Perfection CE resource pack (CC BY-SA 4.0).
 
 Usage: python3 make_pack.py <pack folder> <items.json with {"list": [...], "blocks": [...]}> <out.zip>
+       python3 make_pack.py --entities <pack folder> <existing zip>   (only add/replace mob and armor textures)
 
 - Block textures are renamed to the block names WebCraft uses (slabs, stairs, walls ... get the texture of
   their material).
@@ -8,6 +9,7 @@ Usage: python3 make_pack.py <pack folder> <items.json with {"list": [...], "bloc
   recoloring a similar texture of the pack.
 - Grayscale grass and leaves get a green tint.
 - Animated textures (fire, water, lava, portals ...) keep all frames; timing goes to animations.json.
+- Mob and armor textures (entity/NAME.png, armor/NAME.png) for the textured mob models of the browser.
 """
 import colorsys
 import io
@@ -18,6 +20,50 @@ import zipfile
 from pathlib import Path
 
 from PIL import Image
+
+# Mob textures for the browser's mob models (classic Minecraft box layouts): our name -> file in the pack
+ENTITY_FILES = {
+    'steve': 'steve', 'zombie': 'zombie/zombie', 'husk': 'zombie/husk', 'drowned': 'zombie/drowned',
+    'zombie_villager': 'zombie/zombie_villager', 'skeleton': 'skeleton/skeleton', 'stray': 'skeleton/stray',
+    'wither_skeleton': 'skeleton/wither_skeleton', 'creeper': 'creeper/creeper', 'cow': 'cow/cow',
+    'mooshroom': 'cow/red_mooshroom', 'brown_mooshroom': 'cow/brown_mooshroom', 'pig': 'pig/pig',
+    'sheep': 'sheep/sheep', 'sheep_fur': 'sheep/sheep_fur', 'chicken': 'chicken', 'spider': 'spider/spider',
+    'cave_spider': 'spider/cave_spider', 'spider_eyes': 'spider_eyes', 'enderman': 'enderman/enderman',
+    'enderman_eyes': 'enderman/enderman_eyes', 'villager': 'villager/villager', 'villager_farmer': 'villager/farmer',
+    'villager_librarian': 'villager/librarian', 'villager_priest': 'villager/priest', 'villager_smith': 'villager/smith',
+    'villager_butcher': 'villager/butcher', 'wolf': 'wolf/wolf',
+}
+ARMOR_FILES = [m + '_layer_' + n for m in ('leather', 'chainmail', 'iron', 'gold', 'diamond', 'netherite', 'turtle')
+               for n in ('1', '2')]
+
+
+def entity_files(textures):
+    """entity/NAME and armor/NAME -> PNG bytes."""
+    found = {}
+    for name, rel in ENTITY_FILES.items():
+        f = textures / 'entity' / (rel + '.png')
+        if f.exists():
+            found['entity/' + name] = f.read_bytes()
+    for name in ARMOR_FILES:
+        f = textures / 'models' / 'armor' / (name + '.png')
+        if f.exists():
+            found['armor/' + name] = f.read_bytes()
+    return found
+
+
+if len(sys.argv) == 4 and sys.argv[1] == '--entities':
+    textures = Path(sys.argv[2]) / 'assets/minecraft/textures'
+    zip_path = sys.argv[3]
+    with zipfile.ZipFile(zip_path) as z:
+        old = {n: z.read(n) for n in z.namelist() if not n.startswith(('entity/', 'armor/'))}
+    new = entity_files(textures)
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as z:
+        for n, data in old.items():
+            z.writestr(n, data)
+        for path, data in sorted(new.items()):
+            z.writestr(path + '.png', data)
+    print(f'{len(new)} mob/armor textures added to {zip_path}')
+    sys.exit(0)
 
 src = Path(sys.argv[1]) / 'assets/minecraft/textures'
 names = json.load(open(sys.argv[2]))
@@ -395,8 +441,9 @@ credits = """Texturen: Pixel Perfection Community Edition
 von XSSheep und der Community (https://github.com/Athemis/PixelPerfectionCE)
 Lizenz: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/)
 Angepasst für WebCraft: umbenannt, eingefärbt (Gras, Blätter, neuere Blöcke wie Tiefenschiefer, Kupfer, Kirschholz),
-animierte Texturen als Bildstreifen.
+animierte Texturen als Bildstreifen. Mob- und Rüstungstexturen unverändert (entity/, armor/).
 """
+out.update(entity_files(src))
 with zipfile.ZipFile(out_path, 'w', zipfile.ZIP_DEFLATED) as z:
     for path, data in sorted(out.items()):
         z.writestr(path + '.png', data)

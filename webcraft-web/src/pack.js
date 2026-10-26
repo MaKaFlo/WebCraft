@@ -81,7 +81,7 @@ class Pack {
     try {
       const bytes = Uint8Array.from(atob(builtinZip), (c) => c.charCodeAt(0));
       for (const f of await unzipFiles(bytes)) {
-        const m = f.name.match(/^((?:block|item)\/[a-z0-9_]+)\.png$/);
+        const m = f.name.match(/^((?:block|item|entity|armor)\/[a-z0-9_]+)\.png$/);
         if (m) this.builtin.set(m[1], bytesToDataUrl(f.data));
         else if (f.name === 'animations.json') this.builtinAnims = JSON.parse(new TextDecoder().decode(f.data));
       }
@@ -147,10 +147,17 @@ class Pack {
     const imgs = new Map();
     for (const [path, url] of eff) {
       const img = this.images.get(url);
-      if (img) imgs.set(path, img);
+      // Mob and armor pictures are textures of their own, not tiles of the block atlas
+      if (img && (path.startsWith('block/') || path.startsWith('item/'))) imgs.set(path, img);
     }
     atlas.setPack(imgs, this.anims());
     for (const fn of this.listeners) fn();
+  }
+
+  /** Decoded picture of a texture (e.g. 'entity/cow'), or null while it is missing or still loading. */
+  image(path) {
+    const url = this.get(path);
+    return url ? this.images.get(url) ?? null : null;
   }
 
   /** Timing of animated textures. */
