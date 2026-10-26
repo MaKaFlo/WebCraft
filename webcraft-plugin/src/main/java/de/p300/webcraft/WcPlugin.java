@@ -1020,6 +1020,7 @@ public final class WcPlugin extends JavaPlugin {
             o.addProperty("n", p.getName());
             if (byPlayer.containsKey(p.getUniqueId())) o.addProperty("wc", true);
             if (p.isSneaking()) o.addProperty("sn", true);
+            if (p.isSwimming()) o.addProperty("sw", true);
         } else if (name != null) {
             o.addProperty("n", name);
         }

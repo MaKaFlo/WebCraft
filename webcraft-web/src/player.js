@@ -2,12 +2,14 @@
 
 const HALF_W = 0.3;
 const HEIGHT = 1.8;
+const SWIM_HEIGHT = 0.6;   // lying in the water, like Minecraft's swimming pose
 const EYE = 1.62;
 const GRAVITY = 32;
 const JUMP_SPEED = 9.0;
 const WALK = 4.3;
 const SPRINT = 5.6;
 const SNEAK = 1.3;
+const SWIM = 5.6;          // sprint-swimming
 const STEP = 0.6;
 const EPS = 1e-4;
 
@@ -29,11 +31,14 @@ export class Player {
     this.autoJump = true;
     this.canFly = false;   // creative / allowed by the server
     this.flying = false;
+    this.swimming = false; // sprinting in water: lying, moves where you look
     this.kbx = 0; this.kbz = 0; // knockback, fades out
     this.frozen = false;   // dead or waiting for the world
   }
 
-  get eyeY() { return this.y + (this.keys.has('ShiftLeft') ? EYE - 0.3 : EYE); }
+  get height() { return this.swimming ? SWIM_HEIGHT : HEIGHT; }
+
+  get eyeY() { return this.y + (this.swimming ? 0.4 : this.keys.has('ShiftLeft') ? EYE - 0.3 : EYE); }
 
   setPosition(x, y, z) {
     this.x = x; this.y = y; this.z = z;
@@ -66,9 +71,9 @@ export class Player {
   }
 
   /** True if the player box at this position overlaps a solid block. */
-  insideBlock(x, y, z) {
+  insideBlock(x, y, z, height = this.height) {
     const x0 = Math.floor(x - HALF_W + EPS), x1 = Math.floor(x + HALF_W - EPS);
-    const y0 = Math.floor(y + EPS) - 1, y1 = Math.floor(y + HEIGHT - EPS);
+    const y0 = Math.floor(y + EPS) - 1, y1 = Math.floor(y + height - EPS);
     const z0 = Math.floor(z - HALF_W + EPS), z1 = Math.floor(z + HALF_W - EPS);
     for (let bx = x0; bx <= x1; bx++) {
       for (let by = y0; by <= y1; by++) {
@@ -76,7 +81,7 @@ export class Player {
           const list = this.world.collisionBoxes(bx, by, bz);
           if (!list) continue;
           for (const b of list) {
-            if (x + HALF_W > bx + b[0] + EPS && x - HALF_W < bx + b[3] - EPS && y + HEIGHT > by + b[1] + EPS
+            if (x + HALF_W > bx + b[0] + EPS && x - HALF_W < bx + b[3] - EPS && y + height > by + b[1] + EPS
               && y < by + b[4] - EPS && z + HALF_W > bz + b[2] + EPS && z - HALF_W < bz + b[5] - EPS) return true;
           }
         }
@@ -124,7 +129,16 @@ export class Player {
     const sneaking = k.has('ShiftLeft');
     const sprinting = this.sprinting && fwd > 0 && !sneaking;
 
-    this.inLiquid = this.world.isLiquid(Math.floor(this.x), Math.floor(this.y + 0.4), Math.floor(this.z));
+    const liquidAt = (dy) => this.world.isLiquid(Math.floor(this.x), Math.floor(this.y + dy), Math.floor(this.z));
+    this.inLiquid = liquidAt(0.4);
+    // Sprint in water at least ~2 blocks deep to swim; keep swimming while sprinting and still in the water.
+    // Standing up needs room for the full height (in a 1 block high tunnel you keep swimming).
+    const swimKey = this.sprinting && fwd > 0 && !this.flying;   // Shift while swimming dives instead of stopping
+    if (!this.swimming) {
+      this.swimming = swimKey && !sneaking && this.inLiquid && (liquidAt(1.0) || liquidAt(-0.6));
+    } else if (!(swimKey && (liquidAt(0.3) || liquidAt(0))) && !this.insideBlock(this.x, this.y, this.z, HEIGHT)) {
+      this.swimming = false;
+    }
 
     // Wished direction from yaw: forward = (-sin, cos), right = (-cos, -sin)
     const yr = this.yaw * Math.PI / 180;
@@ -137,6 +151,13 @@ export class Player {
     let speed = sprinting ? SPRINT : sneaking && !this.flying ? SNEAK : WALK;
     if (this.flying) speed = sprinting ? 21.6 : 10.9;
     if (this.inLiquid) speed *= 0.5;
+    // Swimming goes where you look (look down to dive), the forward part tilted by the pitch
+    let wy = 0;
+    if (this.swimming) {
+      const pr = this.pitch * Math.PI / 180;
+      wx *= Math.cos(pr); wz *= Math.cos(pr); wy = -Math.sin(pr);
+      speed = SWIM;
+    }
     const accel = this.onGround ? 14 : this.inLiquid ? 6 : 8;
     const t = Math.min(1, accel * dt);
     this.vx += (wx * speed - this.vx) * t;
@@ -145,6 +166,10 @@ export class Player {
     if (this.flying) {
       const up = (k.has('Space') ? 1 : 0) - (sneaking ? 1 : 0);
       this.vy += (up * 7.5 - this.vy) * Math.min(1, 10 * dt);
+    } else if (this.swimming) {
+      const up = (k.has('Space') ? 1 : 0) - (sneaking ? 1 : 0);
+      if (liquidAt(0.3)) this.vy += ((wy + up * 0.6) * SWIM - this.vy) * Math.min(1, 6 * dt);
+      else this.vy -= GRAVITY * dt;   // body out of the water: back down to the surface
     } else if (this.inLiquid) {
       this.vy -= GRAVITY * 0.15 * dt;
       this.vy *= Math.pow(0.2, dt);
@@ -237,14 +262,14 @@ export class Player {
     pos[axis] += delta;
 
     const minX = pos[0] - HALF_W, maxX = pos[0] + HALF_W;
-    const minY = pos[1], maxY = pos[1] + HEIGHT;
+    const minY = pos[1], maxY = pos[1] + this.height;
     const minZ = pos[2] - HALF_W, maxZ = pos[2] + HALF_W;
 
     const x0 = Math.floor(minX), x1 = Math.floor(maxX - EPS);
     const y0 = Math.floor(minY) - 1, y1 = Math.floor(maxY - EPS);
     const z0 = Math.floor(minZ), z1 = Math.floor(maxZ - EPS);
     // Our box before this move: blocks we are already inside don't stop us (so we can walk out)
-    const sx0 = this.x - HALF_W, sx1 = this.x + HALF_W, sy0 = this.y, sy1 = this.y + HEIGHT;
+    const sx0 = this.x - HALF_W, sx1 = this.x + HALF_W, sy0 = this.y, sy1 = this.y + this.height;
     const sz0 = this.z - HALF_W, sz1 = this.z + HALF_W;
 
     for (let bx = x0; bx <= x1; bx++) {
@@ -261,7 +286,7 @@ export class Player {
             if (sx1 > bx0 + EPS && sx0 < bx1 - EPS && sy1 > by0 + EPS && sy0 < by1 - EPS
               && sz1 > bz0 + EPS && sz0 < bz1 - EPS) continue;
             if (axis === 0) pos[0] = delta > 0 ? Math.min(pos[0], bx0 - HALF_W - EPS) : Math.max(pos[0], bx1 + HALF_W + EPS);
-            if (axis === 1) pos[1] = delta > 0 ? Math.min(pos[1], by0 - HEIGHT - EPS) : Math.max(pos[1], by1 + EPS);
+            if (axis === 1) pos[1] = delta > 0 ? Math.min(pos[1], by0 - this.height - EPS) : Math.max(pos[1], by1 + EPS);
             if (axis === 2) pos[2] = delta > 0 ? Math.min(pos[2], bz0 - HALF_W - EPS) : Math.max(pos[2], bz1 + HALF_W + EPS);
           }
         }

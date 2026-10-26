@@ -202,7 +202,9 @@ class Entity {
   buildHumanoid(d) {
     let look = d.type === 'player' ? (d.wc ? HUMANOID.wc : HUMANOID.player) : HUMANOID[d.type];
     if ((d.type === 'villager' || d.type === 'zombie_villager') && JOBS[d.var] !== undefined) look = { ...look, shirt: JOBS[d.var] };
-    const s = this.h / 1.8;            // scale to the real hitbox height (baby zombies, endermen ...)
+    // Scale to the real hitbox height (baby zombies, endermen ...). Players always 1.8: their hitbox
+    // shrinks while sneaking or swimming, the model must not.
+    const s = (d.type === 'player' ? 1.8 : this.h) / 1.8;
     const tw = look.thin ? 0.14 : 0.25;
     const root = new THREE.Group();
     root.scale.setScalar(s);
@@ -261,6 +263,7 @@ class Entity {
     }
     this.group.add(root);
     this.limbs = { legL, legR, armL, armR, body };
+    this.root = root;
     this.head = head;
     this.headScale = s;
     if (d.n) {
@@ -546,6 +549,11 @@ class Entity {
         this.limbs.armR.rotation.z = 0;
       }
       this.limbs.body.rotation.x = d.sn ? 0.45 : 0;
+      // Swimming: lying flat, head forward, centered on the hitbox
+      if (this.root) {
+        this.root.rotation.x = d.sw ? Math.PI / 2 : 0;
+        this.root.position.set(0, d.sw ? 0.3 : 0, d.sw ? -0.9 * this.headScale : 0);
+      }
     } else if (this.limbs?.legs) {
       this.limbs.legs.forEach((l, i) => { l.rotation.x = (i === 0 || i === 3 ? 1 : -1) * swing; });
     }
@@ -578,7 +586,7 @@ class Entity {
       this.group.rotation.y = -this.yaw * Math.PI / 180;
       if (this.head) {
         this.head.rotation.y = -(this.headYaw - this.yaw) * Math.PI / 180;
-        this.head.rotation.x = this.pitch * Math.PI / 180;
+        this.head.rotation.x = this.pitch * Math.PI / 180 - (d.sw && this.root ? Math.PI / 2 : 0);   // swimming: look ahead
       }
       if (this.bob) this.group.scale.y = 1 + Math.abs(Math.sin(this.walk)) * 0.15;
       if (this.moving) this.animateParts(dt);

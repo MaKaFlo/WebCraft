@@ -2,7 +2,7 @@
 
 Ein Block-Spiel im Browser, das sich mit einem **Paper-Minecraft-Server** verbindet. WebCraft-Spieler sind auf dem Server **echte Spieler**: Sie stehen in der Tab-Liste, bekommen Schaden, sterben, benutzen Plugin-Befehle und Plugin-Menüs. Für andere Plugins gibt es keinen Unterschied zu einem Minecraft-Spieler. So können Leute ohne Minecraft-Account mit Freunden auf dem Server spielen.
 
-Version 0.7.1 · nur für **Paper 26.3** · JDK 25
+Version 0.7.2 · nur für **Paper 26.3** · JDK 25
 
 ## Aufbau
 
@@ -35,7 +35,7 @@ mvn package
 
 Ergebnis:
 
-- `webcraft-plugin/target/webcraft-0.7.1.jar`: das Plugin
+- `webcraft-plugin/target/webcraft-0.7.2.jar`: das Plugin
 - `webcraft-web/target/webcraft.html`: das Spiel (gleiche Datei wie `webcraft-web/dist/index.html`)
 
 Warum Paper herunterladen? Das Plugin benutzt die Server-Interna (`net.minecraft.*`, Mojang-Namen), die es in keinem Maven-Repository gibt. Statt `.paper/` geht auch jeder andere Paper-26.3-Ordner, der einmal gestartet wurde: `mvn package -Dpaper.dir=/pfad/zum/server`.
@@ -53,7 +53,7 @@ git push origin v0.7.1
 
 ## Plugin installieren
 
-1. Alte `webcraft-*.jar` aus `plugins/` löschen, `webcraft-0.7.1.jar` reinlegen.
+1. Alte `webcraft-*.jar` aus `plugins/` löschen, `webcraft-0.7.2.jar` reinlegen.
 2. Server neu starten. Die Einstellungen stehen in `plugins/WebCraft/config.yml`.
 3. Der Port aus `config.yml` (Standard `25007`) muss von außen erreichbar sein, oder der nginx-Container leitet ihn weiter (siehe unten).
 
@@ -94,6 +94,7 @@ Wenn Webseite und Plugin auf verschiedenen Domains laufen, in `config.yml` unter
 |---|---|
 | `WASD`, `W` zweimal | Laufen, Rennen |
 | `Leertaste` | Springen, Schwimmen (zweimal tippen: Fliegen, wenn erlaubt) |
+| `W` zweimal im Wasser | Schwimmen wie in Minecraft: hinlegen, schneller, dahin wo du schaust (nach unten schauen = tauchen) |
 | `Shift` | Schleichen |
 | Linksklick | Angreifen, Abbauen (halten) |
 | Rechtsklick | Bauen, Türen/Truhen/Werkbank benutzen, Essen und Bogen (halten) |
