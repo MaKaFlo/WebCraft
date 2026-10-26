@@ -1,0 +1,173 @@
+# CLAUDE.md
+
+Guide for continuing work on **WebCraft**: a browser block game whose players join a Paper 26.3
+Minecraft server as real server players. Read README.md for the user-facing side.
+
+## History
+
+The project was called **gg** until 0.6.5 (plugin "GgBridge", name prefix `gg_`, classes `Gg*`).
+WebCraft takes over `plugins/GgBridge/` once on first start (`WcPlugin.takeOverOldFolder()`), so an existing
+server keeps the prefix `gg_` and the players keep their accounts. The browser moves `gg.*` localStorage keys
+to `wc.*`; the IndexedDB for own textures is still called `gg`.
+
+## Working agreements
+
+- The project owner (Micha) writes in German. Answer briefly in German, ask before laying out many options.
+- **Code and code comments in English.** UI texts in the game are German.
+- No long dashes (em dash) in German texts. Emojis are fine.
+- **No internal hostnames, domains or IPs in the repo.** Addresses only come from environment
+  variables (docker compose `.env`) or from what the user types into the login form.
+- Always deliver results as files (jar, html, zip), not only as code in the chat.
+- Stop test servers after testing.
+- Feedback mostly comes from a friend testing on the real server; reports are short and informal
+  ("Schafe sind weiß", "man buggt fest"). Reproduce on a local test server before fixing.
+
+## Modules
+
+| Path | What |
+|---|---|
+| `pom.xml` | Parent (packaging pom), version for everything |
+| `webcraft-plugin/` | Paper plugin "WebCraft" (Java 25, Mojang mappings) |
+| `webcraft-web/` | Browser client (plain ES modules, three.js r186, bundled by esbuild into ONE html file) + nginx Docker image |
+| `tools/` | `fetch-paper.sh`, texture pack builder `make_pack.py` (+ `items.json`), `test/` helpers |
+
+### Build
+
+```bash
+tools/fetch-paper.sh            # once: downloads + unpacks Paper 26.3 into .paper/ (gitignored)
+mvn package                     # webcraft-plugin/target/webcraft-<v>.jar, webcraft-web/target/webcraft.html
+mvn package -Dpaper.dir=/x      # use another Paper 26.3 folder (must contain versions/ and libraries/)
+cd webcraft-web && npm ci && npm run build   # web only -> webcraft-web/dist/index.html
+```
+
+- The plugin cannot be compiled by the normal maven-compiler step: it needs every jar of the Paper
+  server (`versions/**`, `libraries/**`) on the classpath. `webcraft-plugin/pom.xml` skips the default
+  compile (`maven.main.skip`) and runs `javac` through **maven-antrun** with filesets of `${paper.dir}`.
+- Java-WebSocket 1.6.0 is shaded and relocated to `de.p300.webcraft.lib.websocket` (shade plugin with ASM 9.9
+  for Java 25 class files). slf4j is excluded (Paper has it).
+- Jar manifest has `paperweight-mappings-namespace: mojang` so Paper does not remap the plugin.
+- `plugin.yml` version is filtered from `${project.version}`.
+- webcraft-web: frontend-maven-plugin downloads Node into `webcraft-web/target/`, runs `npm ci` and `npm run build`
+  (`build.mjs`: esbuild, `texturen.zip` is inlined as base64 via loader `.zip: base64`).
+- Version bump: `mvn versions:set -DnewVersion=x.y.z` (changes all three poms), plus README header.
+
+### CI (`.github/workflows/build.yml`)
+
+- Push to `main` / pull requests: JDK 25, `tools/fetch-paper.sh` (cached in `.paper`), `mvn package`,
+  plugin jar + `webcraft.html` as workflow artifact `webcraft`.
+- Tag `vX.Y.Z`: same build with `mvn versions:set -DnewVersion=X.Y.Z`, then a GitHub release with both files.
+  Release = `git tag v0.7.1 && git push origin v0.7.1`.
+
+### Docker (webcraft-web)
+
+`webcraft-web/Dockerfile` is multi-stage (node:22-alpine builds, nginx:1.27-alpine serves).
+`nginx/default.conf.template` is rendered by the nginx image's envsubst at start:
+
+- `WC_BACKEND` (host:port of the plugin WebSocket): `location = /ws` proxies to it (upgrade headers,
+  1 h timeouts). This also gives `wss://` when nginx sits behind HTTPS.
+- `WC_NAME_PREFIX`: only shown in the login form (the plugin's `name-prefix`), also in `/config.js`.
+- `WC_SERVER`: served as `/config.js` → `window.WC_CONFIG = { server: "..." }`.
+- Client (`main.js`, `defaultServer()`): login field = `?server=` param > localStorage `wc.server` >
+  `WC_CONFIG.server` (a value starting with `/` is made absolute) > same host `/ws` when served over
+  http(s) > empty when opened as a file.
+- `index.html` loads `config.js` before the bundle; when missing (file://) the tag removes itself.
+- The plugin sees nginx as the remote address; Origin is passed through (`allowed-origins` in config.yml).
+
+## Plugin architecture (`webcraft-plugin/src/main/java/de/p300/webcraft`)
+
+| Class | Role |
+|---|---|
+| `WcPlugin` | Main class. Config, `/webcraft` command, message dispatch (`switch` on `t`), per-tick work: chunk queue, entity list, stats, inventory, menus, scoreboard/tab, animations, block changes |
+| `WcServer` | Java-WebSocket server (own threads). Origin check, hands messages to the main thread |
+| `WcSession` | One browser connection: sent chunks, queues, loading map (key → start ms), anims, block changes, palette size, packet-only "virtual" entities (holograms) |
+| `WcFakePlayer` | The real `ServerPlayer` behind a WebCraft player with a fake `Connection`. Captures outgoing packets (swing `ClientboundSwingAnimationPacket`, `ClientboundAnimatePacket`, damage/hurt, `ClientboundBlockUpdatePacket`, `ClientboundSectionBlocksUpdatePacket`, scoreboard, tab, menus). Dig timing, menu data (`menuData()`), villager trades (`tradesJson()`), enchant offers, interact packets |
+| `WcListener` | Bukkit events (join/quit/death/chat ...) |
+| `ChunkEncoder` | Binary chunk message, see protocol below |
+| `BlockPalette` | BlockState ↔ small int ids sent to the browser (`pal` messages), incl. collision/shape boxes (`rs`/`bs`, up to 12 AABBs for stairs, fences ...) |
+| `WcTextures` | `plugins/WebCraft/texturen.zip`: accepts WebCraft packs and normal Java resource packs (regex on `(block|item)s?/name.png(.mcmeta)`), shrinks to max 32 px, keeps animation strips, reads `.mcmeta` / `animations.json` |
+| `WcItems` | ItemStack → `{k, c, d, e}` JSON |
+| `WcScoreboard` | Sidebar scoreboard capture |
+| `WcBlockLog` | `blocklog.csv` against griefing |
+
+Important details learned the hard way:
+
+- The fake player needs a **real `ClientInformation` with the server view distance** and a **plugin
+  chunk ticket before `placeNewPlayer`**, otherwise Paper's (moonrise) chunk loader never loads/ticks
+  chunks around it and mobs freeze.
+- Chunk loading: `sendQueuedChunks` with a `loading` map; `CHUNK_TIMEOUT_MS = 15000` only stops counting
+  a load as "fresh", late results are still delivered while the key is in `sentChunks`. Chunks within
+  2 of the player are loaded urgently. Chunks outside the world border are sent empty.
+- After `use_on`/`dig_stop` the plugin re-checks the blocks at +3/+20/+70 ticks (`confirmBlocks`) so a
+  client-side prediction the server rejected gets corrected.
+- Digging: the server accepts STOP only if (break speed *now*) x (ticks since start) >= 0.7. Falling into
+  the hole you dig or water makes that 5x slower, so `WcFakePlayer.dig("stop")` holds the stop until
+  `digDone()` is true (max 5 s). The client slows its crack timer the same way (`interact.js digSlow()`).
+- Same WebCraft name logging in again takes over: the old session is kicked and removed first (player data is
+  saved on removal), then the new one loads it. A saved position inside blocks is moved up on login
+  (`freeFromBlocks`). The client pushes the player out of blocks (`player.js unstuck()`) and lets you walk
+  out of blocks you are already inside (moveAxis skips boxes overlapping the start position).
+- Paper 26.x renamed packets (e.g. swing is `ClientboundSwingAnimationPacket`). The plugin only works
+  with exactly Paper 26.3; a Minecraft update means fixing compile errors against the new server.
+- Entity JSON (in `WcPlugin`): `i` id, `type`, `x y z yaw pitch body`, `w h`, `n` name, `hand` main hand
+  item key, `arm` armor keys, `use` hand raised, `var` variant (`variantOf()`: cat/wolf/frog/cow/pig/
+  chicken keys, villager profession, fox/axolotl/parrot/horse/llama/rabbit/mooshroom types), `col` sheep
+  wool RGB, `sheared`, `baby`, projectiles `proj, k, vx vy vz`, block displays/text displays.
+
+## Protocol
+
+WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
+
+- Binary: byte 0 = type (1 = chunk), rest zlib: int32 cx, int32 cz, uint8 sections, per section
+  int8 sectionY + 4096 × uint16 LE palette ids, index = (y*16+z)*16+x.
+- Server → client `t`: `welcome world pal tp vel stats inv items menu ents anim blocks unload chat notice
+  dead dig_info board tab pack error`.
+- Client → server `t`: `hello move input tp_ok slot click close inv_open drop swap_hands use use_on
+  dig_start dig_stop dig_abort attack punch swing interact release button trade rename creative
+  respawn resync items chat pack_upload status kick reload`.
+- Teleports must be acknowledged with `tp_ok` (same id), like the vanilla client.
+
+## Client architecture (`webcraft-web/src`)
+
+| File | Role |
+|---|---|
+| `main.js` | Entry: renderer, loop, WebSocket, message switch, login/pause/chat/death UI, `window.wc` debug handle |
+| `world.js` | Chunk storage, greedy-ish meshing with atlas UVs, multi-box shapes, fire walls, raycast, `remeshAll`, collision boxes |
+| `player.js` | Movement/physics, multi-box collision, world border wall, auto-jump |
+| `interact.js` | Mouse: attack charge, dig with crack stages, place prediction, use/eat/bow, entity interact |
+| `entities.js` | Mob/player models (humanoid, quadruped, part specs from `mobs.js`), variants/colors (`VARIANTS`, `JOBS`), held item in right arm, armor, swing/hurt anims, projectiles, items, holograms. Rebuild when `lookKey(d)` changes |
+| `models.js` | `blockMesh`, `itemExtruded` (pixel-extruded 3D item, front/back one-sided), `itemModel` |
+| `hand.js` | First-person arm/item, swing, eat/drink/bow animations, crumbs |
+| `textures.js` | Atlas: 64×64 tiles of 32 px + 8×8 animation atlas; pack tiles; gray detection for tinting |
+| `palette.js` | Palette from server: tiles per block (`texnames.js` candidates), tints, boxes |
+| `pack.js` | Texture sources: builtin (`texturen.zip` in the html) < server pack < local (IndexedDB). Import of MC packs incl. `.mcmeta` |
+| `zip.js` | Minimal zip read/write (DecompressionStream). **Inflates in parallel**: sequential awaits took minutes on a busy page |
+| `items.js` | Inventory icons (pack picture, isometric block, emoji fallback), names |
+| `inventory.js` | Inventory/creative/menus (brewing, furnace, enchanting, merchant, anvil ...) |
+| `studio.js` | Texture studio (ChatGPT prompts, paste image, 32 px) |
+| `hud.js sidebar.js tablist.js border.js sfx.js` | HUD, scoreboard, tab list, border, synthesized sounds |
+| `index.html` | All markup and CSS; `<!-- WC_SCRIPT -->` is replaced by the bundle |
+
+`tools/make_pack.py <PixelPerfectionCE folder> tools/items.json webcraft-web/src/texturen.zip` rebuilds the
+built-in textures (aliases, recolors for newer blocks, spawn eggs, animations.json, destroy stages).
+
+## Testing locally
+
+1. A Paper 26.3 server folder (e.g. copy `.paper/` or run `java -jar paper.jar nogui` once, accept EULA),
+   put the jar into `plugins/`. Feed console commands through a file:
+   `tail -n0 -f cmd.txt | java -Xmx2G -jar paper.jar nogui > log.txt 2>&1 &` and `echo "op wc_Micha" >> cmd.txt`.
+2. Page: `webcraft-web/dist/index.html?server=ws://127.0.0.1:25007`, or the Docker container on :8080.
+3. Headless checks: `tools/test/screenshot.py` (Playwright, swiftshader WebGL, ~10 fps: wait generously).
+   `window.wc` gives access to `player, world, entities, renderer, scene, camera, inventory, pack, hand`.
+   For model checks render `wc.scene` into a data URL, or clone entity groups into an empty scene.
+4. Second player: `node tools/test/bot.mjs Lena 25000` (Node 22, `WC_URL` env for another address).
+   Summon test mobs via the console, e.g. `execute at wc_Micha run summon minecraft:sheep ~3 ~ ~ {NoAI:1b,Color:6b}`.
+5. Stop everything afterwards. Do **not** use `pkill -f java` from a shell whose command line contains
+   "java" (it kills itself); use `for p in $(pgrep -x java) $(pgrep -x tail); do kill $p; done`.
+
+## Backlog / ideas
+
+- Skins for WebCraft players (they look like Steve to others)
+- Particles, day/night sky, flowing water visuals
+- Stonecutter, loom, beacon menus
+- Real mob textures (mobs are colored block figures)
+- ~230 newer blocks without own texture (see make_pack output `.missing.txt`)

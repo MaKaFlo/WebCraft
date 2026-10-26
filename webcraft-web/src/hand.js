@@ -1,0 +1,167 @@
+// First person: your arm and the item you hold, drawn on top of the world, with swing animation.
+import * as THREE from 'three';
+import { itemModel } from './models.js';
+
+const SWING_TIME = 0.28;
+const FOOD = /apple|bread|^cooked_|beef$|porkchop|mutton|^chicken$|^rabbit$|^cod$|^salmon$|tropical_fish|pufferfish|carrot$|potato$|beetroot$|cookie|melon_slice|pie$|stew$|soup$|berries|chorus_fruit|dried_kelp$|spider_eye|rotten_flesh|^cake$/;
+const DRINK = /potion$|milk_bucket|honey_bottle|ominous_bottle/;
+const BOW = /^bow$|crossbow|trident|spear$/;
+
+/** What kind of "hold right click" animation an item has. */
+export function useKind(key) {
+  if (!key) return null;
+  if (DRINK.test(key)) return 'drink';
+  if (FOOD.test(key)) return 'eat';
+  if (BOW.test(key)) return 'bow';
+  return null;
+}
+
+export class Hand {
+  constructor() {
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 10);
+    this.root = new THREE.Group();          // swings and bobs
+    this.root.scale.setScalar(0.85);
+    this.scene.add(this.root);
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.6), new THREE.MeshBasicMaterial({ color: 0xe0a070 }));
+    arm.position.set(0, -0.02, 0.22);
+    // Darker sides so it looks like a box and not a flat shape
+    const shade = new THREE.Mesh(new THREE.BoxGeometry(0.161, 0.161, 0.601), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.18, side: THREE.BackSide }));
+    arm.add(shade);
+    this.arm = arm;
+    this.itemHolder = new THREE.Group();
+    this.itemHolder.position.set(0, 0.06, -0.08);
+    this.root.add(arm, this.itemHolder);
+    this.itemKey = null;
+    this.itemModel = null;
+    this.swingT = 0;
+    this.equipT = 0;
+    this.bob = 0;
+    this.palette = null;
+    this.using = null;          // 'eat' | 'drink' | 'bow' while right click is held
+    this.useT = 0;
+    this.crumbs = [];
+    this.crumbGeo = new THREE.BoxGeometry(0.025, 0.025, 0.025);
+    window.addEventListener('resize', () => {
+      this.camera.aspect = window.innerWidth / window.innerHeight;
+      this.camera.updateProjectionMatrix();
+    });
+  }
+
+  swing() {
+    // Restart the swing unless it just started (holding the mouse while digging)
+    if (this.swingT < SWING_TIME * 0.5) this.swingT = SWING_TIME;
+  }
+
+  setItem(palette, key) {
+    if (key === this.itemKey && palette === this.palette) return;
+    if (this.itemKey !== key) this.equipT = 0.2;
+    this.itemKey = key;
+    this.palette = palette;
+    this.rebuildItem();
+  }
+
+  rebuildItem() {
+    if (this.itemModel) {
+      this.itemHolder.remove(this.itemModel);
+      this.itemModel.traverse((o) => {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material && !o.material.userData.shared) { o.material.map?.dispose(); o.material.dispose(); }
+      });
+      this.itemModel = null;
+    }
+    this.arm.visible = !this.itemKey;
+    if (!this.itemKey || !this.palette) {
+      // Empty hand: the arm comes up from the bottom right corner like in Minecraft
+      this.arm.visible = true;
+      this.arm.rotation.set(-1.0, 0.45, 0.15);
+      this.arm.position.set(0.12, -0.2, 0.05);
+      return;
+    }
+    const m = itemModel(this.palette, this.itemKey, 0.2, 0.3);
+    if (m.userData.flat) {
+      // Held like a tool: tilted, the top pointing forward
+      m.rotation.set(-0.25, -0.55, 0.2);
+      m.position.set(0.0, 0.13, -0.04);
+    } else {
+      m.rotation.set(0.1, 0.75, 0);
+      m.position.set(0, 0.04, 0);
+    }
+    this.itemModel = m;
+    this.itemHolder.add(m);
+  }
+
+  /** Start/stop the eat/drink/bow animation. */
+  setUsing(kind) {
+    if (kind !== this.using) this.useT = 0;
+    this.using = kind;
+  }
+
+  /** Little bits of the food fly away (colors from the item picture). */
+  spawnCrumbs() {
+    const m = this.itemModel;
+    if (!m) return;
+    let colors = [0x8a5a2a];
+    const face = m.children?.[0]?.material?.map?.image;
+    if (face && face.getContext) {
+      const d = face.getContext('2d').getImageData(0, 0, face.width, face.height).data;
+      colors = [];
+      for (let i = 0; i < 6; i++) {
+        const p = (Math.floor(Math.random() * face.width * face.height)) * 4;
+        if (d[p + 3] > 100) colors.push((d[p] << 16) | (d[p + 1] << 8) | d[p + 2]);
+      }
+      if (!colors.length) colors = [0x8a5a2a];
+    }
+    for (let i = 0; i < 3; i++) {
+      const c = new THREE.Mesh(this.crumbGeo, new THREE.MeshBasicMaterial({ color: colors[i % colors.length] }));
+      c.position.set(-0.05 + Math.random() * 0.1, -0.12, -0.45);
+      c.userData.v = new THREE.Vector3((Math.random() - 0.5) * 0.6, 0.3 + Math.random() * 0.4, (Math.random() - 0.3) * 0.3);
+      c.userData.life = 0.6;
+      this.scene.add(c);
+      this.crumbs.push(c);
+    }
+  }
+
+  update(dt, moving) {
+    for (const c of this.crumbs) {
+      c.userData.life -= dt;
+      c.userData.v.y -= 2.5 * dt;
+      c.position.addScaledVector(c.userData.v, dt);
+    }
+    this.crumbs = this.crumbs.filter((c) => {
+      if (c.userData.life > 0) return true;
+      this.scene.remove(c);
+      c.material.dispose();
+      return false;
+    });
+    this.bob += dt * (moving ? 9 : 0);
+    const bx = moving ? Math.sin(this.bob) * 0.025 : 0;
+    const by = moving ? -Math.abs(Math.cos(this.bob)) * 0.025 : 0;
+    this.swingT = Math.max(0, this.swingT - dt);
+    this.equipT = Math.max(0, this.equipT - dt);
+    const p = this.swingT > 0 ? 1 - this.swingT / SWING_TIME : 0;
+    const s = Math.sin(p * Math.PI);
+    const s2 = Math.sin(Math.sqrt(p) * Math.PI);
+    this.root.position.set(0.44 + bx - s2 * 0.18, -0.4 + by + s2 * 0.12 - this.equipT * 1.2, -0.66 - s * 0.12);
+    this.root.rotation.set(-s * 0.9, 0.12 + s2 * 0.5, s * 0.25);
+    if (this.using) {
+      this.useT += dt;
+      const k = Math.min(1, this.useT / 0.2);           // move the item to the mouth first
+      if (this.using === 'eat' || this.using === 'drink') {
+        const bob = this.useT > 0.2 ? Math.abs(Math.sin(this.useT * 13)) * 0.04 : 0;
+        this.root.position.set(0.44 - 0.4 * k, -0.4 + 0.12 * k + bob, -0.66 + 0.12 * k);
+        this.root.rotation.set(this.using === 'drink' ? 0.5 * k : 0.15 * k, 0.12 + 0.9 * k, -0.15 * k);
+      } else if (this.using === 'bow') {
+        const pull = Math.min(1, this.useT / 1.0);       // full draw after 1 s like Minecraft
+        const shake = pull >= 1 ? Math.sin(this.useT * 40) * 0.004 : 0;
+        this.root.position.set(0.44 - 0.3 * k + shake, -0.4 + 0.1 * k, -0.66 + 0.1 * pull);
+        this.root.rotation.set(0, 0.12 + 0.7 * k, 0.25 * k);
+      }
+    }
+  }
+
+  render(renderer) {
+    renderer.clearDepth();
+    renderer.render(this.scene, this.camera);
+  }
+}

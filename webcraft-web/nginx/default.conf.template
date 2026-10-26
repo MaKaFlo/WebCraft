@@ -1,0 +1,40 @@
+# Filled in at container start from the environment (see docker-compose.yml):
+#   WC_BACKEND  host:port of the WebCraft plugin (WebSocket) on the Minecraft server
+#   WC_SERVER   address shown in the login form; empty = this web server (/ws)
+#   WC_NAME_PREFIX  name prefix of the plugin (config.yml name-prefix), only for the login form
+
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+
+    location = / {
+        try_files /index.html =404;
+        add_header Cache-Control "no-cache";
+    }
+
+    # Settings for the page (read before the game starts)
+    location = /config.js {
+        default_type application/javascript;
+        add_header Cache-Control "no-store";
+        return 200 'window.WC_CONFIG = { server: "${WC_SERVER}", namePrefix: "${WC_NAME_PREFIX}" };\n';
+    }
+
+    # WebSocket to the WebCraft plugin
+    location = /ws {
+        proxy_pass http://${WC_BACKEND};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header Origin $http_origin;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 1h;
+        proxy_send_timeout 1h;
+    }
+}

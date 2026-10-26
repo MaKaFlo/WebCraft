@@ -1,0 +1,18 @@
+name: WebCraft
+version: '${project.version}'
+main: de.p300.webcraft.WcPlugin
+api-version: '26.3'
+description: Lets players of the WebCraft browser game join this server.
+commands:
+  webcraft:
+    description: Show WebCraft status, kick a WebCraft player or reload the config.
+    aliases: [wc]
+    usage: /webcraft [status|kick <name>|reload]
+    permission: webcraft.admin
+permissions:
+  webcraft.admin:
+    description: Use /webcraft admin commands.
+    default: op
+  webcraft.textures:
+    description: Upload the WebCraft texture pack for everyone from the texture studio.
+    default: op

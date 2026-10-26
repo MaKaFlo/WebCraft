@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>de.p300.webcraft</groupId>
+    <artifactId>webcraft-parent</artifactId>
+    <version>0.7.0</version>
+  </parent>
+
+  <artifactId>webcraft-plugin</artifactId>
+  <name>webcraft-plugin (WebCraft)</name>
+  <description>Paper 26.3 plugin: WebSocket bridge, WebCraft players are real (fake connection) server players.</description>
+
+  <properties>
+    <!--
+      WebCraft players are real ServerPlayers, so the plugin compiles against the Paper server itself
+      (Mojang mappings, net.minecraft.*). That is not in any Maven repository: point paper.dir to a
+      Paper 26.3 folder that contains versions/ and libraries/ (tools/fetch-paper.sh creates one in .paper/).
+    -->
+    <paper.dir>${project.basedir}/../.paper</paper.dir>
+    <!-- javac is run by the antrun plugin (see below), the normal compiler step is skipped -->
+    <maven.main.skip>true</maven.main.skip>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.java-websocket</groupId>
+      <artifactId>Java-WebSocket</artifactId>
+      <version>1.6.0</version>
+      <exclusions>
+        <!-- Paper already has slf4j -->
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-api</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>webcraft-${project.version}</finalName>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+      </resource>
+    </resources>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <id>compile-against-paper</id>
+            <phase>compile</phase>
+            <goals><goal>run</goal></goals>
+            <configuration>
+              <target>
+                <available file="${paper.dir}/versions" type="dir" property="paper.ok"/>
+                <fail unless="paper.ok"
+                      message="Paper server not found in ${paper.dir}. Run tools/fetch-paper.sh or build with -Dpaper.dir=/path/to/paper-26.3-server"/>
+                <mkdir dir="${project.build.outputDirectory}"/>
+                <javac srcdir="${project.basedir}/src/main/java" destdir="${project.build.outputDirectory}"
+                       release="${maven.compiler.release}" encoding="UTF-8" includeantruntime="false"
+                       nowarn="true" debug="true" fork="false">
+                  <classpath>
+                    <fileset dir="${paper.dir}/versions" includes="**/*.jar"/>
+                    <fileset dir="${paper.dir}/libraries" includes="**/*.jar"/>
+                    <path refid="maven.compile.classpath"/>
+                  </classpath>
+                </javac>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.4.2</version>
+        <configuration>
+          <archive>
+            <manifestEntries>
+              <!-- Tells Paper the plugin uses Mojang names, so it is not remapped -->
+              <paperweight-mappings-namespace>mojang</paperweight-mappings-namespace>
+            </manifestEntries>
+          </archive>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.6.1</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals><goal>shade</goal></goals>
+            <configuration>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
+              <relocations>
+                <relocation>
+                  <pattern>org.java_websocket</pattern>
+                  <shadedPattern>de.p300.webcraft.lib.websocket</shadedPattern>
+                </relocation>
+              </relocations>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                    <exclude>META-INF/maven/**</exclude>
+                    <exclude>META-INF/versions/**</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+            </configuration>
+          </execution>
+        </executions>
+        <dependencies>
+          <!-- ASM that can read Java 25 class files -->
+          <dependency>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm</artifactId>
+            <version>9.9</version>
+          </dependency>
+          <dependency>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm-commons</artifactId>
+            <version>9.9</version>
+          </dependency>
+        </dependencies>
+      </plugin>
+    </plugins>
+  </build>
+</project>

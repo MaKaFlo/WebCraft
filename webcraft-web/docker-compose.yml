@@ -1,0 +1,22 @@
+# WebCraft web page with nginx.
+#   cp .env.example .env    (adjust the values)
+#   docker compose up -d --build
+# Then open http://<this host>:${WC_HTTP_PORT}
+services:
+  webcraft-web:
+    build: .
+    image: webcraft-web:latest
+    restart: unless-stopped
+    ports:
+      - "${WC_HTTP_PORT:-8080}:80"
+    environment:
+      # host:port of the WebCraft plugin (config.yml "port") on the Minecraft server.
+      # Default: the WebCraft plugin runs on the same machine as this container.
+      WC_BACKEND: ${WC_BACKEND:-host.docker.internal:25007}
+      # Address prefilled in the login form. Empty = this web server (ws(s)://<host>/ws through nginx).
+      # Example for a direct connection: ws://minecraft.example.com:25007
+      WC_SERVER: ${WC_SERVER:-}
+      # Name prefix of the plugin (config.yml "name-prefix"), shown in the login form
+      WC_NAME_PREFIX: ${WC_NAME_PREFIX:-wc_}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

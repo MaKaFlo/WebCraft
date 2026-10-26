@@ -1,0 +1,35 @@
+# WebCraft bridge config
+
+# Address and port the WebSocket server listens on.
+# The port must be an extra allocation of your server (e.g. in your hosting panel).
+host: 0.0.0.0
+port: 25007
+
+# World WebCraft players join. Empty = the first (main) world.
+world: ""
+
+# Name prefix for WebCraft players, so they can never take over a real Minecraft account.
+# Changing it later gives every WebCraft player a new, empty account (the name is the account).
+# Servers that ran the old "GgBridge" plugin keep its prefix "gg_" (the old config is taken over).
+name-prefix: "wc_"
+
+# Maximum number of WebCraft players at the same time.
+max-players: 10
+
+# How many chunks around a WebCraft player are sent to the browser (radius).
+view-distance: 6
+
+# How many chunks per server tick are prepared for each WebCraft player.
+chunks-per-tick: 3
+
+# Players, mobs and items within this many blocks are shown in the browser.
+entity-range: 64
+
+
+# Allowed browser origins (where the WebCraft website runs), e.g. "https://webcraft.example.com".
+# Empty list = allow all (fine for testing).
+allowed-origins: []
+
+
+# Write every block a WebCraft player breaks or places to plugins/WebCraft/blocklog.csv (handy against griefing).
+log-blocks: true

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>de.p300.webcraft</groupId>
+    <artifactId>webcraft-parent</artifactId>
+    <version>0.7.0</version>
+  </parent>
+
+  <artifactId>webcraft-web</artifactId>
+  <packaging>pom</packaging>
+  <name>webcraft-web (browser client)</name>
+  <description>The browser game: one self-contained HTML file (three.js, bundled with esbuild), served by nginx.</description>
+
+  <properties>
+    <node.version>v22.12.0</node.version>
+  </properties>
+
+  <build>
+    <plugins>
+      <!-- Downloads its own Node.js into target/node, so only Maven and a JDK are needed -->
+      <plugin>
+        <groupId>com.github.eirslett</groupId>
+        <artifactId>frontend-maven-plugin</artifactId>
+        <version>1.15.1</version>
+        <configuration>
+          <nodeVersion>${node.version}</nodeVersion>
+          <installDirectory>${project.build.directory}</installDirectory>
+        </configuration>
+        <executions>
+          <execution>
+            <id>install-node</id>
+            <phase>initialize</phase>
+            <goals><goal>install-node-and-npm</goal></goals>
+          </execution>
+          <execution>
+            <id>npm-ci</id>
+            <phase>generate-resources</phase>
+            <goals><goal>npm</goal></goals>
+            <configuration><arguments>ci</arguments></configuration>
+          </execution>
+          <execution>
+            <id>npm-build</id>
+            <phase>compile</phase>
+            <goals><goal>npm</goal></goals>
+            <configuration><arguments>run build</arguments></configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- target/webcraft.html: the finished game page (same file as dist/index.html) -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <id>copy-page</id>
+            <phase>package</phase>
+            <goals><goal>run</goal></goals>
+            <configuration>
+              <target>
+                <copy file="${project.basedir}/dist/index.html" tofile="${project.build.directory}/webcraft.html"/>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-clean-plugin</artifactId>
+        <version>3.4.0</version>
+        <configuration>
+          <filesets>
+            <fileset><directory>dist</directory></fileset>
+          </filesets>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
