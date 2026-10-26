@@ -1,7 +1,6 @@
 package de.p300.webcraft;
 
 import com.google.gson.JsonObject;
-import org.bukkit.Location;
 import org.java_websocket.WebSocket;
 
 import java.util.ArrayDeque;
@@ -20,8 +19,7 @@ public final class WcSession {
     public final WebSocket conn;
 
     public String name;              // full name incl. prefix, null until logged in
-    public WcFakePlayer fake;        // the real server player behind this browser
-    public Location location;        // updated every tick from the player
+    public WcFakePlayer fake;        // the real server player behind this browser (Paper or Fabric version)
 
     public int centerChunkX = Integer.MIN_VALUE;
     public int centerChunkZ = Integer.MIN_VALUE;

@@ -44,7 +44,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.regex.Pattern;
 
-public final class WcPlugin extends JavaPlugin {
+public final class WcPlugin extends JavaPlugin implements WcHost {
 
     private static final Pattern NAME_PATTERN = Pattern.compile("^[A-Za-z0-9_]{3,13}$");
     private static final int MAX_PENDING_BLOCKS = 20000;
@@ -138,7 +138,8 @@ public final class WcPlugin extends JavaPlugin {
 
     // ------------------------------------------------------------------ messages from the browser
 
-    void handleMessage(WcSession s, JsonObject json) {
+    @Override
+    public void handleMessage(WcSession s, JsonObject json) {
         if (s.closed) return;
         String type = str(json, "t");
         if (type == null) return;
@@ -300,7 +301,7 @@ public final class WcPlugin extends JavaPlugin {
         freeFromBlocks(p);
 
         Location loc = p.getLocation();
-        s.location = loc;
+        s.fake.location = loc;
         s.worldName = loc.getWorld().getName();
         JsonObject welcome = new JsonObject();
         welcome.addProperty("t", "welcome");
@@ -332,13 +333,29 @@ public final class WcPlugin extends JavaPlugin {
     }
 
     /** Called when the browser connection is gone. */
-    void handleDisconnect(WcSession s) {
+    @Override
+    public void handleDisconnect(WcSession s) {
         if (s.name == null || sessions.remove(s.id) == null) return;
         if (s.fake != null) {
             byPlayer.remove(s.fake.bukkit().getUniqueId());
             if (!s.fake.isRemoved()) s.fake.remove();
         }
         getLogger().info(s.name + " left WebCraft");
+    }
+
+    @Override
+    public void runSync(Runnable r) {
+        if (!isEnabled()) return;
+        try {
+            Bukkit.getScheduler().runTask(this, r);
+        } catch (IllegalStateException ignored) {
+            // plugin is shutting down
+        }
+    }
+
+    @Override
+    public java.util.logging.Logger logger() {
+        return getLogger();
     }
 
     WcSession sessionOf(Player p) {
@@ -475,7 +492,7 @@ public final class WcPlugin extends JavaPlugin {
             Player p = s.fake.bukkit();
             Location loc = p.getLocation();
             boolean worldChanged = !loc.getWorld().getName().equals(s.worldName);
-            s.location = loc;
+            s.fake.location = loc;
             if (worldChanged) changeWorld(s, loc);
             updateChunks(s, false);
             sendQueuedChunks(s);
@@ -621,8 +638,8 @@ public final class WcPlugin extends JavaPlugin {
     // ------------------------------------------------------------------ chunk streaming
 
     private void updateChunks(WcSession s, boolean force) {
-        int cx = s.location.getBlockX() >> 4;
-        int cz = s.location.getBlockZ() >> 4;
+        int cx = s.fake.location.getBlockX() >> 4;
+        int cz = s.fake.location.getBlockZ() >> 4;
         if (!force && cx == s.centerChunkX && cz == s.centerChunkZ) return;
         s.centerChunkX = cx;
         s.centerChunkZ = cz;
@@ -666,7 +683,7 @@ public final class WcPlugin extends JavaPlugin {
     private static final long CHUNK_TIMEOUT_MS = 15000;
 
     private void sendQueuedChunks(WcSession s) {
-        World world = s.location.getWorld();
+        World world = s.fake.location.getWorld();
         String worldAtStart = world.getName();
         long now = System.currentTimeMillis();
         // Slow chunks (generation on a busy server can take long) still arrive later, but after
@@ -689,7 +706,7 @@ public final class WcPlugin extends JavaPlugin {
             s.loading.put(key, now);
             fresh++;
             // The chunks right around the player first and fast
-            int pdx = cx - (s.location.getBlockX() >> 4), pdz = cz - (s.location.getBlockZ() >> 4);
+            int pdx = cx - (s.fake.location.getBlockX() >> 4), pdz = cz - (s.fake.location.getBlockZ() >> 4);
             boolean urgent = pdx * pdx + pdz * pdz <= 2;
             var future = urgent ? world.getChunkAtAsyncUrgently(cx, cz) : world.getChunkAtAsync(cx, cz, true);
             future.whenComplete((chunk, err) -> {
@@ -806,7 +823,8 @@ public final class WcPlugin extends JavaPlugin {
             if (world == null) continue;
             int cx = pos.x() >> 4, cz = pos.z() >> 4;
             if (!world.isChunkLoaded(cx, cz)) continue;
-            int id = palette.idOf(world.getBlockAt(pos.x(), pos.y(), pos.z()));
+            int id = palette.idOf(((org.bukkit.craftbukkit.CraftWorld) world).getHandle().getBlockState(
+                    new net.minecraft.core.BlockPos(pos.x(), pos.y(), pos.z())));
             long key = WcSession.key(cx, cz);
             for (WcSession s : sessions.values()) {
                 if (!pos.world().equals(s.worldName) || !s.sentChunks.contains(key)) continue;
@@ -833,7 +851,7 @@ public final class WcPlugin extends JavaPlugin {
         for (WcSession s : sessions.values()) {
             if (s.closed || s.fake == null || s.fake.isRemoved()) continue;
             Player self = s.fake.bukkit();
-            Location center = s.location;
+            Location center = s.fake.location;
             List<Entity> near = new ArrayList<>(center.getWorld().getNearbyEntities(center, entityRange, entityRange, entityRange,
                     e -> e != self && shown(e)));
             // Players, holograms and falling blocks first, then everything else by distance
@@ -1125,7 +1143,7 @@ public final class WcPlugin extends JavaPlugin {
                 sender.sendMessage(Component.text("WebCraft bridge on port " + port + ", "
                         + sessions.size() + "/" + maxPlayers + " WebCraft players", NamedTextColor.GOLD));
                 for (WcSession s : sessions.values()) {
-                    Location l = s.location;
+                    Location l = s.fake.location;
                     String dist = "";
                     if (s.fake != null && !s.fake.isRemoved()) {
                         Player p = s.fake.bukkit();

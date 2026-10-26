@@ -1,0 +1,18 @@
+{
+	"schemaVersion": 1,
+	"id": "webcraft",
+	"version": "${version}",
+	"name": "WebCraft",
+	"description": "Play on this server from the browser: WebCraft players join as real server players.",
+	"license": "Apache-2.0",
+	"environment": "server",
+	"entrypoints": {
+		"main": ["de.p300.webcraft.WcMod"]
+	},
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

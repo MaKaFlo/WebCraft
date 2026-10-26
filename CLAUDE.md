@@ -1,7 +1,7 @@
 # CLAUDE.md
 
-Guide for continuing work on **WebCraft**: a browser block game whose players join a Paper 26.3
-Minecraft server as real server players. Read README.md for the user-facing side.
+Guide for continuing work on **WebCraft**: a browser block game whose players join a Paper 26.3 or
+Fabric 26.3 Minecraft server as real server players. Read README.md for the user-facing side.
 
 ## History
 
@@ -27,7 +27,9 @@ to `wc.*`; the IndexedDB for own textures is still called `gg`.
 | Path | What |
 |---|---|
 | `pom.xml` | Parent (packaging pom), version for everything |
+| `webcraft-common/` | Sources shared by plugin and mod (no Bukkit, no Fabric): `BlockPalette`, `ChunkEncoder`, `WcScoreboard`, `WcTextures`, `WcSession`, `WcServer`, `WcHost` |
 | `webcraft-plugin/` | Paper plugin "WebCraft" (Java 25, Mojang mappings) |
+| `webcraft-fabric/` | Fabric server mod "webcraft" (Gradle + Loom, Minecraft 26.3 is unobfuscated, so the same Mojang names) |
 | `webcraft-web/` | Browser client (plain ES modules, three.js r186, bundled by esbuild into ONE html file) + nginx Docker image |
 | `tools/` | `fetch-paper.sh`, texture pack builder `make_pack.py` (+ `items.json`), `test/` helpers |
 
@@ -49,12 +51,19 @@ cd webcraft-web && npm ci && npm run build   # web only -> webcraft-web/dist/ind
 - `plugin.yml` version is filtered from `${project.version}`.
 - webcraft-web: frontend-maven-plugin downloads Node into `webcraft-web/target/`, runs `npm ci` and `npm run build`
   (`build.mjs`: esbuild, `texturen.zip` is inlined as base64 via loader `.zip: base64`).
-- Version bump: `mvn versions:set -DnewVersion=x.y.z` (changes all three poms), plus README header.
+- Version bump: `mvn versions:set -DnewVersion=x.y.z` (changes all three poms), plus README header and
+  `version=` in `webcraft-fabric/gradle.properties`.
+- The plugin's antrun javac compiles `../webcraft-common/src/main/java` and `src/main/java` together; the
+  Fabric build adds the same folder as a source dir. `WcSession.fake` is typed `WcFakePlayer`, which each side
+  defines itself (same package, different class).
+- Fabric: `cd webcraft-fabric && ./gradlew build` -> `build/libs/webcraft-fabric-<v>.jar` (Java-WebSocket
+  inside via `include`, jar-in-jar). Needs Fabric API on the server.
 
 ### CI (`.github/workflows/build.yml`)
 
 - Push to `main` / pull requests: JDK 25, `tools/fetch-paper.sh` (cached in `.paper`), `mvn package`,
-  plugin jar + `webcraft.html` as workflow artifact `webcraft`.
+  then the Fabric mod with `./gradlew build -Pversion=<pom version>`; plugin jar, Fabric jar and
+  `webcraft.html` as workflow artifact `webcraft`.
 - Tag `vX.Y.Z`: same build with `mvn versions:set -DnewVersion=X.Y.Z`, then a GitHub release with both files.
   Release = `git tag v0.7.1 && git push origin v0.7.1`.
 
@@ -112,6 +121,29 @@ Important details learned the hard way:
   item key, `arm` armor keys, `use` hand raised, `var` variant (`variantOf()`: cat/wolf/frog/cow/pig/
   chicken keys, villager profession, fox/axolotl/parrot/horse/llama/rabbit/mooshroom types), `col` sheep
   wool RGB, `sheared`, `baby`, projectiles `proj, k, vx vy vz`, block displays/text displays.
+
+## Fabric mod (`webcraft-fabric/src/main/java/de/p300/webcraft`)
+
+Same features and protocol as the plugin, written against plain Minecraft instead of Bukkit.
+
+| Class | Role |
+|---|---|
+| `WcMod` | Port of `WcPlugin`: settings from `config/webcraft/webcraft.properties` (default in resources), Fabric API events (server start/stop, end tick, commands `/webcraft` + `/wc`, block break for the block log), own `later()` scheduler, chunk futures via `ServerChunkCache.getChunkFuture`, encoder thread pool, entity JSON from Minecraft entities |
+| `WcFakePlayer` | Port of the Paper class. Keeps the `ServerGamePacketListenerImpl` (its `player` is replaced on respawn). `Connection.channel/address` and `AbstractContainerMenu.dataSlots` are private in vanilla: reflection |
+| `WcItems`, `WcBlockLog` | Minecraft `ItemStack` / plain values instead of Bukkit types |
+
+Differences learned on vanilla:
+
+- Vanilla sends the next chunk batch only after `ServerboundChunkBatchReceivedPacket`; the fake player answers
+  every `ClientboundChunkBatchFinishedPacket`, otherwise block updates of most chunks never arrive.
+- The login teleport is sent inside `placeNewPlayer`, before the packet listener field is set (`joining`).
+- No `/whitelist add` for WebCraft names on online-mode servers (Mojang lookup): `/webcraft whitelist <name>`.
+- Chat from the browser: `broadcastChatMessage` with an unsigned message ("Not Secure" in the log); `/...`
+  runs `performPrefixedCommand`.
+- Variants come from a reflective `getVariant()` (holder key, `StringRepresentable` or enum), mapped to the
+  Bukkit names the browser knows (`VARIANT_NAMES`).
+- Testing: Fabric server jar from `https://meta.fabricmc.net/v2/versions/loader/26.3/<loader>/<installer>/server/jar`,
+  plus Fabric API in `mods/`. New 26.x servers have `white-list=true` in server.properties.
 
 ## Protocol
 

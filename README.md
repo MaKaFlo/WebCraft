@@ -1,15 +1,17 @@
 # WebCraft ⛏️
 
-Ein Block-Spiel im Browser, das sich mit einem **Paper-Minecraft-Server** verbindet. WebCraft-Spieler sind auf dem Server **echte Spieler**: Sie stehen in der Tab-Liste, bekommen Schaden, sterben, benutzen Plugin-Befehle und Plugin-Menüs. Für andere Plugins gibt es keinen Unterschied zu einem Minecraft-Spieler. So können Leute ohne Minecraft-Account mit Freunden auf dem Server spielen.
+Ein Block-Spiel im Browser, das sich mit einem **Minecraft-Server** verbindet: **Paper** (als Plugin) oder **Fabric** (als Mod, damit auch für Vanilla). WebCraft-Spieler sind auf dem Server **echte Spieler**: Sie stehen in der Tab-Liste, bekommen Schaden, sterben, benutzen Befehle und Menüs von Plugins und Mods. Für den Server gibt es keinen Unterschied zu einem Minecraft-Spieler. So können Leute ohne Minecraft-Account mit Freunden auf dem Server spielen.
 
-Version 0.7.2 · nur für **Paper 26.3** · JDK 25
+Version 0.8.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
 
 ## Aufbau
 
 ```
 webcraft/
 ├── pom.xml              Maven-Elternprojekt (Module webcraft-plugin, webcraft-web)
-├── webcraft-plugin/     Paper-Plugin "WebCraft": WebSocket-Server, WebCraft-Spieler als echte Server-Spieler
+├── webcraft-common/     Code, den Plugin und Mod teilen (Chunks, Block-Palette, Texturen, WebSocket-Server)
+├── webcraft-plugin/     Paper-Plugin "WebCraft": WebCraft-Spieler als echte Server-Spieler
+├── webcraft-fabric/     Fabric-Mod "WebCraft": dasselbe für Fabric-Server (Gradle)
 ├── webcraft-web/        Das Spiel (eine einzige HTML-Datei, three.js), Docker-Container mit nginx
 │   ├── src/             Client-Quellcode, index.html, texturen.zip (eingebaute Texturen)
 │   ├── Dockerfile       baut die Seite und liefert sie mit nginx aus
@@ -35,16 +37,25 @@ mvn package
 
 Ergebnis:
 
-- `webcraft-plugin/target/webcraft-0.7.2.jar`: das Plugin
+- `webcraft-plugin/target/webcraft-0.8.0.jar`: das Plugin
 - `webcraft-web/target/webcraft.html`: das Spiel (gleiche Datei wie `webcraft-web/dist/index.html`)
 
 Warum Paper herunterladen? Das Plugin benutzt die Server-Interna (`net.minecraft.*`, Mojang-Namen), die es in keinem Maven-Repository gibt. Statt `.paper/` geht auch jeder andere Paper-26.3-Ordner, der einmal gestartet wurde: `mvn package -Dpaper.dir=/pfad/zum/server`.
 
 Nur die Webseite, ohne Maven: `cd webcraft-web && npm ci && npm run build`.
 
+Die **Fabric-Mod** wird mit Gradle gebaut (Minecraft und Fabric lädt Gradle selbst herunter):
+
+```bash
+cd webcraft-fabric
+./gradlew build                # -> build/libs/webcraft-fabric-0.8.0.jar
+```
+
+Die Version steht für die Mod in `webcraft-fabric/gradle.properties` (bei einem Versionswechsel dort mit ändern).
+
 ### GitHub
 
-`.github/workflows/build.yml` baut bei jedem Push auf `main` das Plugin und die Seite (unter *Actions* als Download). Ein Tag `v1.2.3` baut genau diese Version und legt ein Release mit `webcraft-1.2.3.jar` und `webcraft.html` an:
+`.github/workflows/build.yml` baut bei jedem Push auf `main` das Plugin, die Fabric-Mod und die Seite (unter *Actions* als Download). Ein Tag `v1.2.3` baut genau diese Version und legt ein Release mit `webcraft-1.2.3.jar`, `webcraft-fabric-1.2.3.jar` und `webcraft.html` an:
 
 ```bash
 git tag v0.7.1
@@ -53,7 +64,7 @@ git push origin v0.7.1
 
 ## Plugin installieren
 
-1. Alte `webcraft-*.jar` aus `plugins/` löschen, `webcraft-0.7.2.jar` reinlegen.
+1. Alte `webcraft-*.jar` aus `plugins/` löschen, `webcraft-0.8.0.jar` reinlegen.
 2. Server neu starten. Die Einstellungen stehen in `plugins/WebCraft/config.yml`.
 3. Der Port aus `config.yml` (Standard `25007`) muss von außen erreichbar sein, oder der nginx-Container leitet ihn weiter (siehe unten).
 
@@ -62,6 +73,19 @@ git push origin v0.7.1
 **Whitelist:** Hat der Server eine Whitelist, gilt sie auch für WebCraft: `/whitelist add wc_Name`. Das Spiel zeigt den genauen Befehl an, falls er fehlt.
 
 **Server-Updates:** Das Plugin greift tief in den Server und passt nur zu Paper 26.3. Für eine neue Minecraft-Version muss es angepasst und neu gebaut werden.
+
+## Fabric-Mod installieren (Fabric und Vanilla)
+
+Vanilla-Server können keine Plugins oder Mods laden. Für Vanilla installiert man deshalb **Fabric** (https://fabricmc.net/use/server/): Die Welt und das Spiel bleiben wie Vanilla, und Minecraft-Spieler brauchen nichts extra.
+
+1. Fabric-Server für Minecraft 26.3 aufsetzen.
+2. In den Ordner `mods/` legen: **`webcraft-fabric-0.8.0.jar`** und die **Fabric API** für 26.3 (https://modrinth.com/mod/fabric-api).
+3. Server starten. Die Einstellungen stehen in `config/webcraft/webcraft.properties` (gleiche Werte wie die `config.yml` des Plugins, `allowed-origins` mit Komma getrennt). Danach `/webcraft reload`.
+4. Port `25007` freigeben oder den nginx-Container nehmen, genau wie beim Plugin.
+
+**Whitelist:** `/webcraft whitelist Name` setzt den WebCraft-Spieler `wc_Name` auf die Whitelist. Das normale `/whitelist add` fragt bei Mojang nach, und dort gibt es WebCraft-Namen nicht.
+
+Texturen für alle liegen bei Fabric in `config/webcraft/texturen.zip`, das Block-Log in `config/webcraft/blocklog.csv`.
 
 ## Webseite mit Docker (nginx)
 
@@ -107,13 +131,14 @@ Wenn Webseite und Plugin auf verschiedenen Domains laufen, in `config.yml` unter
 | `T` oder `/` | Chat und Befehle |
 | `Esc` | Spielmenü, Einstellungen (auch Lautstärke), Textur-Studio |
 
-Im Inventar: Shift+Klick verschiebt, `1`-`9` legt das Item unter der Maus auf die Hotbar. Im Kreativmodus: rechts im Inventar alle Items mit Suche. Klick legt 1 Stück in den gewählten Hotbar-Platz, Shift+Klick einen ganzen Stapel, `Entf` leert den Platz unter der Maus.
+Im Inventar: Maus über ein Item zeigt seinen Namen. Shift+Klick verschiebt, `1`-`9` legt das Item unter der Maus auf die Hotbar. Im Kreativmodus: rechts im Inventar alle Items mit Suche. Klick legt 1 Stück in den gewählten Hotbar-Platz, Shift+Klick einen ganzen Stapel, `Entf` leert den Platz unter der Maus.
 
 ## Befehle (für OPs)
 
 - `/webcraft status`: wer ist über WebCraft online, Chunks, Tracking
 - `/webcraft kick <name>`: WebCraft-Spieler rauswerfen (normales `/kick` und `/ban` gehen auch)
 - `/webcraft reload`: Config und `texturen.zip` neu laden
+- `/webcraft whitelist <name>` (nur Fabric): WebCraft-Spieler auf die Whitelist setzen
 
 ## Textur-Studio 🎨 (eigene Grafiken mit ChatGPT)
 
@@ -135,9 +160,7 @@ Das Bild wird auf 32×32 Pixel verkleinert (bei Items wird der Hintergrund entfe
 
 ## Was WebCraft kann
 
-## Was WebCraft kann
-
-- ✅ Leben, Hunger, Rüstung, Erfahrung, Luft unter Wasser
+- ✅ Leben, Hunger, Rüstung, Erfahrung, Luft unter Wasser (mit wenig Hunger, 3 Keulen oder weniger, kann man nicht sprinten)
 - ✅ Kämpfen gegen Mobs und Spieler, Rückstoß, Fallschaden, Sterben und Wiederbeleben
 - ✅ Lifesteal: mehr als 10 Herzen werden angezeigt, verlorene und gewonnene Herzen auch
 - ✅ Plugin-Befehle und Plugin-Menüs (Truhen-GUIs), Rechts- und Linksklick-Abilities

@@ -1,5 +1,7 @@
 # Build output
 target/
+webcraft-fabric/build/
+webcraft-fabric/.gradle/
 webcraft-web/dist/
 webcraft-web/node_modules/
 

@@ -2,7 +2,6 @@ package de.p300.webcraft;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import org.bukkit.Bukkit;
 import org.java_websocket.WebSocket;
 import org.java_websocket.drafts.Draft;
 import org.java_websocket.exceptions.InvalidDataException;
@@ -24,12 +23,12 @@ public final class WcServer extends WebSocketServer {
 
     private static final int MAX_TEXT_LENGTH = 4096;
 
-    private final WcPlugin plugin;
+    private final WcHost host;
     private final List<String> allowedOrigins;
 
-    public WcServer(WcPlugin plugin, InetSocketAddress address, List<String> allowedOrigins) {
+    public WcServer(WcHost host, InetSocketAddress address, List<String> allowedOrigins) {
         super(address);
-        this.plugin = plugin;
+        this.host = host;
         this.allowedOrigins = allowedOrigins;
         setReuseAddr(true);
         setConnectionLostTimeout(30);
@@ -59,7 +58,7 @@ public final class WcServer extends WebSocketServer {
         WcSession session = conn.getAttachment();
         if (session == null) return;
         session.closed = true;
-        runSync(() -> plugin.handleDisconnect(session));
+        host.runSync(() -> host.handleDisconnect(session));
     }
 
     @Override
@@ -75,7 +74,7 @@ public final class WcServer extends WebSocketServer {
         } catch (Exception e) {
             return; // ignore garbage
         }
-        runSync(() -> plugin.handleMessage(session, json));
+        host.runSync(() -> host.handleMessage(session, json));
     }
 
     @Override
@@ -86,21 +85,12 @@ public final class WcServer extends WebSocketServer {
     @Override
     public void onError(WebSocket conn, Exception ex) {
         if (conn == null) {
-            plugin.getLogger().log(Level.SEVERE, "WebCraft WebSocket server error", ex);
+            host.logger().log(Level.SEVERE, "WebCraft WebSocket server error", ex);
         }
     }
 
     @Override
     public void onStart() {
-        plugin.getLogger().info("WebCraft WebSocket server listening on " + getAddress());
-    }
-
-    private void runSync(Runnable r) {
-        if (!plugin.isEnabled()) return;
-        try {
-            Bukkit.getScheduler().runTask(plugin, r);
-        } catch (IllegalStateException ignored) {
-            // plugin is shutting down
-        }
+        host.logger().info("WebCraft WebSocket server listening on " + getAddress());
     }
 }

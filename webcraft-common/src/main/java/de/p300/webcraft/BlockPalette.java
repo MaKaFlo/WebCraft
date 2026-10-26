@@ -9,8 +9,6 @@ import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import org.bukkit.block.Block;
-import org.bukkit.craftbukkit.CraftWorld;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -51,12 +49,6 @@ public final class BlockPalette {
         if (state == null || state.isAir()) return AIR;
         Integer id = byState.get(state);
         return id != null ? id : register(state);
-    }
-
-    /** Palette id of a block in the world (main thread). */
-    public int idOf(Block block) {
-        CraftWorld w = (CraftWorld) block.getWorld();
-        return idOf(w.getHandle().getBlockState(new BlockPos(block.getX(), block.getY(), block.getZ())));
     }
 
     private synchronized int register(BlockState state) {

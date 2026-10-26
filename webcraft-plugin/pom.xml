@@ -7,7 +7,7 @@
   <parent>
     <groupId>de.p300.webcraft</groupId>
     <artifactId>webcraft-parent</artifactId>
-    <version>0.7.2</version>
+    <version>0.8.0</version>
   </parent>
 
   <artifactId>webcraft-plugin</artifactId>
@@ -64,9 +64,12 @@
                 <fail unless="paper.ok"
                       message="Paper server not found in ${paper.dir}. Run tools/fetch-paper.sh or build with -Dpaper.dir=/path/to/paper-26.3-server"/>
                 <mkdir dir="${project.build.outputDirectory}"/>
-                <javac srcdir="${project.basedir}/src/main/java" destdir="${project.build.outputDirectory}"
+                <javac destdir="${project.build.outputDirectory}"
                        release="${maven.compiler.release}" encoding="UTF-8" includeantruntime="false"
                        nowarn="true" debug="true" fork="false">
+                  <!-- Code shared with the Fabric mod -->
+                  <src path="${project.basedir}/../webcraft-common/src/main/java"/>
+                  <src path="${project.basedir}/src/main/java"/>
                   <classpath>
                     <fileset dir="${paper.dir}/versions" includes="**/*.jar"/>
                     <fileset dir="${paper.dir}/libraries" includes="**/*.jar"/>

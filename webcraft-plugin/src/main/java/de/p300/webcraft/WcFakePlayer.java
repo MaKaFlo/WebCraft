@@ -78,6 +78,8 @@ public final class WcFakePlayer {
     private Player bukkit;
     private int sequence = 1;
     private volatile boolean removed;
+    /** Where the player is, updated every tick (chunk streaming and entity lists use it). */
+    public Location location;
 
     private WcFakePlayer(WcPlugin plugin, WcSession session) {
         this.plugin = plugin;

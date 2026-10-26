@@ -1,0 +1,46 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+}
+
+base {
+	archivesName = 'webcraft-fabric'
+}
+
+repositories {
+	mavenCentral()
+}
+
+sourceSets {
+	main {
+		// Code shared with the Paper plugin (chunk encoding, palette, textures, WebSocket server ...)
+		java.srcDir '../webcraft-common/src/main/java'
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// WebSocket server for the browsers, packed into the mod jar (slf4j comes with Minecraft)
+	implementation("org.java-websocket:Java-WebSocket:1.6.0") { exclude group: 'org.slf4j' }
+	include("org.java-websocket:Java-WebSocket:1.6.0") { exclude group: 'org.slf4j' }
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+	filesMatching("fabric.mod.json") {
+		expand "version": version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 25
+	it.options.encoding = 'UTF-8'
+}
+
+java {
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
