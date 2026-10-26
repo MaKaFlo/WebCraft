@@ -154,6 +154,11 @@ Liquids: the palette entry of water/lava has `lh` (surface height from `FluidSta
 Minecraft (neighbours >= 0.8 weigh 10x, liquid above = full); the top texture is turned in quarter steps
 downhill (other angles would sample neighbouring tiles of the animation atlas).
 
+Facing: blocks with `HORIZONTAL_FACING` get `fa` (north/east/south/west) in their palette entry; the browser draws
+the `block/<name>_front` picture on that side (`palette.js tileFront/facing`), also as the left face of inventory
+icons. Chest faces (`chest/trapped_chest/ender_chest_front/side/top/bottom`) are cut from `entity/chest/*.png` by
+`make_pack.py chest_faces()` (the strips in that picture are upside down); other fronts come from `FRONT_FILES`.
+
 Screens with a choice (`webcraft-common/WcMenus`): the menu message's `trades` carries `cut` (stonecutter
 results, button id = index) and `sel`, `patterns` (loom pattern keys, button id = index) and `sel`, or
 `beacon` {levels, pay, primary, secondary, tiers}. The beacon's "Fertig" sends `beacon` (like

@@ -89,6 +89,11 @@ public final class BlockPalette {
         if (liquid) flags |= 4;
         e.addProperty("f", flags);
 
+        // Which way the block looks (furnace, chest, pumpkin ...): the browser draws the "_front" picture there
+        if (state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING)) {
+            e.addProperty("fa", state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING).getSerializedName());
+        }
+
         // Water and lava: how full the block is (flowing water gets lower, falling water is a full column)
         if (liquid) {
             var fluid = state.getFluidState();

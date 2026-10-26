@@ -11,6 +11,8 @@ export const KIND_LIQUID = 4;      // water, lava
 const FLAG_SOLID = 1;
 const FLAG_OCCLUDING = 2;
 const FLAG_LIQUID = 4;
+// Facing from the server -> face index in world.js FACES (+x, -x, +y, -y, +z, -z)
+const FACING = { east: 0, west: 1, south: 4, north: 5 };
 
 // Non-solid blocks that should still be drawn as a flat box instead of an X
 const BOXY = /carpet|^snow$|pressure_plate|rail$|portal|door|gate|ladder|pane$|bars$|sign$|banner$|button$|lever|lily_pad|repeater|comparator|redstone_wire|daylight|candle|cake|head$|skull$|flower_pot|frame$|tripwire_hook|tripwire$|scaffolding|chain|lantern|bed$|campfire|vine$|moss_carpet|pale_moss_carpet|leaf_litter/;
@@ -48,6 +50,8 @@ export class Palette {
     this.height = [];      // top of the drawn shape (for outlines)
     this.glow = [];        // drawn without shading (portals, lava)
     this.fire = [];        // fire: drawn as burning walls
+    this.facing = [];      // face index (world.js FACES) the block looks to, or -1
+    this.tileFront = [];   // picture for that face ("_front"), or -1
     this.fluid = [];       // 1 water, 2 lava, 0 no liquid (several ids per fluid: one per water level)
     this.liquidH = [];     // surface height of a liquid block (source 0.89, flowing lower)
     this.liquidFall = [];  // falling water (a waterfall column)
@@ -91,6 +95,7 @@ export class Palette {
     this.height[i] = e.r ? e.r[4] : 1;
     this.glow[i] = /portal|end_gateway|lava|magma|glowstone|sea_lantern|shroomlight|^fire$|soul_fire|froglight/.test(name) ? 1 : 0;
     this.fire[i] = name === 'fire' || name === 'soul_fire' ? 1 : 0;
+    this.facing[i] = FACING[e.fa] ?? -1;
     this.fluid[i] = kind === KIND_LIQUID ? (name === 'lava' ? 2 : 1) : 0;
     this.liquidH[i] = e.lh ?? 0.875;
     this.liquidFall[i] = e.lf ? 1 : 0;
@@ -128,6 +133,7 @@ export class Palette {
     let bottom = find(...names.flatMap((n) => [n + '_bottom', n]));
     this.tileTop[i] = top >= 0 ? top : builtTop;
     this.tileSide[i] = side >= 0 ? side : builtSide;
+    this.tileFront[i] = find(...names.map((n) => n + '_front'));
     this.tileBottom[i] = bottom >= 0 ? bottom : (top >= 0 && name !== 'grass_block' ? top : builtTop);
     let packed = (top >= 0 ? 1 : 0) | (side >= 0 ? 2 : 0) | (bottom >= 0 || (top >= 0 && name !== 'grass_block') ? 4 : 0);
     // Gray pictures of grass, leaves, water ... get the block color like in Minecraft

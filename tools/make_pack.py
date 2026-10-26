@@ -33,13 +33,63 @@ ENTITY_FILES = {
     'villager_librarian': 'villager/librarian', 'villager_priest': 'villager/priest', 'villager_smith': 'villager/smith',
     'villager_butcher': 'villager/butcher', 'wolf': 'wolf/wolf',
 }
+# Front faces (shown on the side the block faces): block name -> picture in the pack
+FRONT_FILES = {
+    'furnace': 'furnace_front', 'blast_furnace': 'blast_furnace_front', 'smoker': 'smoker_front',
+    'dispenser': 'dispenser_front', 'dropper': 'dropper_front', 'observer': 'observer_front', 'loom': 'loom_front',
+    'beehive': 'beehive_front', 'bee_nest': 'bee_nest_front', 'carved_pumpkin': 'carved_pumpkin',
+    'jack_o_lantern': 'jack_o_lantern',
+}
+# Chests are drawn by Minecraft as a model with entity/chest/*.png; we cut block faces out of it
+CHEST_FILES = {'chest': 'normal', 'trapped_chest': 'trapped', 'ender_chest': 'ender'}
 ARMOR_FILES = [m + '_layer_' + n for m in ('leather', 'chainmail', 'iron', 'gold', 'diamond', 'netherite', 'turtle')
                for n in ('1', '2')]
 
 
+def chest_faces(picture):
+    """Block faces of a chest (16 px; the chest is 14 wide and 14 high) from the chest model picture
+    (64x64, old layout: lid box 14x5x14 at 0,0, base box 14x10x14 at 0,19, latch 2x4x1 at 0,0)."""
+    im = Image.open(picture).convert('RGBA')
+    k = im.width // 64
+    crop = lambda x, y, w, h: im.crop((x * k, y * k, (x + w) * k, (y + h) * k)).resize((w, h), Image.NEAREST)
+    faces = {}
+    for name, strip in (('front', 42), ('side', 0)):
+        tile = Image.new('RGBA', (16, 16))
+        # Minecraft draws the chest model upside down, so the strips in the picture are flipped
+        base = crop(strip, 33, 14, 10).transpose(Image.FLIP_TOP_BOTTOM).crop((0, 1, 14, 10))   # without its top row
+        lid = crop(strip, 14, 14, 5).transpose(Image.FLIP_TOP_BOTTOM)
+        # The tile's lower 14 rows cover the block's height 0..14/16; 1 px margin left and right
+        tile.paste(base, (1, 7))
+        tile.paste(lid, (1, 2))
+        for x in (0, 15):                      # fill the margin so no see-through pixels end up on the edge
+            tile.paste(tile.crop((1 if x == 0 else 14, 0, 2 if x == 0 else 15, 16)), (x, 0))
+        if name == 'front':
+            tile.alpha_composite(crop(1, 1, 2, 4), (7, 5))
+        faces[name] = tile
+    top = Image.new('RGBA', (16, 16))
+    top.paste(crop(14, 0, 14, 14).resize((16, 16), Image.NEAREST), (0, 0))
+    faces['top'] = top
+    faces['bottom'] = crop(28, 19, 14, 14).resize((16, 16), Image.NEAREST)
+    out = {}
+    for name, img in faces.items():
+        buf = io.BytesIO()
+        img.save(buf, 'PNG')
+        out[name] = buf.getvalue()
+    return out
+
+
 def entity_files(textures):
-    """entity/NAME and armor/NAME -> PNG bytes."""
+    """entity/NAME, armor/NAME, chest faces and front faces -> PNG bytes."""
     found = {}
+    for block, picture in CHEST_FILES.items():
+        f = textures / 'entity' / 'chest' / (picture + '.png')
+        if f.exists():
+            for face, data in chest_faces(f).items():
+                found[f'block/{block}_{face}'] = data
+    for block, picture in FRONT_FILES.items():
+        f = textures / 'block' / (picture + '.png')
+        if f.exists():
+            found[f'block/{block}_front'] = f.read_bytes()
     for name, rel in ENTITY_FILES.items():
         f = textures / 'entity' / (rel + '.png')
         if f.exists():
@@ -55,14 +105,14 @@ if len(sys.argv) == 4 and sys.argv[1] == '--entities':
     textures = Path(sys.argv[2]) / 'assets/minecraft/textures'
     zip_path = sys.argv[3]
     with zipfile.ZipFile(zip_path) as z:
-        old = {n: z.read(n) for n in z.namelist() if not n.startswith(('entity/', 'armor/'))}
-    new = entity_files(textures)
+        new = entity_files(textures)
+        old = {n: z.read(n) for n in z.namelist() if not n.startswith(('entity/', 'armor/')) and n[:-4] not in new}
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as z:
         for n, data in old.items():
             z.writestr(n, data)
         for path, data in sorted(new.items()):
             z.writestr(path + '.png', data)
-    print(f'{len(new)} mob/armor textures added to {zip_path}')
+    print(f'{len(new)} mob, armor, chest and front textures added to {zip_path}')
     sys.exit(0)
 
 src = Path(sys.argv[1]) / 'assets/minecraft/textures'

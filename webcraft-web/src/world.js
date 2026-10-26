@@ -363,8 +363,10 @@ export class World {
             if (F.n[1] === -1 && kind === KIND_LIQUID && nid !== 0 && P.solid[nid]) continue;
 
             const faceBit = F.n[1] > 0 ? 1 : F.n[1] < 0 ? 4 : 2;
+            // The side the block looks to (furnace, chest ...) has its own picture
+            const front = f === P.facing[id] && P.tileFront[id] >= 0;
             let fr = r, fg = g, fb = b;
-            if (P.packed[id] & faceBit) {
+            if (front || (P.packed[id] & faceBit)) {
               // Pack textures bring their own colors
               const n2 = 0.97 + (noise - 1) * 0.3;
               fr = fg = fb = n2;
@@ -381,7 +383,7 @@ export class World {
               // Quarter turns only: other angles would reach outside the tile into its atlas neighbours
               if (Math.abs(gx) + Math.abs(gz) > 0.01) flowAngle = Math.round(Math.atan2(gx, gz) / (Math.PI / 2)) * (Math.PI / 2);
             }
-            const tile = F.n[1] > 0 ? P.tileTop[id] : F.n[1] < 0 ? P.tileBottom[id] : P.tileSide[id];
+            const tile = F.n[1] > 0 ? P.tileTop[id] : F.n[1] < 0 ? P.tileBottom[id] : front ? P.tileFront[id] : P.tileSide[id];
             const useAo = kind === KIND_CUBE && full && !glow;
             for (let i = 0; i < 4; i++) {
               const [du, dv] = CORNERS[i];

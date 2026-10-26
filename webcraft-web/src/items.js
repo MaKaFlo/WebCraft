@@ -132,6 +132,8 @@ export function iconCanvas(palette, key) {
     const sideRgb = key === 'grass_block' && !(palette.packed[id] & 2) ? palette.dirtRgb : rgb;
     const top = faceCanvas(palette.tileTop[id], rgb, palette.packed[id] & 1);
     const side = faceCanvas(palette.tileSide[id], sideRgb, palette.packed[id] & 2);
+    // Furnaces, chests ... show their front on the left side, like in Minecraft's inventory
+    const front = palette.tileFront[id] >= 0 ? faceCanvas(palette.tileFront[id], rgb, true) : side;
     // Real isometric cube: the sides are as tall as the edges of the top (they were too short before,
     // so every block looked like a slab). Slabs, snow layers ... keep their own height.
     const m = size / 2, w = size * 0.4, h = w * Math.tan(Math.PI / 6);
@@ -150,7 +152,7 @@ export function iconCanvas(palette, key) {
       }
     };
     face(top, w, -h, w, h, m - w, y0 + h, 0);
-    face(side, w, h, 0, hs, m - w, y0 + h, 0.22);
+    face(front, w, h, 0, hs, m - w, y0 + h, 0.22);
     face(side, w, -h, 0, hs, m, y0 + 2 * h, 0.4);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   } else {
