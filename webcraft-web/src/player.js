@@ -203,6 +203,12 @@ export class Player {
         && top(Math.floor(this.x), by + 2, Math.floor(this.z)) === 0;
       if (h > STEP && h <= 1 && free) this.vy = JUMP_SPEED;
     }
+    // Swimming into a ledge pushes you up out of the water (like Minecraft), so you can climb onto the shore
+    const touchingLiquid = this.inLiquid || this.world.isLiquid(Math.floor(this.x), Math.floor(this.y), Math.floor(this.z));
+    if ((blocked(mx, dx) || blocked(mz, dz)) && touchingLiquid && len > 0 && !this.flying
+        && !this.insideBlock(this.x, this.y + 0.6, this.z)) {
+      this.vy = Math.max(this.vy, JUMP_SPEED);
+    }
     if (blocked(mx, dx) && Math.abs(this.x - sx) < Math.abs(dx) - EPS) this.vx = 0;
     if (blocked(mz, dz) && Math.abs(this.z - sz) < Math.abs(dz) - EPS) this.vz = 0;
 
