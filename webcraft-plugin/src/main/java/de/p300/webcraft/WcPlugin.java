@@ -69,6 +69,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
     private final Set<BlockPos> pendingBlocks = new HashSet<>();
     private long tickCounter;
     private WcBlockLog blockLog;
+    private WcWorlds worlds;
 
     record BlockPos(String world, int x, int y, int z) {}
 
@@ -84,6 +85,13 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         textures.load();
         blockLog = new WcBlockLog(new File(getDataFolder(), "blocklog.csv"), getLogger());
         getServer().getPluginManager().registerEvents(new WcListener(this), this);
+        worlds = new WcWorlds(this);
+        worlds.load(Math.max(0, getConfig().getInt("worlds-per-player", 1)));
+        var welt = getCommand("welt");
+        if (welt != null) {
+            welt.setExecutor(worlds);
+            welt.setTabCompleter(worlds);
+        }
         Bukkit.getScheduler().runTaskTimer(this, this::tick, 1L, 1L);
         startServer();
     }
@@ -278,10 +286,49 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
             return;
         }
         boolean firstJoin = !offline.hasPlayedBefore();
-
+        if (!joining.add(fullName.toLowerCase())) {
+            fail(s, "Name is already in use");
+            return;
+        }
         s.name = fullName;
+
+        // Like a real login: plugins (permissions like LuckPerms, bans, maintenance ...) load their data in
+        // AsyncPlayerPreLoginEvent, which must run off the main thread. Then the join goes on here.
+        java.net.InetAddress ip = s.conn.getRemoteSocketAddress() == null ? java.net.InetAddress.getLoopbackAddress()
+                : s.conn.getRemoteSocketAddress().getAddress();
+        UUID uuid = WcFakePlayer.uuidFor(fullName);
+        Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+            org.bukkit.event.player.AsyncPlayerPreLoginEvent pre = new org.bukkit.event.player.AsyncPlayerPreLoginEvent(fullName, ip, uuid);
+            try {
+                Bukkit.getPluginManager().callEvent(pre);
+            } catch (Exception e) {
+                getLogger().log(Level.WARNING, "AsyncPlayerPreLoginEvent failed for " + fullName, e);
+            }
+            Bukkit.getScheduler().runTask(this, () -> {
+                joining.remove(fullName.toLowerCase());
+                finishLogin(s, fullName, firstJoin, pre);
+            });
+        });
+    }
+
+    private final Set<String> joining = new HashSet<>();
+
+    private void finishLogin(WcSession s, String fullName, boolean firstJoin, org.bukkit.event.player.AsyncPlayerPreLoginEvent pre) {
+        if (s.closed) return;
+        if (pre.getLoginResult() != org.bukkit.event.player.AsyncPlayerPreLoginEvent.Result.ALLOWED) {
+            String msg = plain(pre.kickMessage());
+            fail(s, msg == null || msg.isBlank() ? "Login refused by the server" : msg);
+            return;
+        }
+        if (Bukkit.getPlayerExact(fullName) != null) {
+            fail(s, "Name is already in use");
+            return;
+        }
         try {
             s.fake = WcFakePlayer.join(this, s, fullName, joinWorld(), s.conn.getRemoteSocketAddress());
+        } catch (WcFakePlayer.LoginDenied e) {
+            fail(s, e.getMessage());
+            return;
         } catch (Exception e) {
             getLogger().log(Level.SEVERE, "WebCraft: could not create player " + fullName, e);
             fail(s, "Server error while joining, see server log");

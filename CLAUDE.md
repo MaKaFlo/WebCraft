@@ -97,6 +97,7 @@ cd webcraft-web && npm ci && npm run build   # web only -> webcraft-web/dist/ind
 | `WcItems` | ItemStack → `{k, c, d, e}` JSON |
 | `WcScoreboard` | Sidebar scoreboard capture |
 | `WcBlockLog` | `blocklog.csv` against griefing |
+| `WcWorlds` | `/welt`: own worlds `welt_<name>` (Bukkit `WorldCreator`, `worlds.yml`), permissions `webcraft.server.create/join` (default false, also for OPs) and `.admin` (op) |
 
 Important details learned the hard way:
 
@@ -111,6 +112,11 @@ Important details learned the hard way:
 - Digging: the server accepts STOP only if (break speed *now*) x (ticks since start) >= 0.7. Falling into
   the hole you dig or water makes that 5x slower, so `WcFakePlayer.dig("stop")` holds the stop until
   `digDone()` is true (max 5 s). The client slows its crack timer the same way (`interact.js digSlow()`).
+- Login fires `AsyncPlayerPreLoginEvent` (async task, then back to the main thread in `finishLogin`) and
+  `PlayerLoginEvent` (in `WcFakePlayer.join`, before `placeNewPlayer`). Without them LuckPerms never loads
+  the user ("A user for wc_X could not be found") and permissions don't work for WebCraft players.
+  Compiling needs `org.jetbrains:annotations` (provided) because of the Paper API's annotations.
+- Paper 26 stores extra worlds as dimensions: `world/dimensions/minecraft/<name>`.
 - Same WebCraft name logging in again takes over: the old session is kicked and removed first (player data is
   saved on removal), then the new one loads it. A saved position inside blocks is moved up on login
   (`freeFromBlocks`). The client pushes the player out of blocks (`player.js unstuck()`) and lets you walk
@@ -144,6 +150,11 @@ Differences learned on vanilla:
   Bukkit names the browser knows (`VARIANT_NAMES`).
 - Testing: Fabric server jar from `https://meta.fabricmc.net/v2/versions/loader/26.3/<loader>/<installer>/server/jar`,
   plus Fabric API in `mods/`. New 26.x servers have `white-list=true` in server.properties.
+
+Liquids: the palette entry of water/lava has `lh` (surface height from `FluidState.getOwnHeight()`) and
+`lf` (falling), so every level is its own id. `world.js liquidCorners()` averages the corner heights like
+Minecraft (neighbours >= 0.8 weigh 10x, liquid above = full); the top texture is turned in quarter steps
+downhill (other angles would sample neighbouring tiles of the animation atlas).
 
 Screens with a choice (`webcraft-common/WcMenus`): the menu message's `trades` carries `cut` (stonecutter
 results, button id = index) and `sel`, `patterns` (loom pattern keys, button id = index) and `sel`, or
@@ -204,6 +215,7 @@ built-in textures (aliases, recolors for newer blocks, spawn eggs, animations.js
 ## Backlog / ideas
 
 - Skins for WebCraft players (they look like Steve to others)
-- Particles, day/night sky, flowing water visuals
+- Particles, day/night sky
+- `/welt` for Fabric (needs runtime dimensions, e.g. the Fantasy library, and a permission API)
 - Real mob textures (mobs are colored block figures)
 - ~230 newer blocks without own texture (see make_pack output `.missing.txt`)

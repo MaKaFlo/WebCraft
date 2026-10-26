@@ -9,10 +9,22 @@ commands:
     aliases: [wc]
     usage: /webcraft [status|kick <name>|reload]
     permission: webcraft.admin
+  welt:
+    description: Own worlds on this server - create, enter, leave, delete.
+    usage: /welt [liste|<name>|verlassen|erstellen <name> [flach]|löschen <name>]
 permissions:
   webcraft.admin:
     description: Use /webcraft admin commands.
     default: op
   webcraft.textures:
     description: Upload the WebCraft texture pack for everyone from the texture studio.
+    default: op
+  webcraft.server.create:
+    description: Create own worlds with /welt erstellen (and enter and delete your own).
+    default: false
+  webcraft.server.join:
+    description: Enter other players' worlds with /welt <name>.
+    default: false
+  webcraft.server.admin:
+    description: Create any number of worlds and delete every world.
     default: op

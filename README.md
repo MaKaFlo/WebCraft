@@ -2,7 +2,7 @@
 
 Ein Block-Spiel im Browser, das sich mit einem **Minecraft-Server** verbindet: **Paper** (als Plugin) oder **Fabric** (als Mod, damit auch für Vanilla). WebCraft-Spieler sind auf dem Server **echte Spieler**: Sie stehen in der Tab-Liste, bekommen Schaden, sterben, benutzen Befehle und Menüs von Plugins und Mods. Für den Server gibt es keinen Unterschied zu einem Minecraft-Spieler. So können Leute ohne Minecraft-Account mit Freunden auf dem Server spielen.
 
-Version 0.8.1 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
+Version 0.9.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
 
 ## Aufbau
 
@@ -37,7 +37,7 @@ mvn package
 
 Ergebnis:
 
-- `webcraft-plugin/target/webcraft-0.8.1.jar`: das Plugin
+- `webcraft-plugin/target/webcraft-0.9.0.jar`: das Plugin
 - `webcraft-web/target/webcraft.html`: das Spiel (gleiche Datei wie `webcraft-web/dist/index.html`)
 
 Warum Paper herunterladen? Das Plugin benutzt die Server-Interna (`net.minecraft.*`, Mojang-Namen), die es in keinem Maven-Repository gibt. Statt `.paper/` geht auch jeder andere Paper-26.3-Ordner, der einmal gestartet wurde: `mvn package -Dpaper.dir=/pfad/zum/server`.
@@ -48,7 +48,7 @@ Die **Fabric-Mod** wird mit Gradle gebaut (Minecraft und Fabric lädt Gradle sel
 
 ```bash
 cd webcraft-fabric
-./gradlew build                # -> build/libs/webcraft-fabric-0.8.1.jar
+./gradlew build                # -> build/libs/webcraft-fabric-0.9.0.jar
 ```
 
 Die Version steht für die Mod in `webcraft-fabric/gradle.properties` (bei einem Versionswechsel dort mit ändern).
@@ -64,7 +64,7 @@ git push origin v0.7.1
 
 ## Plugin installieren
 
-1. Alte `webcraft-*.jar` aus `plugins/` löschen, `webcraft-0.8.1.jar` reinlegen.
+1. Alte `webcraft-*.jar` aus `plugins/` löschen, `webcraft-0.9.0.jar` reinlegen.
 2. Server neu starten. Die Einstellungen stehen in `plugins/WebCraft/config.yml`.
 3. Der Port aus `config.yml` (Standard `25007`) muss von außen erreichbar sein, oder der nginx-Container leitet ihn weiter (siehe unten).
 
@@ -79,7 +79,7 @@ git push origin v0.7.1
 Vanilla-Server können keine Plugins oder Mods laden. Für Vanilla installiert man deshalb **Fabric** (https://fabricmc.net/use/server/): Die Welt und das Spiel bleiben wie Vanilla, und Minecraft-Spieler brauchen nichts extra.
 
 1. Fabric-Server für Minecraft 26.3 aufsetzen.
-2. In den Ordner `mods/` legen: **`webcraft-fabric-0.8.1.jar`** und die **Fabric API** für 26.3 (https://modrinth.com/mod/fabric-api).
+2. In den Ordner `mods/` legen: **`webcraft-fabric-0.9.0.jar`** und die **Fabric API** für 26.3 (https://modrinth.com/mod/fabric-api).
 3. Server starten. Die Einstellungen stehen in `config/webcraft/webcraft.properties` (gleiche Werte wie die `config.yml` des Plugins, `allowed-origins` mit Komma getrennt). Danach `/webcraft reload`.
 4. Port `25007` freigeben oder den nginx-Container nehmen, genau wie beim Plugin.
 
@@ -140,6 +140,28 @@ Im Inventar: Maus über ein Item zeigt seinen Namen. Shift+Klick verschiebt, `1`
 - `/webcraft reload`: Config und `texturen.zip` neu laden
 - `/webcraft whitelist <name>` (nur Fabric): WebCraft-Spieler auf die Whitelist setzen
 
+## Eigene Welten 🌍 (nur Paper)
+
+Spieler können auf deinem Server eigene Welten anlegen, wie kleine eigene Server. Mit einem Befehl kommt man hin und wieder zurück. Das geht für WebCraft- und Minecraft-Spieler.
+
+| Befehl | Was |
+|---|---|
+| `/welt liste` | alle Welten |
+| `/welt <name>` | in eine Welt gehen |
+| `/welt verlassen` | zurück, wo man vorher war |
+| `/welt erstellen <name> [flach]` | eigene Welt anlegen (normal oder flach) |
+| `/welt löschen <name>` | eigene Welt löschen (mit Bestätigung) |
+
+**Rechte:** Standardmäßig hat **niemand** diese Rechte, auch keine OPs. Vergeben werden sie mit einem Rechte-Plugin wie **LuckPerms**, zum Beispiel `/lp user wc_Name permission set webcraft.server.create true`.
+
+- `webcraft.server.create`: Welten erstellen (und die eigene betreten und löschen)
+- `webcraft.server.join`: Welten von anderen betreten
+- `webcraft.server.admin` (Standard: OPs): beliebig viele Welten erstellen und jede Welt löschen
+
+Wie viele Welten ein Spieler erstellen darf, steht in `config.yml` unter `worlds-per-player` (Standard 1). Die Welten stehen in `plugins/WebCraft/worlds.yml` und liegen bei Paper 26 unter `world/dimensions/minecraft/welt_<name>`.
+
+WebCraft-Spieler lösen beim Einloggen dieselben Login-Events aus wie Minecraft-Spieler (`AsyncPlayerPreLoginEvent`, `PlayerLoginEvent`). Dadurch funktionieren Rechte-, Bann- und Wartungs-Plugins auch für sie.
+
 ## Textur-Studio 🎨 (eigene Grafiken mit ChatGPT)
 
 `Esc` → **Textur-Studio**:
@@ -165,6 +187,8 @@ Das Bild wird auf 32×32 Pixel verkleinert (bei Items wird der Hintergrund entfe
 - ✅ Lifesteal: mehr als 10 Herzen werden angezeigt, verlorene und gewonnene Herzen auch
 - ✅ Plugin-Befehle und Plugin-Menüs (Truhen-GUIs), Rechts- und Linksklick-Abilities
 - ✅ Truhen, Öfen, Werkbank, Türen, Betten, Eimer: alles über den echten Server
+- ✅ Fließendes Wasser und Lava wie in Minecraft: die Oberfläche fällt zum Rand hin ab, die Textur fließt bergab, Wasserfälle
+- ✅ Eigene Welten auf dem Server mit `/welt` (nur Paper, mit Rechten, siehe unten)
 - ✅ Steinsäge (Rezept auswählen), Webstuhl (Muster auswählen), Leuchtfeuer (Effekte auswählen und bezahlen)
 - ✅ Mobs und Tiere als Blockfiguren mit eigener Form: Creeper, Spinne, Huhn, Biene, Fledermaus, Papagei, Fische, Delfin, Tintenfisch, Ghast, Blaze, Breeze, Phantom, Wächter, Schleim, Shulker, Wither, Enderdrache ... Tiere mit Schwanz, Hörnern, Ohren, langem Hals. Flügel schlagen, Tentakel wackeln
 - ✅ Echte Blockformen: Stufen oben/unten, Schnee-Schichten, Türen und Falltüren offen/zu, Zäune, Portale
@@ -195,7 +219,7 @@ Das Bild wird auf 32×32 Pixel verkleinert (bei Items wird der Hintergrund entfe
 ### Noch offen
 
 - ⏳ Skins (WebCraft-Spieler sehen für andere wie Steve aus)
-- ⏳ Partikel, Tag/Nacht am Himmel, fließendes Wasser
+- ⏳ Partikel, Tag/Nacht am Himmel
 - ⏳ Mobs haben Farben, aber noch keine echten Texturen
 - ⏳ Rund 230 neuere Blöcke haben noch keine eigene Textur
 

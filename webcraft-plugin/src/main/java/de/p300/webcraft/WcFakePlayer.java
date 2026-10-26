@@ -139,6 +139,16 @@ public final class WcFakePlayer {
             bw.getChunkAt(cx, cz);
             bw.addPluginChunkTicket(cx, cz, plugin);
             Bukkit.getScheduler().runTaskLater(plugin, () -> bw.removePluginChunkTicket(cx, cz, plugin), 200L);
+            // PlayerLoginEvent like a real login: permission plugins (LuckPerms) attach their data here, and
+            // ban/maintenance plugins can refuse the player
+            java.net.InetAddress ip = ((InetSocketAddress) conn.address).getAddress();
+            org.bukkit.event.player.PlayerLoginEvent login = new org.bukkit.event.player.PlayerLoginEvent(
+                    sp.getBukkitEntity(), "webcraft", ip, ip);
+            Bukkit.getPluginManager().callEvent(login);
+            if (login.getResult() != org.bukkit.event.player.PlayerLoginEvent.Result.ALLOWED) {
+                String msg = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(login.kickMessage());
+                throw new LoginDenied(msg.isBlank() ? "Login refused by the server" : msg);
+            }
             server.getPlayerList().placeNewPlayer(conn, sp, cookie);
             input.ifPresent(i -> {
                 sp.loadAndSpawnEnderPearls(i);
@@ -147,6 +157,13 @@ public final class WcFakePlayer {
         }
         fake.handle().connection.handleAcceptPlayerLoad(new ServerboundPlayerLoadedPacket());
         return fake;
+    }
+
+    /** A plugin refused the login (PlayerLoginEvent). */
+    static final class LoginDenied extends RuntimeException {
+        LoginDenied(String message) {
+            super(message);
+        }
     }
 
     public Player bukkit() {
