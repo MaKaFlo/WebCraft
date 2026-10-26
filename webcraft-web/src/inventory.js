@@ -51,14 +51,16 @@ function fillSlot(el, item, palette) {
     img.style.visibility = 'hidden';
     count.textContent = '';
     dura.style.display = 'none';
-    el.title = '';
+    delete el.dataset.tip;
     el.classList.remove('ench');
     return;
   }
   img.src = iconFor(palette, item.k);
   img.style.visibility = 'visible';
   count.textContent = item.c > 1 ? item.c : '';
-  el.title = prettyName(item.k);
+  // Shown by our own tooltip (the browser's title tooltip is slow and vanishes when slots refresh)
+  el.dataset.tip = prettyName(item.k) + (item.e ? '\n✨ Verzaubert' : '')
+    + (item.d ? `\nHaltbarkeit: ${Math.round((1 - item.d) * 100)} %` : '');
   el.classList.toggle('ench', !!item.e);
   if (item.d) {
     dura.style.display = 'block';
@@ -112,12 +114,40 @@ export class Inventory {
     this.cursorCount = document.createElement('span');
     this.cursorCount.className = 'cursor-count';
     document.body.append(this.cursorEl, this.cursorCount);
+
+    // Item names when the mouse is over a slot (also armor, fuel, trades ...), like Minecraft's tooltip
+    this.tipEl = document.createElement('div');
+    this.tipEl.className = 'item-tip';
+    this.tipEl.hidden = true;
+    document.body.appendChild(this.tipEl);
+    this.tipTarget = null;
+    screenEl.addEventListener('mouseover', (e) => {
+      const el = e.target.closest('[data-tip], [title]');
+      if (el && el.hasAttribute('title')) {
+        el.dataset.tip = el.title;
+        el.removeAttribute('title');
+      }
+      this.tipTarget = el && screenEl.contains(el) ? el : null;
+      this.refreshTip();
+    });
+    screenEl.addEventListener('mouseleave', () => { this.tipTarget = null; this.refreshTip(); });
     document.addEventListener('mousemove', (e) => {
+      this.tipEl.style.left = e.clientX + 14 + 'px';
+      this.tipEl.style.top = e.clientY - 30 + 'px';
       this.cursorEl.style.left = e.clientX - 20 + 'px';
       this.cursorEl.style.top = e.clientY - 20 + 'px';
       this.cursorCount.style.left = e.clientX + 6 + 'px';
       this.cursorCount.style.top = e.clientY + 6 + 'px';
     });
+  }
+
+  /** Show the name of the hovered item (hidden while you carry something, like in Minecraft). */
+  refreshTip() {
+    const el = this.tipTarget;
+    const text = this.open && el && el.isConnected ? el.dataset.tip : '';
+    const carrying = this.cursorEl.style.display === 'block';
+    this.tipEl.hidden = !text || carrying;
+    if (text) this.tipEl.textContent = text;
   }
 
   clickSlot(slot, btn, mode) {
@@ -419,6 +449,7 @@ export class Inventory {
       this.cursorEl.style.display = 'none';
       this.cursorCount.style.display = 'none';
     }
+    this.refreshTip();
   }
 
   /** Progress bars, enchanting options, trades ... from the menu data of the server. */
@@ -498,6 +529,8 @@ export class Inventory {
     this.open = open;
     this.screen.hidden = !open;
     this.hoverSlot = -1;
+    this.tipTarget = null;
+    this.refreshTip();
     if (notify) this.send({ t: open ? 'inv_open' : 'close' });
     if (!open) {
       this.menu = null;

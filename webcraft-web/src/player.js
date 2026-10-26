@@ -28,6 +28,7 @@ export class Player {
     this.inLiquid = false;
     this.keys = new Set();
     this.sprinting = false;
+    this.canSprint = true;   // false when hungry (food <= 6)
     this.autoJump = true;
     this.canFly = false;   // creative / allowed by the server
     this.flying = false;

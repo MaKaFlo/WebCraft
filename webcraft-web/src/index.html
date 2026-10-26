@@ -300,6 +300,10 @@
   .rename { padding: 6px; font: 14px var(--mono); width: 200px; }
   .anvil-cost { font-size: 13px; color: #3a8a2a; font-weight: 700; min-height: 16px; }
   .cursor-item { position: fixed; width: 40px; height: 40px; pointer-events: none; display: none; z-index: 20; }
+  .item-tip { position: fixed; z-index: 22; pointer-events: none; white-space: pre-line; max-width: 260px;
+    background: rgba(16, 0, 16, 0.94); color: #fff; border: 2px solid #2d0a63; outline: 1px solid #100010;
+    padding: 4px 8px; font-size: 14px; line-height: 1.35; text-shadow: 1px 1px 0 #3f3f3f; }
+  .item-tip[hidden] { display: none; }
   .cursor-count { position: fixed; color: #fff; font-weight: 700; text-shadow: 2px 2px 0 #000; pointer-events: none; display: none; z-index: 21; }
 </style>
 </head>

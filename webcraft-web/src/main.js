@@ -228,6 +228,12 @@ function connect(url, name) {
         if (msg.border) setBorder(msg.border);
         hand.visibleMode = msg.gm !== 'SPECTATOR';
         player.canFly = msg.fly;
+        // Like Minecraft: with 3 drumsticks or less you can't sprint (unless you may fly, e.g. creative)
+        player.canSprint = msg.food > 6 || msg.fly;
+        if (!player.canSprint && player.sprinting) {
+          player.sprinting = false;
+          sendInput();
+        }
         if (!msg.dead && dead) hideDeath();
         if (msg.dead && !dead) showDeath('');
         break;
@@ -623,7 +629,7 @@ document.addEventListener('keydown', (e) => {
     const now = performance.now();
     // Double-tap W to sprint (Ctrl would close the browser tab with Ctrl+W)
     if (e.code === 'KeyW') {
-      if (now - lastWPress < 300) player.sprinting = true;
+      if (now - lastWPress < 300 && player.canSprint) player.sprinting = true;
       lastWPress = now;
     }
     // Double-tap space to fly (only where the server allows flying)
