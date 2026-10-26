@@ -36,5 +36,5 @@ log-blocks: true
 
 
 # Own worlds (/welt): how many worlds one player may create. Needs the permission webcraft.server.create,
-# entering other worlds webcraft.server.join (nobody has them by default, give them with e.g. LuckPerms).
+# entering other worlds webcraft.server.join (OPs have them, give them to others with e.g. LuckPerms).
 worlds-per-player: 1

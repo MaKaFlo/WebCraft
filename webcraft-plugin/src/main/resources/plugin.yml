@@ -21,10 +21,10 @@ permissions:
     default: op
   webcraft.server.create:
     description: Create own worlds with /welt erstellen (and enter and delete your own).
-    default: false
+    default: op
   webcraft.server.join:
     description: Enter other players' worlds with /welt <name>.
-    default: false
+    default: op
   webcraft.server.admin:
     description: Create any number of worlds and delete every world.
     default: op

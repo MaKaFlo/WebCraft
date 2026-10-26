@@ -31,8 +31,8 @@ import java.util.stream.Stream;
 /**
  * Own worlds ("servers") on this server: /welt erstellen, /welt <name>, /welt verlassen ...
  *
- * Creating needs webcraft.server.create, entering someone else's world webcraft.server.join. Nobody has
- * them by default (not even OPs), they are given with a permission plugin like LuckPerms.
+ * Creating needs webcraft.server.create, entering someone else's world webcraft.server.join. Only OPs have
+ * them by default; others get them with a permission plugin like LuckPerms.
  * The worlds are normal Bukkit worlds "welt_<name>", remembered in plugins/WebCraft/worlds.yml.
  */
 final class WcWorlds implements TabExecutor {

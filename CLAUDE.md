@@ -97,7 +97,7 @@ cd webcraft-web && npm ci && npm run build   # web only -> webcraft-web/dist/ind
 | `WcItems` | ItemStack → `{k, c, d, e}` JSON |
 | `WcScoreboard` | Sidebar scoreboard capture |
 | `WcBlockLog` | `blocklog.csv` against griefing |
-| `WcWorlds` | `/welt`: own worlds `welt_<name>` (Bukkit `WorldCreator`, `worlds.yml`), permissions `webcraft.server.create/join` (default false, also for OPs) and `.admin` (op) |
+| `WcWorlds` | `/welt`: own worlds `welt_<name>` (Bukkit `WorldCreator`, `worlds.yml`), permissions `webcraft.server.create/join/admin` (default: op) |
 
 Important details learned the hard way:
 
