@@ -94,6 +94,12 @@ public final class BlockPalette {
             e.addProperty("fa", state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING).getSerializedName());
         }
 
+        // Burning furnaces, campfires, candles, redstone torches: the browser shows flames and smoke
+        if (state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT)
+                && state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT)) {
+            e.addProperty("li", 1);
+        }
+
         // Water and lava: how full the block is (flowing water gets lower, falling water is a full column)
         if (liquid) {
             var fluid = state.getFluidState();

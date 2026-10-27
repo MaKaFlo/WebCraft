@@ -173,7 +173,7 @@ export class Interaction {
       this.abortDig();
       if (this.cooldown > 0) return;
       if (this.recent && this.recent.key === key && performance.now() - this.recent.at < 500) return;
-      this.dig = { key, x: t.x, y: t.y, z: t.z, face: faceIndex(t.face), ticks: -2, time: 0, slow: this.digSlow() };
+      this.dig = { key, x: t.x, y: t.y, z: t.z, face: faceIndex(t.face), normal: t.face, ticks: -2, time: 0, slow: this.digSlow() };
       this.send({ t: 'dig_start', x: t.x, y: t.y, z: t.z, face: this.dig.face });
       this.swing();
       this.digSwing = 0;
@@ -184,6 +184,7 @@ export class Interaction {
     if (this.digSwing > 0.25) {
       this.digSwing = 0;
       this.onSwing();
+      this.onDigHit?.(this.dig.x, this.dig.y, this.dig.z, this.dig.normal, this.world.getId(this.dig.x, this.dig.y, this.dig.z));
       this.send({ t: 'swing' });   // so everybody else sees the arm moving while you dig
     }
     const d = this.dig;
@@ -197,6 +198,7 @@ export class Interaction {
     if (progress >= 1) {
       if (need > 0) this.send({ t: 'dig_stop', x: d.x, y: d.y, z: d.z, face: d.face });
       // Show it gone right away (the server sends the real state back if it says no)
+      this.onBreak?.(d.x, d.y, d.z, this.world.getId(d.x, d.y, d.z));
       this.world.setBlock(d.x, d.y, d.z, 0);
       this.recent = { key: d.key, at: performance.now() };
       this.dig = null;
@@ -218,7 +220,10 @@ export class Interaction {
     const d = this.dig;
     if (!d || d.x !== msg.x || d.y !== msg.y || d.z !== msg.z) return;
     d.ticks = msg.ticks;
-    if (msg.ticks === 0) this.world.setBlock(d.x, d.y, d.z, 0);   // instant break (plants, creative)
+    if (msg.ticks === 0) {   // instant break (plants, creative)
+      this.onBreak?.(d.x, d.y, d.z, this.world.getId(d.x, d.y, d.z));
+      this.world.setBlock(d.x, d.y, d.z, 0);
+    }
   }
 
   abortDig() {

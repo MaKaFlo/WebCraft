@@ -574,6 +574,8 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                 m.add("l", list);
                 s.send(m);
             }
+            JsonObject fx = WcParticles.take(s.fx, palette);
+            if (fx != null) s.sendWithPalette(palette, fx);
             JsonObject board = s.scoreboard.takeUpdate();
             if (board != null) s.send(board);
             if (s.statsDirty || tickCounter % 10 == 0) {

@@ -43,6 +43,8 @@ public final class WcSession {
     public final java.util.Queue<int[]> anims = new java.util.concurrent.ConcurrentLinkedQueue<>();
     /** Block changes the server sent to this player (commands, WorldEdit, explosions, water ...): x, y, z, state. */
     public final java.util.Queue<Object[]> blockChanges = new java.util.concurrent.ConcurrentLinkedQueue<>();
+    /** Particle and level event packets since the last tick (see WcParticles). */
+    public final java.util.Queue<Object> fx = new java.util.concurrent.ConcurrentLinkedQueue<>();
     public volatile boolean invDirty = true;
     public volatile boolean statsDirty = true;
     public boolean screenOpen;       // browser shows the inventory or a container

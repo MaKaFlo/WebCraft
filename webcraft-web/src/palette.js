@@ -51,6 +51,7 @@ export class Palette {
     this.glow = [];        // drawn without shading (portals, lava)
     this.fire = [];        // fire: drawn as burning walls
     this.facing = [];      // face index (world.js FACES) the block looks to, or -1
+    this.lit = [];         // lit furnace, campfire, candle, redstone torch ... (particles)
     this.tileFront = [];   // picture for that face ("_front"), or -1
     this.fluid = [];       // 1 water, 2 lava, 0 no liquid (several ids per fluid: one per water level)
     this.liquidH = [];     // surface height of a liquid block (source 0.89, flowing lower)
@@ -96,6 +97,7 @@ export class Palette {
     this.glow[i] = /portal|end_gateway|lava|magma|glowstone|sea_lantern|shroomlight|^fire$|soul_fire|froglight/.test(name) ? 1 : 0;
     this.fire[i] = name === 'fire' || name === 'soul_fire' ? 1 : 0;
     this.facing[i] = FACING[e.fa] ?? -1;
+    this.lit[i] = e.li ? 1 : 0;
     this.fluid[i] = kind === KIND_LIQUID ? (name === 'lava' ? 2 : 1) : 0;
     this.liquidH[i] = e.lh ?? 0.875;
     this.liquidFall[i] = e.lf ? 1 : 0;

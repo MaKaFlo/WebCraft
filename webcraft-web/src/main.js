@@ -17,6 +17,7 @@ import { Studio } from './studio.js';
 import { Border } from './border.js';
 import { atlas } from './textures.js';
 import { Sky } from './sky.js';
+import { Particles } from './particles.js';
 
 const SKIES = {
   NORMAL: 0x9fc9ff,
@@ -68,6 +69,7 @@ window.addEventListener('resize', () => {
 
 const world = new World(scene);
 const sky = new Sky(scene);
+const particles = new Particles(scene, world);
 const player = new Player(world);
 player.autoJump = settings.autoJump;
 const entities = new Entities(scene);
@@ -109,6 +111,8 @@ const inventory = new Inventory({
 });
 const interaction = new Interaction(scene, world, player, entities, inventory, send);
 interaction.onSwing = () => hand.swing();
+interaction.onBreak = (x, y, z, id) => particles.breakBlock(x, y, z, id);
+interaction.onDigHit = (x, y, z, n, id) => particles.digHit(x, y, z, n, id);
 
 const studio = new Studio({
   el: $('studio'),
@@ -219,6 +223,9 @@ function connect(url, name) {
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ t: 'tp_ok', id: msg.id, x: msg.x, y: msg.y, z: msg.z, yaw: msg.yaw, pitch: msg.pitch }));
         }
+        break;
+      case 'fx':
+        particles.serverList(msg.l);
         break;
       case 'time':
         sky.setTime(msg.v, performance.now());
@@ -716,6 +723,8 @@ function frame(now) {
     border.update(player.x, player.eyeY, player.z, now / 1000);
     const light = sky.update(dt, scene, camera);
     if (Math.abs(light - shownLight) > 0.004) { shownLight = light; world.setBrightness(light); entities.setBrightness(light); }
+    particles.brightness = light;
+    particles.update(dt, player.x, player.eyeY, player.z);
 
     if (!ui.loading.hidden && player.groundLoaded() && world.dirty.size < 20) ui.loading.hidden = true;
     checkMissingChunks(dt);
@@ -787,4 +796,4 @@ function updateHud() {
 }
 
 // Handy for debugging in the browser console: wc.player, wc.world
-window.wc = { player, world, entities, renderer, scene, camera, inventory, interaction, send, hud, sidebar, studio, pack, hand, sky };
+window.wc = { player, world, entities, renderer, scene, camera, inventory, interaction, send, hud, sidebar, studio, pack, hand, sky, particles };
