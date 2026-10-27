@@ -2,7 +2,7 @@
 
 Ein Block-Spiel im Browser, das sich mit einem **Minecraft-Server** verbindet: **Paper** (als Plugin) oder **Fabric** (als Mod, damit auch für Vanilla). WebCraft-Spieler sind auf dem Server **echte Spieler**: Sie stehen in der Tab-Liste, bekommen Schaden, sterben, benutzen Befehle und Menüs von Plugins und Mods. Für den Server gibt es keinen Unterschied zu einem Minecraft-Spieler. So können Leute ohne Minecraft-Account mit Freunden auf dem Server spielen.
 
-Version 0.12.1 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
+Version 0.13.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
 
 ## Aufbau
 
@@ -211,6 +211,7 @@ Jeder Block, den ein WebCraft-Spieler abbaut oder setzt, steht in `plugins/WebCr
 
 ## Lizenzen
 
-- Eingebaute Texturen (`webcraft-web/src/texturen.zip`): gebaut aus **Pixel Perfection Community Edition** (XSSheep und Community, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)), keine Minecraft-Originalgrafik. Neuere Blöcke sind daraus umgefärbt. Auch die Mob- und Rüstungstexturen (`entity/`, `armor/`) stammen unverändert aus diesem Paket. Neu bauen: `python3 tools/make_pack.py <PixelPerfectionCE-Ordner> tools/items.json webcraft-web/src/texturen.zip`.
+- Eingebaute Texturen (`webcraft-web/src/texturen.zip`): **[Faithful 32x](https://faithfulpack.net)** (Copyright Faithful Resource Pack, Lizenz: [faithfulpack.net/license](https://faithfulpack.net/license), Kopie in `LICENSE-Faithful.txt` und in der ZIP). Blöcke, Items, Kisten, Rüstungen und die meisten Mobs sind aus Faithful; Dorfbewohner sind aus Haut, Kleidung und Beruf zusammengesetzt, die Kistenseiten aus dem Kistenmodell geschnitten, die Enderman-Augen aus seinem Bild gemacht. Mobs, deren Bild in Faithful ein neueres Layout hat (Kuh, Pilzkuh, Schwein, Hase, Magmawürfel), sind noch aus **Pixel Perfection Community Edition** (XSSheep und Community, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)). Keine Minecraft-Originalgrafik.
+- Neu bauen: `python3 tools/make_pack.py <Faithful-Ordner> tools/items.json webcraft-web/src/texturen.zip`, dann `python3 tools/make_pack.py --entities <Faithful-Ordner> <PixelPerfectionCE-Ordner> webcraft-web/src/texturen.zip` (Mobs: das erste Paket mit passendem Bild gewinnt).
 - three.js: MIT. Java-WebSocket: MIT (im Plugin-Jar enthalten, verschoben nach `de.p300.webcraft.lib.websocket`).
 - Minecraft ist eine Marke von Mojang/Microsoft. WebCraft ist kein offizielles Produkt.

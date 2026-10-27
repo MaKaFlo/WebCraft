@@ -161,7 +161,9 @@ const SKELETON_PARTS = {
 };
 
 const VILLAGER_PARTS = (zombie) => ({
-  head: { pivot: [0, 0, 0], boxes: [[...L(0, 0), -4, -10, -4, 8, 10, 8], [...L(24, 0), -1, -3, -6, 2, 4, 2]] },
+  // Head, nose and the hat layer (job hats, hoods; see-through in most pictures)
+  head: { pivot: [0, 0, 0], boxes: [[...L(0, 0), -4, -10, -4, 8, 10, 8], [...L(24, 0), -1, -3, -6, 2, 4, 2],
+    [...L(32, 0), -4, -10, -4, 8, 10, 8, 0.51]] },
   body: { pivot: [0, 0, 0], boxes: [[...L(16, 20), -4, 0, -3, 8, 12, 6], [...L(0, 38), -4, 0, -3, 8, 18, 6, 0.5]] },
   ...(zombie ? {
     rightArm: { pivot: [-5, 2, 0], boxes: [[...L(44, 22), -3, -2, -2, 4, 12, 4]] },
@@ -473,7 +475,9 @@ const SKINS = {
   spider: () => ['spider', 'entity/spider'],
   cave_spider: () => ['spider', 'entity/cave_spider'],
   enderman: () => ['enderman', 'entity/enderman'],
-  villager: (d) => ['villager', VILLAGER_JOBS[d.var] ? 'entity/villager_' + VILLAGER_JOBS[d.var] : 'entity/villager'],
+  // Every job has its own picture in newer packs; older packs only have five (VILLAGER_JOBS)
+  villager: (d) => ['villager', d.var && pack.image('entity/villager_' + d.var) ? 'entity/villager_' + d.var
+    : VILLAGER_JOBS[d.var] ? 'entity/villager_' + VILLAGER_JOBS[d.var] : 'entity/villager'],
   wolf: () => ['wolf', 'entity/wolf'],
   iron_golem: () => ['iron_golem', 'entity/iron_golem'],
   snow_golem: () => ['snow_golem', 'entity/snow_golem'],

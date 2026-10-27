@@ -223,6 +223,12 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
 | `hud.js sidebar.js tablist.js border.js sfx.js` | HUD, scoreboard, tab list, border, synthesized sounds |
 | `index.html` | All markup and CSS; `<!-- WC_SCRIPT -->` is replaced by the bundle |
 
+The built-in textures are **Faithful 32x** (faithfulpack.net, license in `LICENSE-Faithful.txt`: credit + link
+required, the license file goes into the zip) with Pixel Perfection CE (PPCE) for the mobs whose Faithful picture
+has a newer layout. Rebuild: `tools/make_pack.py <Faithful folder> tools/items.json webcraft-web/src/texturen.zip`, then
+`tools/make_pack.py --entities <Faithful folder> <PPCE folder> webcraft-web/src/texturen.zip` (first pack with a
+fitting picture wins: `OLD_RATIO` keeps out newer layouts, `COMPOSED` builds villagers from skin + biome + job,
+`SAME_PACK` keeps glow layers with their mob, `enderman_eyes()` makes the eye glow when a pack has none).
 `tools/make_pack.py <PixelPerfectionCE folder> tools/items.json webcraft-web/src/texturen.zip` rebuilds the
 built-in textures (aliases, recolors for newer blocks, spawn eggs, animations.json, destroy stages, mob and armor
 textures). `tools/make_pack.py --entities <PixelPerfectionCE folder> webcraft-web/src/texturen.zip` only adds/replaces the

@@ -1,7 +1,8 @@
 """Builds texturen.zip for WebCraft from the Pixel Perfection CE resource pack (CC BY-SA 4.0).
 
 Usage: python3 make_pack.py <pack folder> <items.json with {"list": [...], "blocks": [...]}> <out.zip>
-       python3 make_pack.py --entities <pack folder> <existing zip>   (only add/replace mob and armor textures)
+       python3 make_pack.py --entities <pack folder> [<more pack folders>] <existing zip>   (only add/replace mob,
+                 armor, chest and front textures; the first pack that has a picture wins)
        python3 make_pack.py --blocks <pack folder> <items.json> <existing zip>   (only add blocks the zip has no picture for)
 
 - Block textures are renamed to the block names WebCraft uses (slabs, stairs, walls ... get the texture of
@@ -22,30 +23,46 @@ from pathlib import Path
 
 from PIL import Image
 
-# Mob textures for the browser's mob models (classic Minecraft box layouts): our name -> file in the pack
+# Mob textures for the browser's mob models (classic Minecraft box layouts): our name -> picture(s) in the pack,
+# the first one found wins (new names of Minecraft 26.x packs first, then the older names).
+CATS = ('tabby', 'black', 'red', 'siamese', 'british_shorthair', 'calico', 'persian', 'ragdoll', 'white', 'jellie', 'all_black')
+PROFESSIONS = ('armorer', 'butcher', 'cartographer', 'cleric', 'farmer', 'fisherman', 'fletcher', 'leatherworker', 'librarian',
+               'mason', 'nitwit', 'shepherd', 'toolsmith', 'weaponsmith')
 ENTITY_FILES = {
-    'steve': 'steve', 'zombie': 'zombie/zombie', 'husk': 'zombie/husk', 'drowned': 'zombie/drowned',
-    'zombie_villager': 'zombie/zombie_villager', 'skeleton': 'skeleton/skeleton', 'stray': 'skeleton/stray',
+    'steve': ['player/wide/steve', 'steve'], 'zombie': 'zombie/zombie', 'husk': 'zombie/husk', 'drowned': 'zombie/drowned',
+    'zombie_villager': ['zombie/zombie_villager'], 'skeleton': 'skeleton/skeleton', 'stray': 'skeleton/stray',
     'wither_skeleton': 'skeleton/wither_skeleton', 'creeper': 'creeper/creeper', 'cow': 'cow/cow',
     'mooshroom': 'cow/red_mooshroom', 'brown_mooshroom': 'cow/brown_mooshroom', 'pig': 'pig/pig',
-    'sheep': 'sheep/sheep', 'sheep_fur': 'sheep/sheep_fur', 'chicken': 'chicken', 'spider': 'spider/spider',
-    'cave_spider': 'spider/cave_spider', 'spider_eyes': 'spider_eyes', 'enderman': 'enderman/enderman',
-    'enderman_eyes': 'enderman/enderman_eyes', 'villager': 'villager/villager', 'villager_farmer': 'villager/farmer',
-    'villager_librarian': 'villager/librarian', 'villager_priest': 'villager/priest', 'villager_smith': 'villager/smith',
-    'villager_butcher': 'villager/butcher', 'wolf': 'wolf/wolf',
-    'iron_golem': 'iron_golem/iron_golem', 'snow_golem': 'snow_golem', 'ocelot': 'cat/ocelot',
-    **{'cat_' + c: 'cat/' + c for c in ('tabby', 'black', 'red', 'siamese', 'british_shorthair', 'calico', 'persian',
-                                        'ragdoll', 'white', 'jellie', 'all_black')},
-    'fox': 'fox/fox', 'snow_fox': 'fox/snow_fox', 'bee': 'bee/bee', 'bee_angry': 'bee/bee_angry',
+    'sheep': 'sheep/sheep', 'sheep_fur': ['sheep/sheep_wool', 'sheep/sheep_fur'], 'chicken': ['chicken/chicken_temperate', 'chicken'],
+    'spider': 'spider/spider', 'cave_spider': 'spider/cave_spider', 'spider_eyes': ['spider/spider_eyes', 'spider_eyes'],
+    'enderman': 'enderman/enderman', 'enderman_eyes': 'enderman/enderman_eyes', 'villager': 'villager/villager',
+    'villager_farmer': 'villager/farmer', 'villager_librarian': 'villager/librarian', 'villager_priest': 'villager/priest',
+    'villager_smith': 'villager/smith', 'villager_butcher': 'villager/butcher', 'wolf': 'wolf/wolf',
+    'iron_golem': 'iron_golem/iron_golem', 'snow_golem': ['snow_golem/snow_golem', 'snow_golem'], 'ocelot': 'cat/ocelot',
+    **{'cat_' + c: ['cat/cat_' + c, 'cat/' + c] for c in CATS},
+    'fox': 'fox/fox', 'snow_fox': ['fox/fox_snow', 'fox/snow_fox'], 'bee': 'bee/bee', 'bee_angry': 'bee/bee_angry',
     **{'horse_' + c: 'horse/horse_' + c for c in ('white', 'creamy', 'chestnut', 'brown', 'black', 'gray', 'darkbrown')},
     'donkey': 'horse/donkey', 'mule': 'horse/mule', 'skeleton_horse': 'horse/horse_skeleton', 'zombie_horse': 'horse/horse_zombie',
-    'slime': 'slime/slime', 'magma_cube': 'slime/magmacube', 'wandering_trader': 'wandering_trader', 'witch': 'witch',
-    'pillager': 'illager/pillager', 'vindicator': 'illager/vindicator', 'evoker': 'illager/evoker', 'illusioner': 'illager/illusioner',
-    'piglin': 'piglin/piglin', 'piglin_brute': 'piglin/piglin_brute', 'zombified_piglin': 'piglin/zombified_piglin',
-    'polar_bear': 'bear/polarbear', 'panda': 'panda/panda',
+    'slime': 'slime/slime', 'magma_cube': 'slime/magmacube', 'wandering_trader': ['wandering_trader/wandering_trader', 'wandering_trader'],
+    'witch': ['witch/witch', 'witch'], 'pillager': 'illager/pillager', 'vindicator': 'illager/vindicator', 'evoker': 'illager/evoker',
+    'illusioner': 'illager/illusioner', 'piglin': 'piglin/piglin', 'piglin_brute': 'piglin/piglin_brute',
+    'zombified_piglin': 'piglin/zombified_piglin', 'polar_bear': 'bear/polarbear', 'panda': 'panda/panda',
     **{'rabbit_' + c: 'rabbit/' + c for c in ('brown', 'white', 'black', 'white_splotched', 'gold', 'salt', 'caerbannog')},
-    **{'llama_' + c: 'llama/' + c for c in ('creamy', 'white', 'brown', 'gray')},
+    **{'llama_' + c: ['llama/llama_' + c, 'llama/' + c] for c in ('creamy', 'white', 'brown', 'gray')},
 }
+# Newer packs draw villagers in layers (skin + biome clothes + job): put them together. Our old job names too.
+COMPOSED = {
+    'villager': ['villager/villager', 'villager/type/plains'],
+    'zombie_villager': ['zombie_villager/zombie_villager', 'zombie_villager/type/plains'],
+    **{'villager_' + p: ['villager/villager', 'villager/type/plains', 'villager/profession/' + p] for p in PROFESSIONS},
+    **{'villager_' + old: ['villager/villager', 'villager/type/plains', 'villager/profession/' + p]
+       for old, p in (('priest', 'cleric'), ('smith', 'weaponsmith'))},
+}
+# Pictures whose layout changed in newer Minecraft versions: only taken when the width:height ratio is the old one
+OLD_RATIO = {'cow': 2, 'mooshroom': 2, 'brown_mooshroom': 2, 'pig': 2, 'magma_cube': 2,
+             **{'rabbit_' + c: 2 for c in ('brown', 'white', 'black', 'white_splotched', 'gold', 'salt', 'caerbannog')}}
+# Glowing eyes only fit the picture of the same pack
+SAME_PACK = {'spider_eyes': 'spider', 'enderman_eyes': 'enderman'}
 # Front faces (shown on the side the block faces): block name -> picture in the pack
 FRONT_FILES = {
     'furnace': 'furnace_front', 'blast_furnace': 'blast_furnace_front', 'smoker': 'smoker_front',
@@ -54,35 +71,40 @@ FRONT_FILES = {
     'jack_o_lantern': 'jack_o_lantern',
 }
 # Chests are drawn by Minecraft as a model with entity/chest/*.png; we cut block faces out of it
-CHEST_FILES = {'chest': 'normal', 'trapped_chest': 'trapped', 'ender_chest': 'ender'}
-ARMOR_FILES = [m + '_layer_' + n for m in ('leather', 'chainmail', 'iron', 'gold', 'diamond', 'netherite', 'turtle')
-               for n in ('1', '2')]
+CHEST_FILES = {'chest': 'normal', 'trapped_chest': 'trapped', 'ender_chest': 'ender', 'copper_chest': 'copper',
+               'exposed_copper_chest': 'copper_exposed', 'weathered_copper_chest': 'copper_weathered',
+               'oxidized_copper_chest': 'copper_oxidized'}
+ARMOR_MATERIALS = {'leather': 'leather', 'chainmail': 'chainmail', 'iron': 'iron', 'gold': 'gold', 'diamond': 'diamond',
+                   'netherite': 'netherite', 'turtle': 'turtle_scute'}
+# armor/NAME -> pictures (newer packs: entity/equipment/humanoid(_leggings)/MATERIAL, older: models/armor/NAME)
+ARMOR_FILES = {f'{m}_layer_{n}': [f'entity/equipment/{"humanoid" if n == 1 else "humanoid_leggings"}/{new}', f'models/armor/{m}_layer_{n}']
+               for m, new in ARMOR_MATERIALS.items() for n in (1, 2)}
 
 
 def chest_faces(picture):
-    """Block faces of a chest (16 px; the chest is 14 wide and 14 high) from the chest model picture
-    (64x64, old layout: lid box 14x5x14 at 0,0, base box 14x10x14 at 0,19, latch 2x4x1 at 0,0)."""
+    """Block faces of a chest (16 px per block pixel unit; the chest is 14 wide and 14 high) from the chest model
+    picture (64x64 units, old layout: lid box 14x5x14 at 0,0, base box 14x10x14 at 0,19, latch 2x4x1 at 0,0).
+    HD pictures keep their resolution (k pixels per unit)."""
     im = Image.open(picture).convert('RGBA')
-    k = im.width // 64
-    crop = lambda x, y, w, h: im.crop((x * k, y * k, (x + w) * k, (y + h) * k)).resize((w, h), Image.NEAREST)
+    k = max(1, im.width // 64)
+    crop = lambda x, y, w, h: im.crop((x * k, y * k, (x + w) * k, (y + h) * k))
     faces = {}
     for name, strip in (('front', 42), ('side', 0)):
-        tile = Image.new('RGBA', (16, 16))
+        tile = Image.new('RGBA', (16 * k, 16 * k))
         # Minecraft draws the chest model upside down, so the strips in the picture are flipped
-        base = crop(strip, 33, 14, 10).transpose(Image.FLIP_TOP_BOTTOM).crop((0, 1, 14, 10))   # without its top row
+        base = crop(strip, 33, 14, 10).transpose(Image.FLIP_TOP_BOTTOM).crop((0, k, 14 * k, 10 * k))   # without its top row
         lid = crop(strip, 14, 14, 5).transpose(Image.FLIP_TOP_BOTTOM)
-        # The tile's lower 14 rows cover the block's height 0..14/16; 1 px margin left and right
-        tile.paste(base, (1, 7))
-        tile.paste(lid, (1, 2))
+        # The tile's lower 14 units cover the block's height 0..14/16; 1 unit margin left and right
+        tile.paste(base, (k, 7 * k))
+        tile.paste(lid, (k, 2 * k))
         for x in (0, 15):                      # fill the margin so no see-through pixels end up on the edge
-            tile.paste(tile.crop((1 if x == 0 else 14, 0, 2 if x == 0 else 15, 16)), (x, 0))
+            src = 1 if x == 0 else 14
+            tile.paste(tile.crop((src * k, 0, (src + 1) * k, 16 * k)), (x * k, 0))
         if name == 'front':
-            tile.alpha_composite(crop(1, 1, 2, 4), (7, 5))
+            tile.alpha_composite(crop(1, 1, 2, 4), (7 * k, 5 * k))
         faces[name] = tile
-    top = Image.new('RGBA', (16, 16))
-    top.paste(crop(14, 0, 14, 14).resize((16, 16), Image.NEAREST), (0, 0))
-    faces['top'] = top
-    faces['bottom'] = crop(28, 19, 14, 14).resize((16, 16), Image.NEAREST)
+    faces['top'] = crop(14, 0, 14, 14).resize((16 * k, 16 * k), Image.NEAREST)
+    faces['bottom'] = crop(28, 19, 14, 14).resize((16 * k, 16 * k), Image.NEAREST)
     out = {}
     for name, img in faces.items():
         buf = io.BytesIO()
@@ -91,34 +113,86 @@ def chest_faces(picture):
     return out
 
 
-def entity_files(textures):
-    """entity/NAME, armor/NAME, chest faces and front faces -> PNG bytes."""
-    found = {}
-    for block, picture in CHEST_FILES.items():
-        f = textures / 'entity' / 'chest' / (picture + '.png')
-        if f.exists():
-            for face, data in chest_faces(f).items():
-                found[f'block/{block}_{face}'] = data
-    for block, picture in FRONT_FILES.items():
-        f = textures / 'block' / (picture + '.png')
-        if f.exists():
-            found[f'block/{block}_front'] = f.read_bytes()
-    for name, rel in ENTITY_FILES.items():
-        f = textures / 'entity' / (rel + '.png')
-        if f.exists():
-            found['entity/' + name] = f.read_bytes()
-    for name in ARMOR_FILES:
-        f = textures / 'models' / 'armor' / (name + '.png')
-        if f.exists():
-            found['armor/' + name] = f.read_bytes()
+def enderman_eyes(im):
+    """Glow layer from the enderman picture: the eye pixels of the head (purple or white ones), the rest see-through."""
+    im = im.convert('RGBA')
+    k = max(1, im.width // 64)
+    out = Image.new('RGBA', im.size)
+    src, dst = im.load(), out.load()
+    for y in range(16 * k):
+        for x in range(32 * k):
+            p = src[x, y]
+            if not p[3]:
+                continue
+            if colorsys.rgb_to_hsv(p[0] / 255, p[1] / 255, p[2] / 255)[1] > 0.35 and max(p[:3]) > 90:
+                dst[x, y] = p                          # already purple
+            elif min(p[:3]) > 200:
+                dst[x, y] = (0xe0, 0x79, 0xfa, 255)    # white eye pixels glow purple like Minecraft's
+    buf = io.BytesIO()
+    out.save(buf, 'PNG')
+    return buf.getvalue()
+
+
+def entity_files(*roots):
+    """entity/NAME, armor/NAME, chest faces and front faces -> PNG bytes. roots: texture folders, first wins."""
+    found, origin = {}, {}
+    for textures in roots:
+        for block, picture in CHEST_FILES.items():
+            f = textures / 'entity' / 'chest' / (picture + '.png')
+            if f.exists() and f'block/{block}_front' not in found:
+                for face, data in chest_faces(f).items():
+                    found[f'block/{block}_{face}'] = data
+        for block, picture in FRONT_FILES.items():
+            f = textures / 'block' / (picture + '.png')
+            if f.exists() and f'block/{block}_front' not in found:
+                found[f'block/{block}_front'] = f.read_bytes()
+        for name, layers in COMPOSED.items():
+            files = [textures / 'entity' / (layer + '.png') for layer in layers]
+            if 'entity/' + name in found or not all(f.exists() for f in files):
+                continue
+            pics = [Image.open(f).convert('RGBA') for f in files]
+            pic = pics[0]
+            for layer in pics[1:]:
+                pic.alpha_composite(layer.resize(pic.size, Image.NEAREST))
+            buf = io.BytesIO()
+            pic.save(buf, 'PNG')
+            found['entity/' + name] = buf.getvalue()
+            origin[name] = textures
+        for name, rels in ENTITY_FILES.items():
+            if 'entity/' + name in found:
+                continue
+            if name in SAME_PACK and origin.get(SAME_PACK[name], textures) != textures:
+                continue
+            for rel in [rels] if isinstance(rels, str) else rels:
+                f = textures / 'entity' / (rel + '.png')
+                if not f.exists():
+                    continue
+                if name in OLD_RATIO:
+                    w, h = Image.open(f).size
+                    if w != h * OLD_RATIO[name]:
+                        continue                   # newer layout, our model would not fit
+                found['entity/' + name] = f.read_bytes()
+                origin[name] = textures
+                break
+        # Glowing enderman eyes: packs without their own picture get the purple eye pixels of the head
+        if origin.get('enderman') == textures and 'entity/enderman_eyes' not in found:
+            found['entity/enderman_eyes'] = enderman_eyes(Image.open(io.BytesIO(found['entity/enderman'])))
+        for name, rels in ARMOR_FILES.items():
+            if 'armor/' + name in found:
+                continue
+            for rel in rels:
+                f = textures / (rel + '.png')
+                if f.exists():
+                    found['armor/' + name] = f.read_bytes()
+                    break
     return found
 
 
-if len(sys.argv) == 4 and sys.argv[1] == '--entities':
-    textures = Path(sys.argv[2]) / 'assets/minecraft/textures'
-    zip_path = sys.argv[3]
+if len(sys.argv) >= 4 and sys.argv[1] == '--entities':
+    roots = [Path(p) / 'assets/minecraft/textures' for p in sys.argv[2:-1]]
+    zip_path = sys.argv[-1]
     with zipfile.ZipFile(zip_path) as z:
-        new = entity_files(textures)
+        new = entity_files(*roots)
         old = {n: z.read(n) for n in z.namelist() if not n.startswith(('entity/', 'armor/')) and n[:-4] not in new}
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as z:
         for n, data in old.items():
@@ -167,7 +241,7 @@ ALIAS = {
 }
 FACES = {'sticky_piston': {'_top': 'piston_top_sticky', '': 'piston_side', '_bottom': 'piston_bottom'},
          'piston_head': {'_top': 'piston_top', '': 'piston_side', '_bottom': 'piston_top'}}
-ITEM_ALIAS = {'turtle_scute': 'scute', 'compass': 'compass_00', 'recovery_compass': 'compass_16', 'crossbow': 'crossbow_standby',
+ITEM_ALIAS = {'turtle_scute': 'scute', 'compass': 'compass_00', 'clock': 'clock_00', 'debug_stick': 'stick', 'recovery_compass': 'compass_16', 'crossbow': 'crossbow_standby',
               'enchanted_golden_apple': 'golden_apple'}
 
 # Newer blocks: (pattern, source texture, color, mode). mode "all" tints the whole picture,
@@ -418,16 +492,19 @@ def png(im):
 
 def pack_files(base):
     """Pack textures of a block: {suffix: stem}; suffix '' (all/side), '_side', '_top', '_bottom'."""
-    if base in FACES:
+    if base in FACES and all(stem in block_files for stem in FACES[base].values()):
         return dict(FACES[base])
-    base = ALIAS.get(base, base)
-    found = {}
-    for suffix in ('', '_side', '_top', '_bottom'):
-        if base + suffix in block_files:
-            found[suffix] = base + suffix
-    if '' not in found and '_side' not in found and base + '_front' in block_files:
-        found['_side'] = base + '_front'
-    return found
+    # The block's own name first (newer packs), then the older name of the same picture
+    for name in dict.fromkeys((base, ALIAS.get(base, base))):
+        found = {}
+        for suffix in ('', '_side', '_top', '_bottom'):
+            if name + suffix in block_files:
+                found[suffix] = name + suffix
+        if '' not in found and '_side' not in found and name + '_front' in block_files:
+            found['_side'] = name + '_front'
+        if found:
+            return found
+    return {}
 
 
 def recolored(name):
@@ -483,7 +560,7 @@ CANDLE_COLORS = {
 # Heads: picture of the mob (old 64x32 / 64x64 layout, head at 0,0)
 HEAD_ENTITY = {
     'skeleton_skull': 'skeleton/skeleton', 'wither_skeleton_skull': 'skeleton/wither_skeleton', 'zombie_head': 'zombie/zombie',
-    'creeper_head': 'creeper/creeper', 'player_head': 'steve', 'piglin_head': 'piglin/piglin',
+    'creeper_head': 'creeper/creeper', 'player_head': 'player/wide/steve', 'piglin_head': 'piglin/piglin',
 }
 
 
@@ -505,6 +582,8 @@ def head(name):
     wall = '_wall_' in name
     base = name.replace('_wall_', '_')
     f = src / 'entity' / (HEAD_ENTITY[base] + '.png')
+    if not f.exists() and base == 'player_head':
+        f = src / 'entity' / 'steve.png'   # older packs
     if not f.exists():
         return None
     im = Image.open(f).convert('RGBA')
@@ -522,6 +601,8 @@ def head(name):
 
 def end_portal():
     f = src / 'entity' / 'end_portal.png'
+    if not f.exists():
+        f = src / 'environment' / 'end_sky.png'   # newer packs have no star picture for the portal
     if not f.exists():
         return None
     stars = Image.open(f).convert('L').crop((0, 0, 64, 64)).resize((32, 32), Image.NEAREST)
@@ -634,7 +715,7 @@ for i in range(10):
 
 missing_items = []
 for name in names['list']:
-    stem = ITEM_ALIAS.get(name, name)
+    stem = name if name in item_files else ITEM_ALIAS.get(name, name)
     if stem in item_files:
         im, anim = load(item_files[stem], stem)
         out['item/' + name] = png(im)
@@ -659,11 +740,14 @@ for name in names['list']:
     if not done and name not in blocks:
         missing_items.append(name)
 
-credits = """Texturen: Pixel Perfection Community Edition
-von XSSheep und der Community (https://github.com/Athemis/PixelPerfectionCE)
-Lizenz: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/)
-Angepasst für WebCraft: umbenannt, eingefärbt (Gras, Blätter, neuere Blöcke wie Tiefenschiefer, Kupfer, Kirschholz),
-animierte Texturen als Bildstreifen. Mob- und Rüstungstexturen unverändert (entity/, armor/).
+credits = """Texturen: Faithful 32x (https://faithfulpack.net)
+Copyright (C) Faithful Resource Pack, Lizenz: https://faithfulpack.net/license (siehe LICENSE-Faithful.txt)
+Angepasst für WebCraft: umbenannt, Villager aus Haut, Kleidung und Beruf zusammengesetzt, Kistenseiten aus dem
+Kistenmodell geschnitten, Blöcke ohne eigenes Bild aus ähnlichen Bildern eingefärbt.
+
+Mobs, deren Bild in Faithful ein neueres Layout hat (Kuh, Pilzkuh, Schwein, Hase, Magmawürfel), und Blöcke, die
+Faithful nicht hat: Pixel Perfection Community Edition von XSSheep und der Community
+(https://github.com/Athemis/PixelPerfectionCE), Lizenz: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/)
 """
 out.update(entity_files(src))
 with zipfile.ZipFile(out_path, 'w', zipfile.ZIP_DEFLATED) as z:
@@ -671,6 +755,11 @@ with zipfile.ZipFile(out_path, 'w', zipfile.ZIP_DEFLATED) as z:
         z.writestr(path + '.png', data)
     z.writestr('animations.json', json.dumps(anims, separators=(',', ':')))
     z.writestr('LIZENZ.txt', credits)
+    # The pack's own license file goes along unchanged (Faithful asks for that)
+    for lic in ('LICENSE.txt', 'LICENSE', 'LICENSE.md'):
+        if (Path(args[0]) / lic).exists():
+            z.writestr('LICENSE-Faithful.txt', (Path(args[0]) / lic).read_bytes())
+            break
 
 nb = sum(1 for p in out if p.startswith('block/'))
 ni = sum(1 for p in out if p.startswith('item/'))
