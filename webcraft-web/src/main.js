@@ -134,8 +134,22 @@ const studio = new Studio({
   },
 });
 
+/** Game menu in Minecraft's look: buttons and sliders from the texture pack (when it has them). */
+function applyGuiPictures() {
+  const pics = { '--mc-button': 'gui/button', '--mc-button-hl': 'gui/button_highlighted', '--mc-slider': 'gui/slider',
+    '--mc-handle': 'gui/slider_handle', '--mc-handle-hl': 'gui/slider_handle_highlighted' };
+  let all = true;
+  for (const [cssVar, path] of Object.entries(pics)) {
+    const url = pack.get(path);
+    if (url) document.documentElement.style.setProperty(cssVar, `url("${url}")`);
+    else all = false;
+  }
+  ui.pause.classList.toggle('mc-gui', all);
+}
+
 // New textures: rebuild everything that shows them
 pack.onChange(() => {
+  applyGuiPictures();
   world.palette?.refreshTiles();
   world.remeshAll();
   clearIconCache();

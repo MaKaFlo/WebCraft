@@ -98,7 +98,7 @@ class Pack {
     try {
       const bytes = Uint8Array.from(atob(builtinZip), (c) => c.charCodeAt(0));
       for (const f of await unzipFiles(bytes)) {
-        const m = f.name.match(/^((?:block|item|entity|armor)\/[a-z0-9_]+)\.png$/);
+        const m = f.name.match(/^((?:block|item|entity|armor|gui)\/[a-z0-9_]+)\.png$/);
         if (m) this.builtin.set(m[1], bytesToDataUrl(f.data));
         else if (f.name === 'animations.json') this.builtinAnims = JSON.parse(new TextDecoder().decode(f.data));
       }

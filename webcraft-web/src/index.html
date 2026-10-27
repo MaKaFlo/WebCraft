@@ -94,6 +94,42 @@
   .mbtn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
   .mbtn.primary { background: var(--orange); }
   .mbtn.danger { color: #b3261e; }
+  /* Game menu like Minecraft's: dark see-through screen, white title, the texture pack's buttons (nine-slice
+     pictures: 200x20 with a border of 20 left/right and 4 top/bottom, shown at GUI scale 2) */
+  #pause { background: rgba(0, 0, 0, 0.55); }
+  #pause .card, #pause .card.menu { background: none; border: none; box-shadow: none; color: #fff; width: min(416px, 100%); }
+  #pause h2 { color: #fff; font-size: 20px; font-weight: 400; text-shadow: 2px 2px 0 #3f3f3f; margin-bottom: 26px; }
+  #pause .menu-page { gap: 8px; }
+  .mc-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #pause .mbtn {
+    height: 40px; padding: 0 8px; font: 400 17px var(--mono); color: #fff; text-shadow: 2px 2px 0 #3f3f3f;
+    background: #6f6f6f; border: 2px solid #000; box-shadow: inset 2px 2px 0 #a9a9a9, inset -2px -4px 0 #555;
+    image-rendering: pixelated;
+  }
+  #pause .mbtn { white-space: nowrap; overflow: hidden; }
+  #pause.mc-gui .mbtn { border-style: solid; border-width: 8px 12px; border-image: var(--mc-button) 8 40 fill / 8px 20px; background: none; box-shadow: none; padding: 0; }
+  #pause .mbtn:hover, #pause .mbtn:focus-visible { color: #ffffa0; outline: none; }
+  #pause.mc-gui .mbtn:hover, #pause.mc-gui .mbtn:focus-visible { border-image: var(--mc-button-hl) 8 40 fill / 8px 20px; }
+  #pause:not(.mc-gui) .mbtn:hover { background: #8a8aa8; border-color: #fff; }
+  #pause .mbtn:active { transform: none; }
+  #pause .mbtn.primary, #pause .mbtn.danger { background-color: #6f6f6f; color: #fff; }
+  #pause.mc-gui .mbtn.primary, #pause.mc-gui .mbtn.danger { background: none; }
+  #pause .mbtn.primary:hover, #pause .mbtn.danger:hover { color: #ffffa0; }
+  #pause .setting { color: #fff; text-shadow: 2px 2px 0 #3f3f3f; font-weight: 400; }
+  #pause.mc-gui .setting input[type=range] {
+    -webkit-appearance: none; appearance: none; height: 40px; background: none; image-rendering: pixelated;
+    border-style: solid; border-width: 8px 4px; border-image: var(--mc-slider) 8 40 fill;
+  }
+  #pause.mc-gui .setting input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 40px; background: var(--mc-handle) center / 100% 100%; cursor: pointer;
+  }
+  #pause.mc-gui .setting input[type=range]:hover::-webkit-slider-thumb { background-image: var(--mc-handle-hl); }
+  #pause.mc-gui .setting input[type=range]::-moz-range-thumb {
+    width: 16px; height: 40px; border: 0; border-radius: 0; background: var(--mc-handle) center / 100% 100%;
+  }
+  #pause .keys, #pause .keys span { color: #fff; }
+  #pause .setting.check { justify-content: flex-start; }
+  #pause .setting.check input { width: auto; margin: 0; }
   .setting { display: flex; flex-direction: column; gap: 4px; text-align: left; font-size: 14px; font-weight: 700; }
   .setting.check { flex-direction: row; align-items: center; gap: 8px; }
   .setting input[type=range] { width: 100%; accent-color: var(--orange); }
@@ -397,9 +433,11 @@
     <h2>Spielmenü</h2>
     <div class="menu-page" id="menu-main">
       <button type="button" class="mbtn primary" id="m-resume">Zurück zum Spiel</button>
-      <button type="button" class="mbtn" id="m-textures">🎨 Textur-Studio</button>
-      <button type="button" class="mbtn" id="m-settings">Einstellungen</button>
-      <button type="button" class="mbtn" id="m-keys">Steuerung</button>
+      <div class="mc-row">
+        <button type="button" class="mbtn" id="m-settings">Optionen ...</button>
+        <button type="button" class="mbtn" id="m-keys">Steuerung</button>
+      </div>
+      <button type="button" class="mbtn" id="m-textures">Textur-Studio</button>
       <button type="button" class="mbtn danger" id="m-leave">Verbindung trennen</button>
     </div>
     <div class="menu-page" id="menu-settings" hidden>

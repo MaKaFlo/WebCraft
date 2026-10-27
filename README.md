@@ -2,7 +2,7 @@
 
 Ein Block-Spiel im Browser, das sich mit einem **Minecraft-Server** verbindet: **Paper** (als Plugin) oder **Fabric** (als Mod, damit auch für Vanilla). WebCraft-Spieler sind auf dem Server **echte Spieler**: Sie stehen in der Tab-Liste, bekommen Schaden, sterben, benutzen Befehle und Menüs von Plugins und Mods. Für den Server gibt es keinen Unterschied zu einem Minecraft-Spieler. So können Leute ohne Minecraft-Account mit Freunden auf dem Server spielen.
 
-Version 0.14.1 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
+Version 0.15.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
 
 ## Aufbau
 
@@ -192,7 +192,7 @@ Das Bild wird auf 32×32 Pixel verkleinert (bei Items wird der Hintergrund entfe
 - ✅ Nochmal einloggen mit demselben Namen (zweiter Tab, abgerissene Verbindung) wirft die alte Sitzung raus, statt zu blockieren
 - ✅ Wer in Blöcken steckt (Block kam zurück, Lag), wird wie in Minecraft rausgeschoben; beim Einloggen auch auf dem Server
 - ✅ Abbauen im Fallen oder unter Wasser dauert wie in Minecraft länger, abgebaute Blöcke kommen dadurch nicht mehr zurück
-- ✅ Esc öffnet ein Spielmenü mit Einstellungen (Maus, Sichtfeld, Auto-Jump) und "Verbindung trennen"
+- ✅ Esc öffnet das Spielmenü wie in Minecraft (Knöpfe und Schieberegler aus dem Texturpaket) mit Optionen (Maus, Sichtfeld, Lautstärke, Auto-Jump), Steuerung, Textur-Studio und "Verbindung trennen"
 - ✅ Oben in der Mitte steht, auf welchen Block (oder Mob, Spieler) man gerade schaut
 - ✅ Tag und Nacht wie auf dem Server: Himmel mit Farbverlauf, Sonne, Mond mit Mondphasen, Sterne, Morgen- und Abendrot; nachts wird die Welt dunkler
 - ✅ Partikel: Blocksplitter beim Abbauen (mit der Textur des Blocks), Flammen und Rauch an Fackeln, Öfen, Lagerfeuern und Feuer, Portal-Partikel, dazu alle Partikel vom Server (Herzen, Explosionen, Tränke, kritische Treffer, Knochenmehl ...)

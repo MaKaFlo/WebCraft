@@ -73,6 +73,8 @@ OLD_RATIO = {'cow': 2, 'mooshroom': 2, 'brown_mooshroom': 2, 'pig': 2, 'magma_cu
              **{'rabbit_' + c: 2 for c in ('brown', 'white', 'black', 'white_splotched', 'gold', 'salt', 'caerbannog')}}
 # Glowing eyes only fit the picture of the same pack
 SAME_PACK = {'spider_eyes': 'spider', 'enderman_eyes': 'enderman', 'phantom_eyes': 'phantom'}
+GUI_FILES = ['button', 'button_highlighted', 'button_disabled', 'slider', 'slider_highlighted', 'slider_handle',
+             'slider_handle_highlighted']
 # Front faces (shown on the side the block faces): block name -> picture in the pack
 FRONT_FILES = {
     'furnace': 'furnace_front', 'blast_furnace': 'blast_furnace_front', 'smoker': 'smoker_front',
@@ -187,6 +189,11 @@ def entity_files(*roots):
         # Glowing enderman eyes: packs without their own picture get the purple eye pixels of the head
         if origin.get('enderman') == textures and 'entity/enderman_eyes' not in found:
             found['entity/enderman_eyes'] = enderman_eyes(Image.open(io.BytesIO(found['entity/enderman'])))
+        # Menu buttons and sliders (Minecraft 1.20.2+ sprites) for the browser's game menu
+        for name in GUI_FILES:
+            f = textures / 'gui' / 'sprites' / 'widget' / (name + '.png')
+            if f.exists() and 'gui/' + name not in found:
+                found['gui/' + name] = f.read_bytes()
         for name, rels in ARMOR_FILES.items():
             if 'armor/' + name in found:
                 continue
