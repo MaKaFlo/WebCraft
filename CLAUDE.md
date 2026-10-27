@@ -27,7 +27,7 @@ to `wc.*`; the IndexedDB for own textures is still called `gg`.
 | Path | What |
 |---|---|
 | `pom.xml` | Parent (packaging pom), version for everything |
-| `webcraft-common/` | Sources shared by plugin and mod (no Bukkit, no Fabric): `BlockPalette`, `ChunkEncoder`, `WcScoreboard`, `WcTextures`, `WcSession`, `WcServer`, `WcHost`, `WcMenus` |
+| `webcraft-common/` | Sources shared by plugin and mod (no Bukkit, no Fabric): `BlockPalette`, `ChunkEncoder`, `WcScoreboard`, `WcTextures`, `WcSession`, `WcServer`, `WcHost`, `WcMenus`, `WcParticles`, `WcSkins` |
 | `webcraft-plugin/` | Paper plugin "WebCraft" (Java 25, Mojang mappings) |
 | `webcraft-fabric/` | Fabric server mod "webcraft" (Gradle + Loom, Minecraft 26.3 is unobfuscated, so the same Mojang names) |
 | `webcraft-web/` | Browser client (plain ES modules, three.js r186, bundled by esbuild into ONE html file) + nginx Docker image |
@@ -154,6 +154,8 @@ Liquids: the palette entry of water/lava has `lh` (surface height from `FluidSta
 Minecraft (neighbours >= 0.8 weigh 10x, liquid above = full); the top texture is turned in quarter steps
 downhill (other angles would sample neighbouring tiles of the animation atlas).
 
+Lit: blocks with `LIT` = true (furnace, campfire, candles, redstone torch/ore) get `li` (flames and smoke in the browser).
+
 Facing: blocks with `HORIZONTAL_FACING` get `fa` (north/east/south/west) in their palette entry; the browser draws
 the `block/<name>_front` picture on that side (`palette.js tileFront/facing`), also as the left face of inventory
 icons. Chest faces (`chest/trapped_chest/ender_chest_front/side/top/bottom`) are cut from `entity/chest/*.png` by
@@ -171,10 +173,21 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
 - Binary: byte 0 = type (1 = chunk), rest zlib: int32 cx, int32 cz, uint8 sections, per section
   int8 sectionY + 4096 × uint16 LE palette ids, index = (y*16+z)*16+x.
 - Server → client `t`: `welcome world pal tp vel stats inv items menu ents anim blocks unload chat notice
-  dead dig_info board tab pack error`.
+  dead dig_info board tab pack error time fx skin`.
+- `time` (every second): `v` = full world clock ticks (`World.getFullTime()` / `Level.getDefaultClockTime()`);
+  the browser runs it on and stops when two values are equal (`doDaylightCycle` off).
+- `fx` (per tick, `WcParticles`): list of `[kind, x, y, z, dx, dy, dz, speed, count, extra]` from
+  `ClientboundLevelParticlesPacket` (kind = particle key, extra = palette id for block particles or RGB for
+  dust/effects) and level events (`break` = 2001 block break of another player, spawner, bone meal, potions).
+- `skin` (answer to client `skin` {h}): `h` texture hash, `png` base64 (missing when not available).
 - Client → server `t`: `hello move input tp_ok slot click close inv_open drop swap_hands use use_on
   dig_start dig_stop dig_abort attack punch swing interact release button trade rename creative
-  respawn resync items chat pack_upload status kick reload beacon` (`beacon`: `p`/`s` effect keys).
+  respawn resync items chat pack_upload status kick reload beacon skin` (`beacon`: `p`/`s` effect keys; `hello` has
+  `name` and optional `skin` = Minecraft account name).
+- Skins (`WcSkins`): the login looks the account up at Mojang (api.mojang.com + sessionserver `?unsigned=false`,
+  async, cached in `skins/profiles/`), the fake player's `GameProfile` gets the signed `textures` property, so
+  Minecraft clients show it too. Player entity JSON has `skin` (texture hash) and `slim`; the browser asks for the
+  picture with `skin` {h}, the server downloads it from textures.minecraft.net (no CORS there) into `skins/`.
 - Teleports must be acknowledged with `tp_ok` (same id), like the vanilla client.
 
 ## Client architecture (`webcraft-web/src`)
@@ -182,9 +195,11 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
 | File | Role |
 |---|---|
 | `main.js` | Entry: renderer, loop, WebSocket, message switch, login/pause/chat/death UI, `window.wc` debug handle |
+| `sky.js` | Day/night: gradient dome (shader), sun, moon phases, stars, fog color, world brightness (`World.setBrightness`, entity lights, `dimUnlit` for MeshBasic materials of hand and entities). Only in `NORMAL` worlds |
+| `particles.js` | Instanced camera-facing quads: block pieces (atlas tiles), particle sheet drawn on a canvas (flame, smoke, heart ...), `KINDS` per server particle key, ambient emitters like Minecraft's `animateTick` (random blocks around the player: torches, furnaces with palette `li`, campfires, fire, portals ...) |
 | `world.js` | Chunk storage, greedy-ish meshing with atlas UVs, multi-box shapes, fire walls, raycast, `remeshAll`, collision boxes |
 | `player.js` | Movement/physics, multi-box collision, world border wall, auto-jump |
-| `interact.js` | Mouse: attack charge, dig with crack stages, place prediction, use/eat/bow, entity interact |
+| `interact.js` | Mouse: attack charge, dig with crack stages, place prediction, use/eat/bow, entity interact, name of the block/mob under the crosshair (`#look`) |
 | `skins.js` | Textured mob models with the classic Minecraft box layout (`MODELS`, built in Minecraft model space: y down, ground y = 24, front -z, then turned half around x). `SKINS` maps mob type (+ variant) to model and picture, `GLOW` eye layers, armor from `armor/<material>_layer_1/2`. Scaled to the hitbox height; players always 1.8 |
 | `entities.js` | Mob/player models (humanoid, quadruped, part specs from `mobs.js`), variants/colors (`VARIANTS`, `JOBS`), held item in right arm, armor, swing/hurt anims, projectiles, items, holograms. Rebuild when `lookKey(d)` changes |
 | `models.js` | `blockMesh`, `itemExtruded` (pixel-extruded 3D item, front/back one-sided), `itemModel` |
@@ -202,7 +217,9 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
 `tools/make_pack.py <PixelPerfectionCE folder> tools/items.json webcraft-web/src/texturen.zip` rebuilds the
 built-in textures (aliases, recolors for newer blocks, spawn eggs, animations.json, destroy stages, mob and armor
 textures). `tools/make_pack.py --entities <PixelPerfectionCE folder> webcraft-web/src/texturen.zip` only adds/replaces the
-mob and armor textures (`ENTITY_FILES`, `ARMOR_FILES`). The pack's mob pictures use the old (1.12) layouts, which
+mob and armor textures (`ENTITY_FILES`, `ARMOR_FILES`). `tools/make_pack.py --blocks <PPCE folder> tools/items.json
+webcraft-web/src/texturen.zip` only adds blocks the zip has no picture for (`RECOLOR` rules, `special()`: candles,
+heads cut from the mob pictures, end portal stars, copper chests); keeps everything else (also the item pictures). The pack's mob pictures use the old (1.12) layouts, which
 `skins.js` follows; the pack draws some mobs its own way (enderman: stone body with one eye on the chest).
 
 ## Testing locally
@@ -221,8 +238,6 @@ mob and armor textures (`ENTITY_FILES`, `ARMOR_FILES`). The pack's mob pictures 
 
 ## Backlog / ideas
 
-- Skins for WebCraft players (they look like Steve to others)
-- Particles, day/night sky
+- Block light (torches, lava) at night, weather (rain, thunder)
 - Textured models for the remaining mobs (horse, cat, fox, bee, iron golem ... are still block figures); the
   pack has more pictures in `entity/` (e.g. horse, cat, fox, bee, iron golem, slime 128x64)
-- ~230 newer blocks without own texture (see make_pack output `.missing.txt`)

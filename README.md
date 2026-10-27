@@ -2,7 +2,7 @@
 
 Ein Block-Spiel im Browser, das sich mit einem **Minecraft-Server** verbindet: **Paper** (als Plugin) oder **Fabric** (als Mod, damit auch für Vanilla). WebCraft-Spieler sind auf dem Server **echte Spieler**: Sie stehen in der Tab-Liste, bekommen Schaden, sterben, benutzen Befehle und Menüs von Plugins und Mods. Für den Server gibt es keinen Unterschied zu einem Minecraft-Spieler. So können Leute ohne Minecraft-Account mit Freunden auf dem Server spielen.
 
-Version 0.10.2 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
+Version 0.11.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
 
 ## Aufbau
 
@@ -193,12 +193,16 @@ Das Bild wird auf 32×32 Pixel verkleinert (bei Items wird der Hintergrund entfe
 - ✅ Wer in Blöcken steckt (Block kam zurück, Lag), wird wie in Minecraft rausgeschoben; beim Einloggen auch auf dem Server
 - ✅ Abbauen im Fallen oder unter Wasser dauert wie in Minecraft länger, abgebaute Blöcke kommen dadurch nicht mehr zurück
 - ✅ Esc öffnet ein Spielmenü mit Einstellungen (Maus, Sichtfeld, Auto-Jump) und "Verbindung trennen"
+- ✅ Oben in der Mitte steht, auf welchen Block (oder Mob, Spieler) man gerade schaut
+- ✅ Tag und Nacht wie auf dem Server: Himmel mit Farbverlauf, Sonne, Mond mit Mondphasen, Sterne, Morgen- und Abendrot; nachts wird die Welt dunkler
+- ✅ Partikel: Blocksplitter beim Abbauen (mit der Textur des Blocks), Flammen und Rauch an Fackeln, Öfen, Lagerfeuern und Feuer, Portal-Partikel, dazu alle Partikel vom Server (Herzen, Explosionen, Tränke, kritische Treffer, Knochenmehl ...)
+- ✅ Skins: Im Login kann man den Namen eines Minecraft-Spielers angeben und hat dann dessen Skin, auch für Minecraft-Spieler (der Server holt den von Mojang signierten Skin). Im Browser sieht man alle Spieler mit ihrem echten Skin (auch schmale Arme und die zweite Schicht)
+- ✅ Alle Blöcke haben eine Textur, auch die neueren (Kerzen, Köpfe, Kupferkisten, Froschlichter, Amethyst, Tropfblatt, Endportal ...)
 
 ### Noch offen
 
-- ⏳ Skins (WebCraft-Spieler sehen für andere wie Steve aus)
-- ⏳ Partikel, Tag/Nacht am Himmel
-- ⏳ Rund 230 neuere Blöcke haben noch keine eigene Textur
+- ⏳ Weitere Mobs mit Textur (Pferd, Katze, Fuchs, Biene, Eisengolem ... sind noch Blockfiguren)
+- ⏳ Licht von Fackeln und Lava in der Nacht, Wetter (Regen, Gewitter)
 
 ## Gegen Griefing
 

@@ -2,6 +2,7 @@
 
 Usage: python3 make_pack.py <pack folder> <items.json with {"list": [...], "blocks": [...]}> <out.zip>
        python3 make_pack.py --entities <pack folder> <existing zip>   (only add/replace mob and armor textures)
+       python3 make_pack.py --blocks <pack folder> <items.json> <existing zip>   (only add blocks the zip has no picture for)
 
 - Block textures are renamed to the block names WebCraft uses (slabs, stairs, walls ... get the texture of
   their material).
@@ -115,9 +116,11 @@ if len(sys.argv) == 4 and sys.argv[1] == '--entities':
     print(f'{len(new)} mob, armor, chest and front textures added to {zip_path}')
     sys.exit(0)
 
-src = Path(sys.argv[1]) / 'assets/minecraft/textures'
-names = json.load(open(sys.argv[2]))
-out_path = sys.argv[3]
+only_missing = len(sys.argv) == 5 and sys.argv[1] == '--blocks'
+args = sys.argv[2:] if only_missing else sys.argv[1:]
+src = Path(args[0]) / 'assets/minecraft/textures'
+names = json.load(open(args[1]))
+out_path = args[2]
 
 block_files = {p.stem: p for p in (src / 'block').glob('*.png')}
 item_files = {p.stem: p for p in (src / 'item').glob('*.png')}
@@ -143,8 +146,15 @@ ALIAS = {
     'chest': 'oak_planks', 'trapped_chest': 'oak_planks', 'ender_chest': 'obsidian', 'smooth_basalt': 'basalt_top',
     'redstone_wall_torch': 'redstone_torch', 'soul_wall_torch': 'soul_torch', 'moving_piston': 'piston_side',
     'petrified_oak_slab': 'oak_planks', 'lava_cauldron': 'cauldron_side', 'powder_snow_cauldron': 'cauldron_side',
+    'water_cauldron': 'cauldron', 'wall_torch': 'torch', 'bubble_column': 'water_still', 'chiseled_bookshelf': 'bookshelf',
+    'dried_kelp_block': 'dried_kelp', 'powder_snow': 'snow', 'suspicious_gravel': 'gravel', 'suspicious_sand': 'sand',
+    'sweet_berry_bush': 'sweet_berry_bush_stage3', 'light_weighted_pressure_plate': 'gold_block',
+    'heavy_weighted_pressure_plate': 'iron_block', 'test_block': 'structure_block', 'test_instance_block': 'structure_block',
+    'straw_bed': 'hay_block', 'shelf_mushroom': 'brown_mushroom', 'decorated_pot': 'terracotta', 'bamboo_sapling': 'bamboo_small_leaves',
+    'pink_petals': 'pink_tulip', 'wildflowers': 'dandelion',
 }
-FACES = {'sticky_piston': {'_top': 'piston_top_sticky', '': 'piston_side', '_bottom': 'piston_bottom'}}
+FACES = {'sticky_piston': {'_top': 'piston_top_sticky', '': 'piston_side', '_bottom': 'piston_bottom'},
+         'piston_head': {'_top': 'piston_top', '': 'piston_side', '_bottom': 'piston_top'}}
 ITEM_ALIAS = {'turtle_scute': 'scute', 'compass': 'compass_00', 'recovery_compass': 'compass_16', 'crossbow': 'crossbow_standby',
               'enchanted_golden_apple': 'golden_apple'}
 
@@ -186,7 +196,41 @@ RECOLOR = [
     (r'cinnabar|polished_cinnabar|chiseled_cinnabar', 'stone', (0xb0, 0x40, 0x38), 'all'),
     (r'cinnabar_bricks', 'stone_bricks', (0xb0, 0x40, 0x38), 'all'),
     (r'sulfur|polished_sulfur|chiseled_sulfur|potent_sulfur', 'stone', (0xd8, 0xc8, 0x50), 'all'),
-    (r'(\w+)_shelf', r'\1_planks', None, 'all'),
+    # Blocks of the last versions, from a similar picture of the pack
+    (r'(\w+)_banner', r'\1_wool', None, 'all'), (r'(\w+)_bed', r'\1_wool', None, 'all'),
+    (r'shulker_box', 'purpur_block', None, 'all'), (r'(\w+)_shulker_box', r'\1_concrete', None, 'all'),
+    (r'(\w+_)?candle_cake', 'cake', None, 'all'), (r'copper_wall_torch', 'torch', COPPER, 'flame'),
+    (r'deepslate_copper_ore', 'iron_ore', (0xb0, 0x70, 0x58), 'ore'),
+    (r'big_dripleaf', 'lily_pad', (0x60, 0x9a, 0x30), 'all'), (r'big_dripleaf_stem', 'kelp_plant', (0x50, 0x88, 0x30), 'all'),
+    (r'small_dripleaf', 'fern', (0x60, 0x9a, 0x30), 'all'),
+    (r'amethyst_cluster|(large|medium|small)_amethyst_bud', 'brain_coral', (0xa0, 0x70, 0xe0), 'all'),
+    (r'azalea', 'oak_leaves', FOLIAGE, 'all'), (r'flowering_azalea', 'oak_leaves', (0x90, 0xa8, 0x50), 'all'),
+    (r'azalea_bush', 'oak_leaves', FOLIAGE, 'all'), (r'flowering_azalea_bush', 'oak_leaves', (0x90, 0xa8, 0x50), 'all'),
+    (r'cave_vines|cave_vines_plant', 'weeping_vines', (0x50, 0x80, 0x30), 'all'),
+    (r'glow_lichen', 'vine', (0x70, 0x98, 0x88), 'all'), (r'sculk_vein', 'vine', (0x10, 0x40, 0x48), 'all'),
+    (r'resin_clump', 'vine', (0xe0, 0x70, 0x20), 'all'), (r'pale_hanging_moss', 'vine', (0xa8, 0xb0, 0xa0), 'all'),
+    (r'hanging_roots', 'weeping_vines', (0x98, 0x70, 0x58), 'all'), (r'mangrove_roots', 'jungle_log', (0x60, 0x48, 0x38), 'all'),
+    (r'muddy_mangrove_roots', 'coarse_dirt', (0x50, 0x44, 0x40), 'all'), (r'mangrove_propagule', 'oak_sapling', (0x60, 0xa0, 0x40), 'all'),
+    (r'crafter', 'crafting_table', (0x80, 0x80, 0x88), 'all'), (r'creaking_heart', 'birch_log', (0x80, 0x70, 0x60), 'all'),
+    (r'dried_ghast', 'soul_sand', (0xc8, 0xc0, 0xc0), 'all'),
+    (r'firefly_bush', 'fern', (0x50, 0x80, 0x30), 'all'), (r'bush', 'fern', (0x60, 0x90, 0x40), 'all'),
+    (r'short_dry_grass', 'grass', (0xc0, 0xa8, 0x70), 'all'), (r'tall_dry_grass', 'tall_grass_top', (0xc0, 0xa8, 0x70), 'all'),
+    (r'leaf_litter', 'oak_leaves', (0xa0, 0x70, 0x40), 'all'),
+    (r'closed_eyeblossom', 'allium', (0x80, 0x80, 0x88), 'all'), (r'open_eyeblossom', 'allium', (0xf0, 0x90, 0x30), 'all'),
+    (r'golden_dandelion', 'dandelion', (0xf0, 0xc0, 0x30), 'all'), (r'torchflower', 'dandelion', (0xf0, 0x80, 0x30), 'all'),
+    (r'torchflower_crop', 'wheat_stage3', (0x80, 0xa0, 0x40), 'all'), (r'pitcher_plant|pitcher_crop', 'large_fern_top', (0x50, 0x90, 0xa0), 'all'),
+    (r'cactus_flower', 'poppy', (0xf0, 0x80, 0xa0), 'all'), (r'frogspawn', 'lily_pad', (0x60, 0x50, 0x60), 'all'),
+    (r'heavy_core', 'iron_block', (0x50, 0x50, 0x58), 'all'),
+    (r'ochre_froglight', 'glowstone', (0xf0, 0xd8, 0x90), 'all'), (r'pearlescent_froglight', 'glowstone', (0xf0, 0xd0, 0xe8), 'all'),
+    (r'verdant_froglight', 'glowstone', (0xd0, 0xf0, 0xc0), 'all'),
+    (r'orange_poplar_leaves', 'oak_leaves', (0xe0, 0x80, 0x30), 'all'), (r'red_poplar_leaves', 'oak_leaves', (0xc0, 0x40, 0x30), 'all'),
+    (r'yellow_poplar_leaves', 'oak_leaves', (0xe0, 0xc0, 0x40), 'all'),
+    (r'stripped_poplar_(log|wood)', 'stripped_spruce_log', (0xc8, 0xb0, 0x80), 'all'),
+    (r'pointed_dripstone', 'dead_bush', (0x98, 0x78, 0x60), 'all'), (r'red_shrub', 'dead_bush', (0xb0, 0x40, 0x30), 'all'),
+    (r'sulfur_spike', 'dead_bush', (0xd8, 0xc8, 0x50), 'all'), (r'sniffer_egg', 'dragon_egg', (0xa0, 0x50, 0x38), 'all'),
+    (r'spore_blossom', 'allium', (0xe0, 0x80, 0xb0), 'all'), (r'sulfur_bricks', 'stone_bricks', (0xd8, 0xc8, 0x50), 'all'),
+    (r'tinted_glass', 'glass', (0x40, 0x30, 0x48), 'all'), (r'trial_spawner', 'spawner', (0x70, 0x60, 0x50), 'all'),
+    (r'vault', 'iron_block', (0x50, 0x58, 0x60), 'all'), (r'dragon_(wall_)?head', 'obsidian', (0x28, 0x24, 0x30), 'all'),
 ]
 for age, color in COPPER_AGES.items():
     RECOLOR += [
@@ -197,7 +241,7 @@ for age, color in COPPER_AGES.items():
         (age + r'copper_door_bottom', 'iron_door_bottom', color, 'all'), (age + r'copper_door_top', 'iron_door_top', color, 'all'),
         (age + r'copper_trapdoor', 'iron_trapdoor', color, 'all'), (age + r'copper_bars', 'iron_bars', color, 'all'),
         (age + r'copper_chain', 'chain', color, 'all'), (age + r'copper_lantern', 'lantern', color, 'stone'),
-        (age + r'lightning_rod', 'end_rod', color, 'all'),
+        (age + r'lightning_rod', 'end_rod', color, 'all'), (age + r'copper_golem_statue', 'iron_block', color, 'all'),
     ]
 RECOLOR.append((r'copper_torch', 'torch', COPPER, 'flame'))
 
@@ -399,6 +443,8 @@ def candidates(name):
         if n.startswith(prefix):
             n = n[len(prefix):]
             yield n
+    if n.endswith('_wall_fan') or n.endswith('_wall_banner'):
+        yield n.replace('_wall_', '_')
     if n.endswith('_wood') or n.endswith('_hyphae'):
         yield n.replace('_wood', '_log').replace('_hyphae', '_stem')
     for suf in SUFFIXES:
@@ -415,8 +461,96 @@ def candidates(name):
         yield 'snow'
 
 
+CANDLE_COLORS = {
+    '': (0xe8, 0xd8, 0xb0), 'white': (0xf0, 0xf0, 0xf0), 'orange': (0xf0, 0x80, 0x20), 'magenta': (0xc0, 0x50, 0xc0),
+    'light_blue': (0x60, 0xb0, 0xe0), 'yellow': (0xf0, 0xd0, 0x30), 'lime': (0x80, 0xd0, 0x30), 'pink': (0xf0, 0x90, 0xb0),
+    'gray': (0x50, 0x58, 0x5c), 'light_gray': (0x9a, 0x9a, 0x94), 'cyan': (0x20, 0x98, 0x98), 'purple': (0x80, 0x38, 0xb0),
+    'blue': (0x38, 0x48, 0xa8), 'brown': (0x78, 0x50, 0x30), 'green': (0x50, 0x70, 0x20), 'red': (0xa8, 0x30, 0x28),
+    'black': (0x20, 0x20, 0x28),
+}
+# Heads: picture of the mob (old 64x32 / 64x64 layout, head at 0,0)
+HEAD_ENTITY = {
+    'skeleton_skull': 'skeleton/skeleton', 'wither_skeleton_skull': 'skeleton/wither_skeleton', 'zombie_head': 'zombie/zombie',
+    'creeper_head': 'creeper/creeper', 'player_head': 'steve', 'piglin_head': 'piglin/piglin',
+}
+
+
+def candle(color):
+    """A candle as Minecraft draws it: 2 px wide, 6 high, centered, with a wick (fits the 16 px block box)."""
+    im = Image.new('RGBA', (16, 16))
+    px = im.load()
+    for y in range(10, 16):
+        for x in (7, 8):
+            f = 1.08 if x == 7 else 0.85
+            px[x, y] = tuple(min(255, int(c * f * (1.05 - (y - 10) * 0.03))) for c in color) + (255,)
+    px[7, 9] = (0x30, 0x28, 0x20, 255)
+    return im
+
+
+def head(name):
+    """Faces of a mob head block: '' the side (the face on the floor), '_front' the face, '_top' the top of the head. The face sits where the
+    block's small box is (lower middle on the floor, middle on a wall)."""
+    wall = '_wall_' in name
+    base = name.replace('_wall_', '_')
+    f = src / 'entity' / (HEAD_ENTITY[base] + '.png')
+    if not f.exists():
+        return None
+    im = Image.open(f).convert('RGBA')
+    k = im.width // 64
+    crop = lambda x, y: im.crop((x * k, y * k, (x + 8) * k, (y + 8) * k)).resize((8, 8), Image.NEAREST)
+    face, top, side = crop(8, 8), crop(8, 0), crop(0, 8)
+    def tile(pic, y):
+        t = Image.new('RGBA', (16, 16))
+        t.paste(pic, (4, y))
+        return t
+    # A wall head looks one way (front picture); a head on the floor shows its face all around
+    y = 4 if wall else 8
+    return {'': (tile(side if wall else face, y), None), '_front': (tile(face, y), None), '_top': (tile(top, 4), None)}
+
+
+def end_portal():
+    f = src / 'entity' / 'end_portal.png'
+    if not f.exists():
+        return None
+    stars = Image.open(f).convert('L').crop((0, 0, 64, 64)).resize((32, 32), Image.NEAREST)
+    im = Image.new('RGBA', (32, 32))
+    px, sp = im.load(), stars.load()
+    for y in range(32):
+        for x in range(32):
+            v = sp[x, y]
+            px[x, y] = (int(0x08 + v * 0.35), int(0x10 + v * 0.75), int(0x18 + v * 0.7), 255)
+    return {'': (im, None)}
+
+
+def special(name):
+    """Blocks drawn here instead of taken from the pack."""
+    m = re.fullmatch(r'(?:(\w+)_)?candle', name)
+    if m and (m.group(1) or '') in CANDLE_COLORS:
+        return {'': (candle(CANDLE_COLORS[m.group(1) or '']), None)}
+    if name.replace('_wall_', '_') in HEAD_ENTITY:
+        return head(name)
+    if name in ('end_portal', 'end_gateway'):
+        return end_portal()
+    m = re.fullmatch(r'(?:waxed_)?(exposed_|weathered_|oxidized_)?copper_chest', name)
+    if m:
+        f = src / 'entity' / 'chest' / 'normal.png'
+        if not f.exists():
+            return None
+        color = COPPER_AGES[m.group(1) or '']
+        faces = chest_faces(f)
+        return {('' if face == 'side' else '_' + face): (recolor(Image.open(io.BytesIO(data)).convert('RGBA'), color, 'all'), None)
+                for face, data in faces.items()}
+    m = re.fullmatch(r'(\w+)_shelf', name)
+    if m:
+        return resolve(m.group(1) + '_planks')
+    return None
+
+
 def resolve(name):
     """{suffix: (image, anim)} for a block, or None."""
+    sp = special(name)
+    if sp:
+        return sp
     if name.endswith('_door'):
         for cand in (name + '_bottom', name.replace('waxed_', '') + '_door_bottom'):
             if cand in block_files:
@@ -440,6 +574,32 @@ def resolve(name):
 
 out, anims = {}, {}
 blocks = set(names['blocks'])
+if only_missing:
+    # Keep the zip as it is; only blocks with no picture of their own name get one
+    with zipfile.ZipFile(out_path) as z:
+        old = {n: z.read(n) for n in z.namelist()}
+    have = {n[len('block/'):-len('.png')] for n in old if n.startswith('block/')}
+    todo = sorted(b for b in blocks if not any(b + suf in have for suf in ('', '_side', '_top', '_front')))
+    old_anims = json.loads(old.get('animations.json', b'{}'))
+    added, still = [], []
+    for name in todo:
+        if name in ('air', 'cave_air', 'void_air', 'barrier', 'light', 'structure_void'):
+            continue
+        found = resolve(name)
+        if not found:
+            still.append(name)
+            continue
+        added.append(name)
+        for suffix, (im, anim) in found.items():
+            old['block/' + name + suffix + '.png'] = png(im)
+            if anim:
+                old_anims['block/' + name + suffix] = anim
+    old['animations.json'] = json.dumps(old_anims, separators=(',', ':')).encode()
+    with zipfile.ZipFile(out_path, 'w', zipfile.ZIP_DEFLATED) as z:
+        for n, data in sorted(old.items()):
+            z.writestr(n, data)
+    print(f'{len(added)} blocks added, still without texture: {len(still)}: {" ".join(still)}')
+    sys.exit(0)
 missing_blocks = []
 for name in sorted(blocks):
     if name in ('air', 'cave_air', 'void_air', 'barrier', 'light', 'structure_void'):
