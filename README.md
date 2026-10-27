@@ -2,7 +2,7 @@
 
 Ein Block-Spiel im Browser, das sich mit einem **Minecraft-Server** verbindet: **Paper** (als Plugin) oder **Fabric** (als Mod, damit auch für Vanilla). WebCraft-Spieler sind auf dem Server **echte Spieler**: Sie stehen in der Tab-Liste, bekommen Schaden, sterben, benutzen Befehle und Menüs von Plugins und Mods. Für den Server gibt es keinen Unterschied zu einem Minecraft-Spieler. So können Leute ohne Minecraft-Account mit Freunden auf dem Server spielen.
 
-Version 0.13.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
+Version 0.14.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
 
 ## Aufbau
 
@@ -165,7 +165,7 @@ Das Bild wird auf 32×32 Pixel verkleinert (bei Items wird der Hintergrund entfe
 - ✅ Lifesteal: mehr als 10 Herzen werden angezeigt, verlorene und gewonnene Herzen auch
 - ✅ Plugin-Befehle und Plugin-Menüs (Truhen-GUIs), Rechts- und Linksklick-Abilities
 - ✅ Truhen, Öfen, Werkbank, Türen, Betten, Eimer: alles über den echten Server
-- ✅ Mobs mit echten Texturen und Minecraft-Form: Spieler, Zombie (auch Wüsten-, Wasser- und Dorfbewohner-Zombie), Skelett (auch Eiswanderer, Witherskelett), Creeper, Kuh, Pilzkuh, Schwein, Schaf (Wolle in ihrer Farbe), Huhn, Spinne, Höhlenspinne, Enderman, Dorfbewohner (nach Beruf), Wolf, Eisengolem, Schneegolem, Katze (alle Fellarten), Ozelot, Fuchs (auch Polarfuchs), Biene, Pferd (nach Farbe), Esel, Maultier, Skelett- und Zombiepferd, Schleim, Magmawürfel, Hexe, Fahrender Händler, Plünderer, Diener, Magier, Piglin, Piglin-Barbar, Zombifizierter Piglin, Eisbär, Panda, Hase, Lama. Rüstung mit Textur, Item in der Hand. Seltenere Mobs (Papagei, Fische, Ghast ...) sind noch Blockfiguren
+- ✅ Mobs mit echten Texturen und Minecraft-Form: Spieler, Zombie (auch Wüsten-, Wasser- und Dorfbewohner-Zombie), Skelett (auch Eiswanderer, Witherskelett), Creeper, Kuh, Pilzkuh, Schwein, Schaf (Wolle in ihrer Farbe), Huhn, Spinne, Höhlenspinne, Enderman, Dorfbewohner (nach Beruf), Wolf, Eisengolem, Schneegolem, Katze (alle Fellarten), Ozelot, Fuchs (auch Polarfuchs), Biene, Pferd (nach Farbe), Esel, Maultier, Skelett- und Zombiepferd, Schleim, Magmawürfel, Hexe, Fahrender Händler, Plünderer, Diener, Magier, Piglin, Piglin-Barbar, Zombifizierter Piglin, Eisbär, Panda, Hase, Lama, Papagei, Kabeljau, Lachs, Kugelfisch, Ghast, Blaze, Tintenfisch, Leuchttintenfisch, Silberfischchen, Endermilbe, Wächter, Großer Wächter, Schildkröte, Delfin, Phantom, Hoglin, Zoglin, Schreiter, Plagegeist, Hilfsgeist, Shulker, Wither. Rüstung mit Textur, Item in der Hand
 - ✅ Fließendes Wasser und Lava wie in Minecraft: die Oberfläche fällt zum Rand hin ab, die Textur fließt bergab, Wasserfälle
 - ✅ Steinsäge (Rezept auswählen), Webstuhl (Muster auswählen), Leuchtfeuer (Effekte auswählen und bezahlen)
 - ✅ Mobs und Tiere als Blockfiguren mit eigener Form: Creeper, Spinne, Huhn, Biene, Fledermaus, Papagei, Fische, Delfin, Tintenfisch, Ghast, Blaze, Breeze, Phantom, Wächter, Schleim, Shulker, Wither, Enderdrache ... Tiere mit Schwanz, Hörnern, Ohren, langem Hals. Flügel schlagen, Tentakel wackeln
@@ -203,7 +203,7 @@ Das Bild wird auf 32×32 Pixel verkleinert (bei Items wird der Hintergrund entfe
 
 ### Noch offen
 
-- ⏳ Seltenere Mobs mit Textur (Papagei, Fische, Ghast, Blaze, Schildkröte ...)
+- ⏳ Die letzten Mobs mit Textur: Fledermaus, Frosch, Axolotl, Ziege, Kamel, Gürteltier, Schnüffler, Wärter, Verwüster, Breeze, Tropenfisch, Enderdrache (noch Blockfiguren)
 
 ## Gegen Griefing
 

@@ -207,6 +207,17 @@ const HORSE_PARTS = {
   legFrontLeft: { pivot: [4, 14, -12], boxes: [[48, 21, -3, -1.01, -1.9, 4, 11, 4, 0, true]] },
 };
 
+/**
+ * Silverfish and endermite: segments in a row along z, each standing on the ground (Minecraft's placement),
+ * plus extra boxes that need the segment positions.
+ */
+function segments(sizes, tex, extra = () => []) {
+  const z = [];
+  let f = -3.5;
+  sizes.forEach((sz, i) => { z.push(f); if (i < sizes.length - 1) f += (sz[2] + sizes[i + 1][2]) * 0.5; });
+  return [...sizes.map(([w, h, d], i) => [tex[i][0], tex[i][1], -w / 2, 24 - h, z[i] - d / 2, w, h, d]), ...extra(z)];
+}
+
 const MODELS = {
   biped: { tw: 64, th: 64, parts: BIPED_PARTS(true), kind: 'biped' },
   biped32: { tw: 64, th: 32, parts: BIPED_PARTS(false), kind: 'biped' },
@@ -349,6 +360,188 @@ const MODELS = {
   skeleton: { tw: 64, th: 32, parts: SKELETON_PARTS, kind: 'biped' },
   villager: { tw: 64, th: 64, parts: VILLAGER_PARTS(false), kind: 'biped' },
   zombie_villager: { tw: 64, th: 64, parts: VILLAGER_PARTS(true), kind: 'biped' },
+  // ---- rarer mobs (Minecraft 1.17+ models; children of a part are written in its coordinates)
+  parrot: {
+    tw: 32, th: 32, kind: 'none',
+    parts: {
+      body: { pivot: [0, 16.5, -3], rot: [0.4937, 0, 0], boxes: [[2, 8, -1.5, 0, -1.5, 3, 6, 3]] },
+      tail: { pivot: [0, 21.07, 1.16], rot: [1.015, 0, 0], boxes: [[22, 1, -1.5, -1, -1, 3, 4, 1]] },
+      wingLeft: { pivot: [1.5, 16.94, -2.76], rot: [-0.6981, -Math.PI, 0], order: 'ZYX', boxes: [[19, 8, -0.5, 0, -1.5, 1, 5, 3]] },
+      wingRight: { pivot: [-1.5, 16.94, -2.76], rot: [-0.6981, -Math.PI, 0], order: 'ZYX', boxes: [[19, 8, -0.5, 0, -1.5, 1, 5, 3]] },
+      head: { pivot: [0, 15.69, -2.76], boxes: [[2, 2, -1, -1.5, -1, 2, 3, 2], [10, 0, -1, -2.5, -3, 2, 1, 4], [11, 7, -0.5, -1.5, -2, 1, 2, 1],
+        [16, 7, -0.5, -1.75, -2.95, 1, 2, 1], [2, 18, 0, -6.15, -1.85, 0, 5, 4]] },
+      legs: { pivot: [0, 22, -1.05], boxes: [[14, 18, 0.5, 0, -0.5, 1, 2, 1], [14, 18, -1.5, 0, -0.5, 1, 2, 1]] },
+    },
+  },
+  cod: {
+    tw: 32, th: 32, kind: 'none',
+    parts: {
+      body: { pivot: [0, 22, 0], boxes: [[0, 0, -1, -2, 0, 2, 4, 7], [11, 0, -1, -2, -3, 2, 4, 3], [0, 0, -1, -2, -4, 2, 3, 1],
+        [20, -6, 0, -3, -1, 0, 1, 6], [22, 3, 0, -2, 7, 0, 4, 4]] },
+      finRight: { pivot: [-1, 23, 0], rot: [0, 0, -Math.PI / 4], boxes: [[22, 1, -2, 0, -1, 2, 0, 2]] },
+      finLeft: { pivot: [1, 23, 0], rot: [0, 0, Math.PI / 4], boxes: [[22, 4, 0, 0, -1, 2, 0, 2]] },
+    },
+  },
+  salmon: {
+    tw: 32, th: 32, kind: 'none',
+    parts: {
+      body: { pivot: [0, 20, 0], boxes: [[0, 0, -1.5, -2.5, 0, 3, 5, 8], [0, 13, -1.5, -2.5, 8, 3, 5, 8], [22, 0, -1, -2, -3, 2, 4, 3],
+        [20, 10, 0, -2.5, 16, 0, 5, 6], [2, 1, 0, -4.5, 5, 0, 2, 3], [0, 2, 0, -4.5, 7, 0, 2, 4]] },
+      finRight: { pivot: [-1.5, 21.5, 0], rot: [0, 0, -Math.PI / 4], boxes: [[-4, 0, -2, 0, 0, 2, 0, 2]] },
+      finLeft: { pivot: [1.5, 21.5, 0], rot: [0, 0, Math.PI / 4], boxes: [[0, 0, 0, 0, 0, 2, 0, 2]] },
+    },
+  },
+  pufferfish: {
+    tw: 32, th: 32, kind: 'none',
+    parts: {
+      body: { pivot: [0, 23, 0], boxes: [[0, 27, -1.5, -2, -1.5, 3, 2, 3], [24, 6, -1.5, -3, -1.5, 1, 1, 1], [28, 6, 0.5, -3, -1.5, 1, 1, 1],
+        [-3, 0, -1.5, -1, 1.5, 3, 0, 3], [25, 0, -2.5, -1, -1.5, 1, 0, 2], [25, 0, 1.5, -1, -1.5, 1, 0, 2]] },
+    },
+  },
+  ghast: {
+    tw: 64, th: 32, kind: 'none',
+    parts: {
+      head: { pivot: [0, 17.6, 0], boxes: [[0, 0, -8, -8, -8, 16, 16, 16]] },
+      tentacles: { pivot: [0, 24.6, 0], boxes: [9, 12, 8, 11, 10, 13, 8, 12, 10].map((len, i) => [0, 0,
+        ((i % 3 - Math.floor(i / 3) % 2 * 0.5 + 0.25) / 2 * 2 - 1) * 5 - 1, 0, (Math.floor(i / 3) / 2 * 2 - 1) * 5 - 1, 2, len, 2]) },
+    },
+  },
+  blaze: {
+    tw: 64, th: 32, kind: 'none',
+    parts: {
+      head: { pivot: [0, 0, 0], boxes: [[0, 0, -4, -4, -4, 8, 8, 8]] },
+      // Twelve rods in three rings (still: Minecraft turns them around the body)
+      rods: { pivot: [0, 0, 0], boxes: [[9, -2, Math.PI / 4], [7, 2, 0], [5, 11, Math.PI / 4]].flatMap(([r, y, a0]) =>
+        [0, 1, 2, 3].map((k) => [0, 16, Math.cos(a0 + k * Math.PI / 2) * r - 1, y, Math.sin(a0 + k * Math.PI / 2) * r - 1, 2, 8, 2])) },
+    },
+  },
+  squid: {
+    tw: 64, th: 32, kind: 'none',
+    parts: {
+      body: { pivot: [0, 8, 0], boxes: [[0, 0, -6, -8, -6, 12, 16, 12]] },
+      tentacles: { pivot: [0, 15, 0], boxes: [0, 1, 2, 3, 4, 5, 6, 7].map((i) =>
+        [48, 0, Math.cos(i * Math.PI / 4) * 5 - 1, 0, Math.sin(i * Math.PI / 4) * 5 - 1, 2, 18, 2]) },
+    },
+  },
+  silverfish: {
+    tw: 64, th: 32, kind: 'none',
+    parts: { body: { pivot: [0, 0, 0], boxes: segments(
+      [[3, 2, 2], [4, 3, 2], [6, 4, 3], [3, 3, 3], [2, 2, 3], [2, 1, 2], [1, 1, 2]],
+      [[0, 0], [0, 4], [0, 9], [0, 16], [0, 22], [11, 0], [13, 4]],
+      (z) => [[20, 0, -5, 16, z[2] - 1.5, 10, 8, 3], [20, 11, -3, 20, z[4] - 1.5, 6, 4, 3], [20, 18, -3, 19, z[1] - 1, 6, 5, 2]]) } },
+  },
+  endermite: {
+    tw: 64, th: 32, kind: 'none',
+    parts: { body: { pivot: [0, 0, 0], boxes: segments([[4, 3, 2], [6, 4, 5], [3, 3, 1], [1, 2, 1]], [[0, 0], [0, 5], [0, 14], [0, 18]]) } },
+  },
+  guardian: {
+    tw: 64, th: 64, kind: 'none',
+    parts: {
+      head: { pivot: [0, 0, 0], boxes: [[0, 0, -6, 10, -8, 12, 12, 16], [0, 28, -8, 10, -6, 2, 12, 12], [0, 28, 6, 10, -6, 2, 12, 12, 0, true],
+        [16, 40, -6, 8, -6, 12, 2, 12], [16, 40, -6, 22, -6, 12, 2, 12], [8, 0, -1, 15, -8.25, 2, 2, 1]] },
+      tail: { pivot: [0, 0, 0], boxes: [[40, 0, -2, 14, 7, 4, 4, 8]] },
+      tail1: { pivot: [-1.5, 0.5, 14], boxes: [[0, 54, 0, 14, 0, 3, 3, 7]] },
+      tail2: { pivot: [-1, 1, 20], boxes: [[41, 32, 0, 14, 0, 2, 2, 6], [25, 19, 1, 10.5, 3, 1, 9, 9]] },
+    },
+  },
+  turtle: {
+    tw: 128, th: 64, kind: 'quad',
+    parts: {
+      head: { pivot: [0, 19, -10], boxes: [[3, 0, -3, -1, -3, 6, 5, 6]] },
+      body: { pivot: [0, 11, -10], rot: [HALF_PI, 0, 0], boxes: [[7, 37, -9.5, 3, -10, 19, 20, 6], [31, 1, -5.5, 3, -13, 11, 18, 3]] },
+      legBackRight: { pivot: [-3.5, 22, 11], boxes: [[1, 23, -2, 0, 0, 4, 1, 10]] },
+      legBackLeft: { pivot: [3.5, 22, 11], boxes: [[1, 12, -2, 0, 0, 4, 1, 10]] },
+      legFrontRight: { pivot: [-5, 21, -4], boxes: [[27, 30, -13, 0, -2, 13, 1, 5]] },
+      legFrontLeft: { pivot: [5, 21, -4], boxes: [[27, 24, 0, 0, -2, 13, 1, 5]] },
+    },
+  },
+  dolphin: {
+    tw: 64, th: 64, kind: 'none',
+    parts: {
+      body: { pivot: [0, 22, -5], boxes: [[22, 0, -4, -7, 0, 8, 7, 13]] },
+      backFin: { pivot: [0, 22, -5], rot: [Math.PI / 3, 0, 0], boxes: [[51, 0, -0.5, 0, 8, 1, 4, 5]] },
+      finLeft: { pivot: [2, 20, -1], rot: [Math.PI / 3, 0, 2 * Math.PI / 3], order: 'ZYX', boxes: [[48, 20, -0.5, -4, 0, 1, 4, 7, 0, true]] },
+      finRight: { pivot: [-2, 20, -1], rot: [Math.PI / 3, 0, -2 * Math.PI / 3], order: 'ZYX', boxes: [[48, 20, -0.5, -4, 0, 1, 4, 7]] },
+      tail: { pivot: [0, 19.5, 6], rot: [-0.10472, 0, 0], boxes: [[0, 19, -2, -2.5, 0, 4, 5, 11]] },
+      tailFin: { pivot: [0, 19.5, 15], boxes: [[19, 20, -5, -0.5, 0, 10, 1, 6]] },
+      head: { pivot: [0, 18, -8], boxes: [[0, 0, -4, -3, -3, 8, 7, 6], [0, 13, -1, 2, -7, 2, 2, 4]] },
+    },
+  },
+  phantom: {
+    tw: 64, th: 64, kind: 'none',
+    parts: {
+      body: { pivot: [0, 0, 0], rot: [-0.1, 0, 0], boxes: [[0, 8, -3, -2, -8, 5, 3, 9]] },
+      tailBase: { pivot: [0, -2, 1], boxes: [[3, 20, -2, 0, 0, 3, 2, 6]] },
+      tailTip: { pivot: [0, -1.5, 7], boxes: [[4, 29, -1, 0, 0, 1, 1, 6]] },
+      wingLeft: { pivot: [2, -2, -8], rot: [0, 0, 0.1], boxes: [[23, 12, 0, 0, 0, 6, 2, 9]] },
+      wingLeftTip: { pivot: [8, -2, -8], rot: [0, 0, 0.1], boxes: [[16, 24, 0, 0, 0, 13, 1, 9]] },
+      wingRight: { pivot: [-3, -2, -8], rot: [0, 0, -0.1], boxes: [[23, 12, -6, 0, 0, 6, 2, 9, 0, true]] },
+      wingRightTip: { pivot: [-9, -2, -8], rot: [0, 0, -0.1], boxes: [[16, 24, -13, 0, 0, 13, 1, 9, 0, true]] },
+      head: { pivot: [0, 1, -7], rot: [0.2, 0, 0], boxes: [[0, 0, -4, -2, -5, 7, 3, 5]] },
+    },
+  },
+  hoglin: {
+    tw: 128, th: 64, kind: 'quad',
+    parts: {
+      head: { pivot: [0, 2, -12], rot: [0.87, 0, 0], boxes: [[61, 1, -7, -3, -19, 14, 6, 19], [1, 1, -12, -3, -5, 6, 1, 4],
+        [1, 6, 6, -3, -5, 6, 1, 4], [10, 13, -8, -9, -13, 2, 11, 2], [1, 13, 6, -9, -13, 2, 11, 2]] },
+      body: { pivot: [0, 7, 0], boxes: [[1, 1, -8, -7, -13, 16, 14, 26], [90, 33, 0, -14, -14, 0, 10, 19, 0.001]] },
+      legFrontRight: { pivot: [-4, 10, -8.5], boxes: [[66, 42, -3, 0, -3, 6, 14, 6]] },
+      legFrontLeft: { pivot: [4, 10, -8.5], boxes: [[41, 42, -3, 0, -3, 6, 14, 6]] },
+      legBackRight: { pivot: [-5, 13, 10], boxes: [[21, 45, -2.5, 0, -2.5, 5, 11, 5]] },
+      legBackLeft: { pivot: [5, 13, 10], boxes: [[0, 45, -2.5, 0, -2.5, 5, 11, 5]] },
+    },
+  },
+  strider: {
+    tw: 64, th: 128, kind: 'biped',
+    parts: {
+      body: { pivot: [0, 1, 0], boxes: [[0, 0, -8, -6, -8, 16, 14, 16]] },
+      head: { pivot: [0, 1, 0], boxes: [] },
+      rightLeg: { pivot: [-4, 8, 0], boxes: [[0, 32, -2, 0, -2, 4, 16, 4]] },
+      leftLeg: { pivot: [4, 8, 0], boxes: [[0, 55, -2, 0, -2, 4, 16, 4]] },
+    },
+  },
+  vex: {
+    tw: 32, th: 32, kind: 'none',
+    parts: {
+      head: { pivot: [0, 20, 0], boxes: [[0, 0, -2.5, -5, -2.5, 5, 5, 5]] },
+      body: { pivot: [0, 20, 0], boxes: [[0, 10, -1.5, 0, -1, 3, 4, 2], [0, 16, -1.5, 1, -1, 3, 5, 2, -0.2]] },
+      rightArm: { pivot: [-1.75, 20.25, 0], boxes: [[23, 0, -1.25, -0.5, -1, 2, 4, 2, -0.1]] },
+      leftArm: { pivot: [1.75, 20.25, 0], boxes: [[23, 6, -0.75, -0.5, -1, 2, 4, 2, -0.1]] },
+      wingLeft: { pivot: [0.5, 21, 1], rot: [0, 0.4, 0], boxes: [[16, 14, 0, 0, 0, 0, 5, 8, 0, true]] },
+      wingRight: { pivot: [-0.5, 21, 1], rot: [0, -0.4, 0], boxes: [[16, 14, 0, 0, 0, 0, 5, 8]] },
+    },
+  },
+  allay: {
+    tw: 32, th: 32, kind: 'none',
+    parts: {
+      head: { pivot: [0, 19.5, 0], boxes: [[0, 0, -2.5, -5, -2.5, 5, 5, 5]] },
+      body: { pivot: [0, 19.5, 0], boxes: [[0, 10, -1.5, 0, -1, 3, 4, 2], [0, 16, -1.5, 0, -1, 3, 5, 2, -0.2]] },
+      rightArm: { pivot: [-1.75, 20, 0], boxes: [[23, 0, -0.75, -0.5, -1, 1, 4, 2, -0.01]] },
+      leftArm: { pivot: [1.75, 20, 0], boxes: [[23, 6, -0.25, -0.5, -1, 1, 4, 2, -0.01]] },
+      wingLeft: { pivot: [0.5, 19.5, 0.6], rot: [0, 0.4, 0], boxes: [[16, 14, 0, 1, 0, 0, 5, 8, 0, true]] },
+      wingRight: { pivot: [-0.5, 19.5, 0.6], rot: [0, -0.4, 0], boxes: [[16, 14, 0, 1, 0, 0, 5, 8]] },
+    },
+  },
+  shulker: {
+    tw: 64, th: 64, kind: 'none',
+    parts: {
+      body: { pivot: [0, 24, 0], boxes: [[0, 28, -8, -8, -8, 16, 8, 16], [0, 0, -8, -16, -8, 16, 12, 16]] },
+      head: { pivot: [0, 12, 0], boxes: [[0, 52, -3, 0, -3, 6, 6, 6]] },
+    },
+  },
+  wither: {
+    tw: 64, th: 64, kind: 'none',
+    parts: {
+      body: { pivot: [0, 0, 0], boxes: [[0, 16, -10, 3.9, -0.5, 20, 3, 3]] },
+      ribcage: { pivot: [-2, 6.9, -0.5], rot: [0.2, 0, 0], boxes: [[0, 22, 0, 0, 0, 3, 10, 3], [24, 22, -4, 1.5, 0.5, 11, 2, 2],
+        [24, 22, -4, 4, 0.5, 11, 2, 2], [24, 22, -4, 6.5, 0.5, 11, 2, 2]] },
+      tail: { pivot: [-2, 6.9 + Math.cos(0.2) * 10, -0.5 + Math.sin(0.2) * 10], rot: [0.83, 0, 0], boxes: [[12, 22, 0, 0, 0, 3, 6, 3]] },
+      head: { pivot: [0, 0, 0], boxes: [[0, 0, -4, -4, -4, 8, 8, 8]] },
+      headRight: { pivot: [-8, 4, 0], boxes: [[32, 0, -4, -4, -4, 6, 6, 6]] },
+      headLeft: { pivot: [10, 4, 0], boxes: [[32, 0, -4, -4, -4, 6, 6, 6]] },
+    },
+  },
   creeper: {
     tw: 64, th: 32, kind: 'quad',
     parts: {
@@ -506,10 +699,34 @@ const SKINS = {
   rabbit: (d) => ['rabbit', 'entity/rabbit_' + (RABBITS[d.var] || 'brown')],
   llama: (d) => ['llama', 'entity/llama_' + (d.var || 'creamy')],
   trader_llama: (d) => ['llama', 'entity/llama_' + (d.var || 'creamy')],
+  parrot: (d) => ['parrot', 'entity/parrot_' + (PARROTS[d.var] || 'red_blue')],
+  cod: () => ['cod', 'entity/cod'],
+  salmon: () => ['salmon', 'entity/salmon'],
+  pufferfish: () => ['pufferfish', 'entity/pufferfish'],
+  ghast: () => ['ghast', 'entity/ghast'],
+  blaze: () => ['blaze', 'entity/blaze'],
+  squid: () => ['squid', 'entity/squid'],
+  glow_squid: () => ['squid', 'entity/glow_squid'],
+  silverfish: () => ['silverfish', 'entity/silverfish'],
+  endermite: () => ['endermite', 'entity/endermite'],
+  guardian: () => ['guardian', 'entity/guardian'],
+  elder_guardian: () => ['guardian', 'entity/elder_guardian'],
+  turtle: () => ['turtle', 'entity/turtle'],
+  dolphin: () => ['dolphin', 'entity/dolphin'],
+  phantom: () => ['phantom', 'entity/phantom'],
+  hoglin: () => ['hoglin', 'entity/hoglin'],
+  zoglin: () => ['hoglin', 'entity/zoglin'],
+  strider: () => ['strider', 'entity/strider'],
+  vex: () => ['vex', 'entity/vex'],
+  allay: () => ['allay', 'entity/allay'],
+  shulker: () => ['shulker', 'entity/shulker'],
+  wither: () => ['wither', 'entity/wither'],
 };
+const PARROTS = { red: 'red_blue', blue: 'blue', green: 'green', cyan: 'yellow_blue', gray: 'grey' };
 const RABBITS = { brown: 'brown', white: 'white', black: 'black', black_and_white: 'white_splotched', gold: 'gold',
   salt_and_pepper: 'salt', the_killer_bunny: 'caerbannog' };
-const GLOW = { spider: 'entity/spider_eyes', cave_spider: 'entity/spider_eyes', enderman: 'entity/enderman_eyes' };
+const GLOW = { spider: 'entity/spider_eyes', cave_spider: 'entity/spider_eyes', enderman: 'entity/enderman_eyes',
+  phantom: 'entity/phantom_eyes' };
 
 // Armor on bipeds: Minecraft's armor pictures have the biped layout (layer 2 = leggings)
 const ARMOR_MATERIAL = [[/^leather/, 'leather'], [/^chainmail/, 'chainmail'], [/^iron/, 'iron'], [/^golden/, 'gold'],
@@ -548,6 +765,7 @@ function addModel(model, tex, groups, frame, opts = {}) {
     if (!g) {
       g = new THREE.Group();
       g.position.set(...p.pivot);
+      if (p.order) g.rotation.order = p.order;   // Minecraft turns z, then y, then x
       if (p.rot) g.rotation.set(...p.rot);
       groups[name] = g;
       frame.add(g);

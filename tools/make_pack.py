@@ -49,6 +49,16 @@ ENTITY_FILES = {
     'zombified_piglin': 'piglin/zombified_piglin', 'polar_bear': 'bear/polarbear', 'panda': 'panda/panda',
     **{'rabbit_' + c: 'rabbit/' + c for c in ('brown', 'white', 'black', 'white_splotched', 'gold', 'salt', 'caerbannog')},
     **{'llama_' + c: ['llama/llama_' + c, 'llama/' + c] for c in ('creamy', 'white', 'brown', 'gray')},
+    # Rarer mobs (pictures of Minecraft 1.17+ models)
+    **{'parrot_' + c: 'parrot/parrot_' + c for c in ('red_blue', 'blue', 'green', 'yellow_blue', 'grey')},
+    'cod': 'fish/cod', 'salmon': 'fish/salmon', 'pufferfish': 'fish/pufferfish', 'ghast': 'ghast/ghast',
+    'blaze': ['blaze/blaze', 'blaze'], 'squid': ['squid/squid', 'squid'], 'glow_squid': 'squid/glow_squid',
+    'silverfish': ['silverfish/silverfish', 'silverfish'], 'endermite': ['endermite/endermite', 'endermite'],
+    'guardian': ['guardian/guardian', 'guardian'], 'elder_guardian': ['guardian/guardian_elder', 'guardian_elder'],
+    'turtle': 'turtle/turtle', 'dolphin': ['dolphin/dolphin', 'dolphin'], 'phantom': ['phantom/phantom', 'phantom'],
+    'phantom_eyes': ['phantom/phantom_eyes', 'phantom_eyes'], 'hoglin': 'hoglin/hoglin', 'zoglin': 'hoglin/zoglin',
+    'strider': 'strider/strider', 'vex': 'illager/vex', 'allay': 'allay/allay', 'shulker': 'shulker/shulker',
+    'wither': 'wither/wither',
 }
 # Newer packs draw villagers in layers (skin + biome clothes + job): put them together. Our old job names too.
 COMPOSED = {
@@ -62,7 +72,7 @@ COMPOSED = {
 OLD_RATIO = {'cow': 2, 'mooshroom': 2, 'brown_mooshroom': 2, 'pig': 2, 'magma_cube': 2,
              **{'rabbit_' + c: 2 for c in ('brown', 'white', 'black', 'white_splotched', 'gold', 'salt', 'caerbannog')}}
 # Glowing eyes only fit the picture of the same pack
-SAME_PACK = {'spider_eyes': 'spider', 'enderman_eyes': 'enderman'}
+SAME_PACK = {'spider_eyes': 'spider', 'enderman_eyes': 'enderman', 'phantom_eyes': 'phantom'}
 # Front faces (shown on the side the block faces): block name -> picture in the pack
 FRONT_FILES = {
     'furnace': 'furnace_front', 'blast_furnace': 'blast_furnace_front', 'smoker': 'smoker_front',

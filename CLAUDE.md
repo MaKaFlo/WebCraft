@@ -253,6 +253,7 @@ heads cut from the mob pictures, end portal stars, copper chests); keeps everyth
 
 ## Backlog / ideas
 
-- Textured models for the remaining mobs (parrot, fish, ghast, blaze, turtle, dolphin, squid ... are still block
-  figures); the pack has more pictures in `entity/`
+- Textured models for the last mobs (bat, frog, axolotl, goat, camel, armadillo, sniffer, warden, ravager, breeze,
+  tropical fish, ender dragon are still block figures); Faithful has their pictures in `entity/`. Models of
+  Minecraft 1.17+ (`parrot` ... `wither` in `skins.js`) may set `order: 'ZYX'` for parts turned around two axes
 - Sky light (caves are as bright as the sky outside, only block light is computed)
