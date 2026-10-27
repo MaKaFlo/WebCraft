@@ -22,6 +22,8 @@ import java.util.logging.Level;
 public final class WcServer extends WebSocketServer {
 
     private static final int MAX_TEXT_LENGTH = 4096;
+    /** A texture pack upload (base64 of at most WcTextures.MAX_ZIP_BYTES) is the only big message. */
+    private static final int MAX_UPLOAD_LENGTH = WcTextures.MAX_ZIP_BYTES / 3 * 4 + 1024;
 
     private final WcHost host;
     private final List<String> allowedOrigins;
@@ -64,7 +66,8 @@ public final class WcServer extends WebSocketServer {
     @Override
     public void onMessage(WebSocket conn, String message) {
         WcSession session = conn.getAttachment();
-        if (session == null || message.length() > MAX_TEXT_LENGTH) {
+        int max = message.startsWith("{\"t\":\"pack_upload\"") ? MAX_UPLOAD_LENGTH : MAX_TEXT_LENGTH;
+        if (session == null || message.length() > max) {
             conn.close(CloseFrame.POLICY_VALIDATION, "Message too large");
             return;
         }

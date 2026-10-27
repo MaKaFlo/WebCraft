@@ -56,6 +56,23 @@ export function canvasToDataUrl(canvas) {
 }
 
 const dataUrlToBytes = (url) => Uint8Array.from(atob(url.split(',')[1]), (c) => c.charCodeAt(0));
+/**
+ * PNG bytes -> data URL, at most 32 px wide like the server does it (animation strips keep their frames).
+ * Packs with 128 or 512 px pictures would otherwise be far too big for the browser and the upload.
+ */
+async function shrinkPicture(bytes) {
+  const img = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
+  if (img.width <= 32) { img.close(); return bytesToDataUrl(bytes); }
+  const w = 32, h = Math.max(1, Math.round(img.height * 32 / img.width));
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(img, 0, 0, w, h);
+  img.close();
+  return c.toDataURL('image/png');
+}
+
 function bytesToDataUrl(bytes) {
   let s = '';
   for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
@@ -165,10 +182,10 @@ class Pack {
     return { ...this.builtinAnims, ...this.serverAnims, ...this.localAnims };
   }
 
-  /** Zip with all textures in use (server + own). */
-  exportZip(onlyLocal = false) {
+  /** Zip with all textures in use (server + own); without the built-in ones when `noBuiltin`. */
+  exportZip(onlyLocal = false, noBuiltin = false) {
     const files = [];
-    const src = onlyLocal ? this.local : this.effective();
+    const src = onlyLocal ? this.local : noBuiltin ? new Map([...this.server, ...this.local]) : this.effective();
     for (const [path, url] of src) files.push({ name: path + '.png', data: dataUrlToBytes(url) });
     const anims = Object.fromEntries(Object.entries(this.anims()).filter(([p]) => src.has(p) && !this.local.has(p)));
     files.push({ name: 'animations.json', data: new TextEncoder().encode(JSON.stringify(anims)) });
@@ -187,6 +204,7 @@ class Pack {
       const m = name.toLowerCase().match(/(?:^|\/)(block|item)s?\/([a-z0-9_]+)\.png(\.mcmeta)?$/);
       return m ? [m[1] + '/' + m[2], !!m[3]] : [null];
     };
+    const pictures = [];
     for (const f of files) {
       const [path, meta] = pathOf(f.name);
       if (!path) continue;
@@ -197,11 +215,16 @@ class Pack {
         } catch (e) { /* broken mcmeta */ }
         continue;
       }
-      const url = bytesToDataUrl(f.data);
+      pictures.push([path, f.data]);
+    }
+    // All at the same time (one after the other takes minutes for a big pack); HD pictures get 32 px
+    await Promise.all(pictures.map(async ([path, data]) => {
+      let url;
+      try { url = await shrinkPicture(data); } catch (e) { return; }   // not a picture
       this.local.set(path, url);
       try { await dbPut(path, url); } catch (e) { /* ignore */ }
       n++;
-    }
+    }));
     if (Object.keys(anims).length) {
       this.localAnims = { ...this.localAnims, ...anims };
       try { await dbPut('__anims', JSON.stringify(this.localAnims)); } catch (e) { /* ignore */ }

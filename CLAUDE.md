@@ -87,7 +87,7 @@ cd webcraft-web && npm ci && npm run build   # web only -> webcraft-web/dist/ind
 | Class | Role |
 |---|---|
 | `WcPlugin` | Main class. Config, `/webcraft` command, message dispatch (`switch` on `t`), per-tick work: chunk queue, entity list, stats, inventory, menus, scoreboard/tab, animations, block changes |
-| `WcServer` | Java-WebSocket server (own threads). Origin check, hands messages to the main thread |
+| `WcServer` | Java-WebSocket server (own threads). Origin check, hands messages to the main thread. Text messages max 4 KB, except `pack_upload` (base64 of up to 16 MB) |
 | `WcSession` | One browser connection: sent chunks, queues, loading map (key → start ms), anims, block changes, palette size, packet-only "virtual" entities (holograms) |
 | `WcFakePlayer` | The real `ServerPlayer` behind a WebCraft player with a fake `Connection`. Captures outgoing packets (swing `ClientboundSwingAnimationPacket`, `ClientboundAnimatePacket`, damage/hurt, `ClientboundBlockUpdatePacket`, `ClientboundSectionBlocksUpdatePacket`, scoreboard, tab, menus). Dig timing, menu data (`menuData()`), villager trades (`tradesJson()`), enchant offers, interact packets |
 | `WcListener` | Bukkit events (join/quit/death/chat ...) |

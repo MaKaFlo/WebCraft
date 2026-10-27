@@ -493,7 +493,9 @@ Stil: ${style}`;
   }
 
   upload() {
-    const bytes = pack.exportZip();
+    // Built-in textures are in every browser anyway: only the server's and your own go up
+    const bytes = pack.exportZip(false, true);
+    if (bytes.length > 16 * 1024 * 1024) { this.toast('Das Paket ist zu groß (höchstens 16 MB)'); return; }
     let s = '';
     for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
     this.send({ t: 'pack_upload', zip: btoa(s) });
