@@ -21,17 +21,15 @@ export class Hand {
   constructor() {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 10);
-    this.root = new THREE.Group();          // swings and bobs
-    this.root.scale.setScalar(0.85);
+    this.root = new THREE.Group();          // swings and bobs; sits where Minecraft puts the right hand
     this.scene.add(this.root);
-    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.6), new THREE.MeshBasicMaterial({ color: 0xe0a070 }));
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.136, 0.136, 0.51), new THREE.MeshBasicMaterial({ color: 0xe0a070 }));
     arm.position.set(0, -0.02, 0.22);
     // Darker sides so it looks like a box and not a flat shape
-    const shade = new THREE.Mesh(new THREE.BoxGeometry(0.161, 0.161, 0.601), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.18, side: THREE.BackSide }));
+    const shade = new THREE.Mesh(new THREE.BoxGeometry(0.137, 0.137, 0.511), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.18, side: THREE.BackSide }));
     arm.add(shade);
     this.arm = arm;
     this.itemHolder = new THREE.Group();
-    this.itemHolder.position.set(0, 0.06, -0.08);
     this.root.add(arm, this.itemHolder);
     this.itemKey = null;
     this.itemModel = null;
@@ -76,17 +74,17 @@ export class Hand {
       // Empty hand: the arm comes up from the bottom right corner like in Minecraft
       this.arm.visible = true;
       this.arm.rotation.set(-1.0, 0.45, 0.15);
-      this.arm.position.set(0.12, -0.2, 0.05);
+      this.arm.position.set(-0.02, -0.05, 0.1);
       return;
     }
-    const m = itemModel(this.palette, this.itemKey, 0.2, 0.3);
+    // Minecraft's "firstperson_righthand" display: items and tools turned -90 deg around y and 25 deg around z,
+    // moved by (1.13, 3.2, 1.13)/16 and scaled 0.68; blocks turned 45 deg and scaled 0.4 (models are 1 block big)
+    const m = itemModel(this.palette, this.itemKey, 0.4, 0.68);
     if (m.userData.flat) {
-      // Held like a tool: tilted, the top pointing forward
-      m.rotation.set(-0.25, -0.55, 0.2);
-      m.position.set(0.0, 0.13, -0.04);
+      m.rotation.set(0, -Math.PI / 2, 25 * Math.PI / 180);
+      m.position.set(1.13 / 16, 3.2 / 16, 1.13 / 16);
     } else {
-      m.rotation.set(0.1, 0.75, 0);
-      m.position.set(0, 0.04, 0);
+      m.rotation.set(0, Math.PI / 4, 0);
     }
     this.itemModel = m;
     this.itemHolder.add(m);
@@ -143,19 +141,19 @@ export class Hand {
     const p = this.swingT > 0 ? 1 - this.swingT / SWING_TIME : 0;
     const s = Math.sin(p * Math.PI);
     const s2 = Math.sin(Math.sqrt(p) * Math.PI);
-    this.root.position.set(0.44 + bx - s2 * 0.18, -0.4 + by + s2 * 0.12 - this.equipT * 1.2, -0.66 - s * 0.12);
+    this.root.position.set(0.56 + bx - s2 * 0.18, -0.52 + by + s2 * 0.12 - this.equipT * 1.2, -0.72 - s * 0.12);
     this.root.rotation.set(-s * 0.9, 0.12 + s2 * 0.5, s * 0.25);
     if (this.using) {
       this.useT += dt;
       const k = Math.min(1, this.useT / 0.2);           // move the item to the mouth first
       if (this.using === 'eat' || this.using === 'drink') {
         const bob = this.useT > 0.2 ? Math.abs(Math.sin(this.useT * 13)) * 0.04 : 0;
-        this.root.position.set(0.44 - 0.4 * k, -0.4 + 0.12 * k + bob, -0.66 + 0.12 * k);
+        this.root.position.set(0.56 - 0.5 * k, -0.52 + 0.12 * k + bob, -0.72 + 0.12 * k);
         this.root.rotation.set(this.using === 'drink' ? 0.5 * k : 0.15 * k, 0.12 + 0.9 * k, -0.15 * k);
       } else if (this.using === 'bow') {
         const pull = Math.min(1, this.useT / 1.0);       // full draw after 1 s like Minecraft
         const shake = pull >= 1 ? Math.sin(this.useT * 40) * 0.004 : 0;
-        this.root.position.set(0.44 - 0.3 * k + shake, -0.4 + 0.1 * k, -0.66 + 0.1 * pull);
+        this.root.position.set(0.56 - 0.3 * k + shake, -0.52 + 0.1 * k, -0.72 + 0.1 * pull);
         this.root.rotation.set(0, 0.12 + 0.7 * k, 0.25 * k);
       }
     }

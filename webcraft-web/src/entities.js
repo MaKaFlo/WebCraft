@@ -562,7 +562,8 @@ class Entity {
 
   buildItem(d) {
     const scale = d.type === 'item_display' ? (d.sx || 1) * 2 : 1;
-    const m = d.k ? itemModel(this.palette, d.k, 0.25 * scale, 0.42 * scale)
+    // Like Minecraft's "ground" display: flat items half a block, blocks a quarter
+    const m = d.k ? itemModel(this.palette, d.k, 0.25 * scale, 0.5 * scale)
       : new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.25, 0.25), mat(0xcccccc));
     m.position.y = m.userData.flat ? 0.3 : 0.2;
     this.baseY = m.position.y;

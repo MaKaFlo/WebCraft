@@ -1,7 +1,7 @@
 // Small textured models: blocks as entities (dropped items, falling sand, the block in your hand)
 // and flat item pictures.
 import * as THREE from 'three';
-import { atlas, tileUV } from './textures.js';
+import { atlas, tileUV, TILE_PX } from './textures.js';
 import { KIND_CROSS } from './palette.js';
 import { iconCanvas } from './items.js';
 
@@ -44,17 +44,20 @@ sideMaterial.userData.shared = true;
  * front and back show the picture, the edges get the color of the pixel next to them.
  */
 export function itemExtruded(palette, key, size) {
-  const icon = iconCanvas(palette, key);
-  const N = 16;
+  // Picture and edges from the same pixels: the item picture at the atlas resolution (32 px; 16 px pictures
+  // are doubled exactly). Scaling the 48 px icon instead put the edges next to the picture's pixels.
+  const N = TILE_PX;
   const small = document.createElement('canvas');
   small.width = small.height = N;
   const sctx = small.getContext('2d', { willReadFrequently: true });
   sctx.imageSmoothingEnabled = false;
-  sctx.drawImage(icon, 0, 0, N, N);
+  const itemTile = atlas.packTile('item/' + key);
+  if (itemTile >= 0) atlas.drawTileTo(sctx, itemTile, 0, 0, N, N);
+  else sctx.drawImage(iconCanvas(palette, key), 0, 0, N, N);
   const px = sctx.getImageData(0, 0, N, N).data;
   const solid = (x, y) => x >= 0 && y >= 0 && x < N && y < N && px[(y * N + x) * 4 + 3] > 100;
 
-  const tex = new THREE.CanvasTexture(icon);
+  const tex = new THREE.CanvasTexture(small);
   tex.magFilter = THREE.NearestFilter;
   tex.minFilter = THREE.NearestFilter;
   tex.colorSpace = THREE.NoColorSpace;
@@ -62,7 +65,7 @@ export function itemExtruded(palette, key, size) {
   const faceMat = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.4, side: THREE.FrontSide });
   const backMat = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.4, side: THREE.BackSide });
   const group = new THREE.Group();
-  const p = size / N, t = size / N;          // one pixel thick
+  const p = size / N, t = size / 16;         // as thick as one pixel of a 16 px item
   const front = new THREE.PlaneGeometry(size, size);
   const f1 = new THREE.Mesh(front, faceMat);
   f1.position.z = t / 2;
