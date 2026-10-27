@@ -616,6 +616,7 @@ public final class WcMod implements ModInitializer, WcHost {
                 JsonObject m = new JsonObject();
                 m.addProperty("t", "time");
                 m.addProperty("v", p.level().getDefaultClockTime());
+                WcWeather.addTo(m, p);
                 s.send(m);
             }
         }
@@ -990,7 +991,8 @@ public final class WcMod implements ModInitializer, WcHost {
 
     private static boolean shown(Entity e) {
         return e instanceof LivingEntity || e instanceof ItemEntity || e instanceof FallingBlockEntity
-                || e instanceof Display || e instanceof VehicleEntity || e instanceof Projectile;
+                || e instanceof Display || e instanceof VehicleEntity || e instanceof Projectile
+                || e instanceof net.minecraft.world.entity.LightningBolt;
     }
 
     /** Names the browser knows from the Paper plugin (Bukkit enum names) where Minecraft's differ. */

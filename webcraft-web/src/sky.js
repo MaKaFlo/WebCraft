@@ -8,6 +8,8 @@ const DAY_HORIZON = new THREE.Color(0xb2d2ff);
 const NIGHT_TOP = new THREE.Color(0x03050b);
 const NIGHT_HORIZON = new THREE.Color(0x0b1020);
 const SUNSET = new THREE.Color(0xff8a3c);
+const STORM = new THREE.Color(0x5a6070);
+const WHITE = new THREE.Color(0xffffff);
 
 const DOME_VERTEX = `
 varying vec3 vDir;
@@ -158,8 +160,8 @@ export class Sky {
     this.group.visible = this.enabled;
   }
 
-  /** Per frame. Returns the world brightness (1 = day). */
-  update(dt, scene, camera) {
+  /** Per frame. dark: rain/thunder (0..1), flash: lightning (0..1). Returns the world brightness (1 = day). */
+  update(dt, scene, camera, dark = 0, flash = 0) {
     if (!this.enabled) { this.brightness = 1; return 1; }
     this.time += dt * 20 * this.rate;
     if (this.drift) { const d = this.drift * Math.min(1, dt * 2); this.time += d; this.drift -= d; }
@@ -179,7 +181,8 @@ export class Sky {
       this.moon.material.map = this.moonTex[phase] ??= moonTexture((phase + 8) % 8);
       this.moon.material.needsUpdate = true;
     }
-    this.starMat.opacity = Math.max(0, 1 - light * 1.6) * 0.9;
+    this.starMat.opacity = Math.max(0, 1 - light * 1.6) * 0.9 * (1 - dark);
+    this.sun.material.opacity = this.moon.material.opacity = 1 - dark * 0.9;
     this.stars.visible = this.starMat.opacity > 0.01;
 
     // Day blue to night, orange glow towards the sun while it rises or sets
@@ -188,12 +191,17 @@ export class Sky {
     u.horizon.value.copy(NIGHT_HORIZON).lerp(DAY_HORIZON, light);
     const a = angle * Math.PI * 2;
     u.sunDir.value.set(-Math.sin(a), Math.cos(a), 0);
-    u.glowStrength.value = Math.max(0, 1 - Math.abs(Math.cos(a)) * 3) * 0.9;
+    u.glowStrength.value = Math.max(0, 1 - Math.abs(Math.cos(a)) * 3) * 0.9 * (1 - dark);
+    // Rain: gray sky (as dark as the time of day); lightning lights it up
+    const storm = STORM.clone().multiplyScalar(0.15 + 0.85 * light);
+    u.top.value.lerp(storm, dark * 0.85);
+    u.horizon.value.lerp(storm, dark * 0.85);
+    if (flash > 0) { u.top.value.lerp(WHITE, flash * 0.6); u.horizon.value.lerp(WHITE, flash * 0.6); }
     this.dome.scale.setScalar(r);
     scene.background.copy(u.horizon.value);
     scene.fog.color.copy(u.horizon.value);
     // Blocks never get fully dark (there is no block light): night keeps about a third
-    this.brightness = 0.32 + 0.68 * light;
+    this.brightness = Math.max((0.32 + 0.68 * light) * (1 - dark * 0.3), flash * 0.9);
     return this.brightness;
   }
 }

@@ -186,12 +186,29 @@ class Entity {
     this.spin = 0;
   }
 
+  /** Lightning: a jagged white-blue bolt from high up to the ground. */
+  buildLightning() {
+    this.static = true;
+    const pts = [];
+    let x = 0, z = 0;
+    for (let y = 0; y < 80; y += 4) {
+      const nx = x + (Math.random() - 0.5) * 2.4, nz = z + (Math.random() - 0.5) * 2.4;
+      pts.push(new THREE.Vector3(x, y, z), new THREE.Vector3(nx, y + 4, nz));
+      x = nx; z = nz;
+    }
+    const bolt = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({ color: 0xe8f0ff, fog: false }));
+    bolt.userData.noTint = true;
+    this.group.add(bolt);
+  }
+
   build(d) {
     this.lookKey = lookKey(d);
     if (d.type === 'label' || d.type === 'text_display') return this.buildLabel(d);
     if (d.type === 'falling_block' || d.type === 'block_display') return this.buildBlock(d);
     if (d.type === 'item_display') return this.buildItem(d);
     if (d.type === 'item') return this.buildItem(d);
+    if (d.type === 'lightning_bolt') return this.buildLightning();
     if (d.proj) return this.buildProjectile(d);
     if (hasSkin(d) && this.buildSkinned(d)) return;
     if (d.type === 'player' || HUMANOID[d.type]) return this.buildHumanoid(d);
@@ -706,6 +723,7 @@ export class Entities {
       if (e && (e.type !== d.type || (d.txt !== undefined && e.target.txt !== d.txt) ||
         (e.lookKey !== undefined && e.lookKey !== lookKey(d)))) { e.dispose(this.scene); e = null; }
       if (!e) {
+        if (d.type === 'lightning_bolt') this.onLightning?.();
         e = new Entity(d, this.palette);
         this.map.set(d.i, e);
         this.scene.add(e.group);

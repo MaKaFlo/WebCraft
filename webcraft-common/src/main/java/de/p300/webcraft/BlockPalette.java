@@ -94,6 +94,10 @@ public final class BlockPalette {
             e.addProperty("fa", state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING).getSerializedName());
         }
 
+        // Light the block gives (torch 14, lava 15 ...): the browser spreads it like Minecraft's block light
+        int light = state.getLightEmission();
+        if (light > 0) e.addProperty("le", light);
+
         // Burning furnaces, campfires, candles, redstone torches: the browser shows flames and smoke
         if (state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT)
                 && state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT)) {

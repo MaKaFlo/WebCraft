@@ -48,14 +48,16 @@ function rayBox(ox, oy, oz, dx, dy, dz, b) {
 }
 
 class GeoBuilder {
-  constructor() { this.pos = []; this.col = []; this.uv = []; this.idx = []; }
+  constructor() { this.pos = []; this.col = []; this.uv = []; this.idx = []; this.light = []; }
   get empty() { return this.idx.length === 0; }
-  quad(p, c, flip, uv) {
+  /** light: block light per corner (0..1), or null for none. */
+  quad(p, c, flip, uv, light = null) {
     const base = this.pos.length / 3;
     for (let i = 0; i < 4; i++) {
       this.pos.push(p[i][0], p[i][1], p[i][2]);
       this.col.push(c[i][0], c[i][1], c[i][2], c[i][3]);
       this.uv.push(uv[i][0], uv[i][1]);
+      this.light.push(light ? light[i] : 0);
     }
     if (flip) this.idx.push(base + 1, base + 2, base + 3, base + 1, base + 3, base);
     else this.idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
@@ -65,11 +67,35 @@ class GeoBuilder {
     g.setAttribute('position', new THREE.Float32BufferAttribute(this.pos, 3));
     g.setAttribute('color', new THREE.Float32BufferAttribute(this.col, 4));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(this.uv, 2));
+    g.setAttribute('light', new THREE.Float32BufferAttribute(this.light, 1));
     g.setIndex(this.idx);
     g.computeBoundingSphere();
     return g;
   }
 }
+
+// Minecraft's brightness for light levels 0..15 (also between levels: corners average them), with the
+// game's default brightness setting (halfway between "moody" and "bright")
+const lightCurve = (level) => {
+  const f = level / 15, x = f / (4 - 3 * f);
+  return (x + 1 - (1 - x) ** 4) / 2;
+};
+
+/** World materials: vertex colors times max(sky brightness, warm block light). */
+const skyUniform = { value: 1 };
+function withBlockLight(mat) {
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uSky = skyUniform;
+    shader.vertexShader = 'attribute float light;\nvarying float vLight;\n' + shader.vertexShader
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvLight = light;');
+    shader.fragmentShader = 'uniform float uSky;\nvarying float vLight;\n' + shader.fragmentShader
+      .replace('#include <color_fragment>', '#include <color_fragment>\n'
+        + 'diffuseColor.rgb *= max(vec3(uSky), vec3(vLight, vLight * 0.9, vLight * 0.75));');
+  };
+  return mat;
+}
+
+const R = 48;   // light region: the section and its 26 neighbours
 
 export class World {
   constructor(scene) {
@@ -84,28 +110,105 @@ export class World {
 
     const map = atlas.texture;
     // alphaTest so see-through pixels of pack textures (leaves, doors ...) are really holes
-    this.matOpaque = new THREE.MeshBasicMaterial({ vertexColors: true, map, alphaTest: 0.5 });
-    this.matCross = new THREE.MeshBasicMaterial({ vertexColors: true, map, side: THREE.DoubleSide, alphaTest: 0.5 });
-    this.matTrans = new THREE.MeshBasicMaterial({
+    this.matOpaque = withBlockLight(new THREE.MeshBasicMaterial({ vertexColors: true, map, alphaTest: 0.5 }));
+    this.matCross = withBlockLight(new THREE.MeshBasicMaterial({ vertexColors: true, map, side: THREE.DoubleSide, alphaTest: 0.5 }));
+    this.matTrans = withBlockLight(new THREE.MeshBasicMaterial({
       vertexColors: true, map, transparent: true, side: THREE.DoubleSide, depthWrite: false,
-    });
+    }));
     // Ice: see-through, but it writes depth and only shows its outside, so the faces of an ice sheet
     // don't shine through each other in random order (drawn before water and glass)
-    this.matIce = new THREE.MeshBasicMaterial({ vertexColors: true, map, transparent: true, depthWrite: true });
+    this.matIce = withBlockLight(new THREE.MeshBasicMaterial({ vertexColors: true, map, transparent: true, depthWrite: true }));
     // Same, with the atlas of animated textures (fire, water, lava ...)
     const amap = atlas.animTexture;
-    this.matAnimOpaque = new THREE.MeshBasicMaterial({ vertexColors: true, map: amap, alphaTest: 0.5 });
-    this.matAnimCross = new THREE.MeshBasicMaterial({ vertexColors: true, map: amap, side: THREE.DoubleSide, alphaTest: 0.5 });
-    this.matAnimTrans = new THREE.MeshBasicMaterial({
+    this.matAnimOpaque = withBlockLight(new THREE.MeshBasicMaterial({ vertexColors: true, map: amap, alphaTest: 0.5 }));
+    this.matAnimCross = withBlockLight(new THREE.MeshBasicMaterial({ vertexColors: true, map: amap, side: THREE.DoubleSide, alphaTest: 0.5 }));
+    this.matAnimTrans = withBlockLight(new THREE.MeshBasicMaterial({
       vertexColors: true, map: amap, transparent: true, side: THREE.DoubleSide, depthWrite: false,
-    });
+    }));
+    this.lightIds = new Uint16Array(R * R * R);
+    this.lightLevels = new Uint8Array(R * R * R);
+    this.lightQueue = new Int32Array(R * R * R);
   }
 
   /** Day/night: all block materials get darker (1 = full daylight). */
   setBrightness(b) {
-    for (const m of [this.matOpaque, this.matCross, this.matTrans, this.matIce, this.matAnimOpaque, this.matAnimCross, this.matAnimTrans]) {
-      m.color.setScalar(b);
+    skyUniform.value = b;
+  }
+
+  /** Number of light-giving blocks in a section (cached until the section changes). */
+  emitters(c, sy) {
+    c.emit ??= new Map();
+    let n = c.emit.get(sy);
+    if (n === undefined) {
+      n = 0;
+      const sec = c.sections.get(sy);
+      const E = this.palette?.emit;
+      if (sec && E) for (let i = 0; i < SECTION_VOLUME; i++) if (E[sec[i]]) n++;
+      c.emit.set(sy, n);
     }
+    return n;
+  }
+
+  emittersAround(cx, cz, sy) {
+    let n = 0;
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+      const c = this.chunks.get(chunkKey(cx + dx, cz + dz));
+      if (c) for (let dy = -1; dy <= 1; dy++) n += this.emitters(c, sy + dy);
+    }
+    return n;
+  }
+
+  /** The section and its neighbours need new light (a light block or a wall near one changed). */
+  markLightAround(cx, cz, sy) {
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) for (let dy = -1; dy <= 1; dy++) {
+      const c = this.chunks.get(chunkKey(cx + dx, cz + dz));
+      if (c && c.meshed && c.sections.has(sy + dy)) this.dirty.add((cx + dx) + ',' + (cz + dz) + ',' + (sy + dy));
+    }
+  }
+
+  /**
+   * Block light like Minecraft for the 3x3x3 sections around one section: flood fill from every light
+   * block, one level less per step, not through full opaque blocks. Returns the levels (index
+   * ((y * R) + z) * R + x, the section starts at 16,16,16) or null when no light block is near.
+   */
+  computeLight(cx, cz, sy) {
+    if (!this.emittersAround(cx, cz, sy)) return null;
+    const P = this.palette, ids = this.lightIds, lv = this.lightLevels, q = this.lightQueue;
+    ids.fill(0); lv.fill(0);
+    let head = 0, tail = 0;
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+      const c = this.chunks.get(chunkKey(cx + dx, cz + dz));
+      if (!c) continue;
+      for (let dy = -1; dy <= 1; dy++) {
+        const sec = c.sections.get(sy + dy);
+        if (!sec) continue;
+        const bx = (dx + 1) * 16, by = (dy + 1) * 16, bz = (dz + 1) * 16;
+        for (let y = 0; y < 16; y++) for (let z = 0; z < 16; z++) {
+          const src = (y * S + z) * S, dst = ((by + y) * R + bz + z) * R + bx;
+          for (let x = 0; x < 16; x++) {
+            const id = sec[src + x];
+            ids[dst + x] = id;
+            const e = P.emit[id];
+            if (e) { lv[dst + x] = e; q[tail++] = dst + x; }
+          }
+        }
+      }
+    }
+    const occ = P.occluding;
+    while (head < tail) {
+      const i = q[head++];
+      const l = lv[i] - 1;
+      if (l <= 0) continue;
+      const x = i % R, z = ((i / R) | 0) % R, y = (i / (R * R)) | 0;
+      const spread = (j) => { if (lv[j] < l && !occ[ids[j]]) { lv[j] = l; q[tail++] = j; } };
+      if (x > 0) spread(i - 1);
+      if (x < R - 1) spread(i + 1);
+      if (z > 0) spread(i - R);
+      if (z < R - 1) spread(i + R);
+      if (y > 0) spread(i - R * R);
+      if (y < R - 1) spread(i + R * R);
+    }
+    return lv;
   }
 
   // ---------------------------------------------------------------- block access
@@ -149,6 +252,8 @@ export class World {
     this.markChunkIfReady(cx - 1, cz);
     this.markChunkIfReady(cx, cz + 1);
     this.markChunkIfReady(cx, cz - 1);
+    // Light of this chunk shines into the neighbours' sections
+    for (const sy of sections.keys()) if (this.emitters(chunk, sy)) this.markLightAround(cx, cz, sy);
   }
 
   removeChunk(cx, cz) {
@@ -169,8 +274,15 @@ export class World {
       sec = new Uint16Array(SECTION_VOLUME);
       c.sections.set(sy, sec);
     }
-    sec[((y & 15) * S + (z & 15)) * S + (x & 15)] = id;
+    const idx = ((y & 15) * S + (z & 15)) * S + (x & 15);
+    const old = sec[idx];
+    sec[idx] = id;
+    c.emit?.delete(sy);
     if (!c.meshed) return;
+    const P = this.palette;
+    if (P && (P.emit[old] || P.emit[id] || (P.occluding[old] !== P.occluding[id] && this.emittersAround(cx, cz, sy)))) {
+      this.markLightAround(cx, cz, sy);
+    }
     this.dirty.add(cx + ',' + cz + ',' + sy);
     const lx = x & 15, ly = y & 15, lz = z & 15;
     if (lx === 0) this.markSection(cx - 1, cz, sy);
@@ -273,6 +385,9 @@ export class World {
       return this.getId(ox + lx, oy + ly, oz + lz);
     };
     const occ = (lx, ly, lz) => P.occluding[idAt(lx, ly, lz)];
+    // Block light of the cells around this section (null: no light block near)
+    const L = this.computeLight(cx, cz, sy);
+    const lvl = (lx, ly, lz) => L[((ly + 16) * R + lz + 16) * R + lx + 16];
 
     // Liquid surface like Minecraft: each top corner is the average height of the (up to) four liquid
     // blocks around it, so flowing water slopes down and the texture runs downhill.
@@ -323,16 +438,18 @@ export class World {
             const tl = P.tileSide[id];
             const uv = [uvOf(tl, 0, 0), uvOf(tl, 1, 0), uvOf(tl, 1, 1), uvOf(tl, 0, 1)];
             const cb = atlas.animOf(tl) === undefined ? cross : aCross;
+            const own = L ? lightCurve(lvl(lx, ly, lz)) : 0;
+            const ql = L ? [own, own, own, own] : null;
             if (P.fire[id]) {
               // Fire burns on the sides of the block like in Minecraft: four leaning walls plus an X
               const fh = 1.4, k = 0.18;
-              cb.quad([[lx, ly, lz + k], [lx + 1, ly, lz + k], [lx + 1, ly + fh, lz + k + 0.25], [lx, ly + fh, lz + k + 0.25]], cc, false, uv);
-              cb.quad([[lx, ly, lz + 1 - k], [lx + 1, ly, lz + 1 - k], [lx + 1, ly + fh, lz + 0.75 - k], [lx, ly + fh, lz + 0.75 - k]], cc, false, uv);
-              cb.quad([[lx + k, ly, lz], [lx + k, ly, lz + 1], [lx + k + 0.25, ly + fh, lz + 1], [lx + k + 0.25, ly + fh, lz]], cc, false, uv);
-              cb.quad([[lx + 1 - k, ly, lz], [lx + 1 - k, ly, lz + 1], [lx + 0.75 - k, ly + fh, lz + 1], [lx + 0.75 - k, ly + fh, lz]], cc, false, uv);
+              cb.quad([[lx, ly, lz + k], [lx + 1, ly, lz + k], [lx + 1, ly + fh, lz + k + 0.25], [lx, ly + fh, lz + k + 0.25]], cc, false, uv, ql);
+              cb.quad([[lx, ly, lz + 1 - k], [lx + 1, ly, lz + 1 - k], [lx + 1, ly + fh, lz + 0.75 - k], [lx, ly + fh, lz + 0.75 - k]], cc, false, uv, ql);
+              cb.quad([[lx + k, ly, lz], [lx + k, ly, lz + 1], [lx + k + 0.25, ly + fh, lz + 1], [lx + k + 0.25, ly + fh, lz]], cc, false, uv, ql);
+              cb.quad([[lx + 1 - k, ly, lz], [lx + 1 - k, ly, lz + 1], [lx + 0.75 - k, ly + fh, lz + 1], [lx + 0.75 - k, ly + fh, lz]], cc, false, uv, ql);
             }
-            cb.quad([[lx + s, ly, lz + s], [lx + e, ly, lz + e], [lx + e, ly + h, lz + e], [lx + s, ly + h, lz + s]], cc, false, uv);
-            cb.quad([[lx + s, ly, lz + e], [lx + e, ly, lz + s], [lx + e, ly + h, lz + s], [lx + s, ly + h, lz + e]], cc, false, uv);
+            cb.quad([[lx + s, ly, lz + s], [lx + e, ly, lz + e], [lx + e, ly + h, lz + e], [lx + s, ly + h, lz + s]], cc, false, uv, ql);
+            cb.quad([[lx + s, ly, lz + e], [lx + e, ly, lz + s], [lx + e, ly + h, lz + s], [lx + s, ly + h, lz + e]], cc, false, uv, ql);
             continue;
           }
 
@@ -382,6 +499,7 @@ export class World {
             }
 
             const pts = new Array(4), cols = new Array(4), ao = new Array(4), uvs = new Array(4);
+            const lights = L ? new Array(4) : null;
             // Slope of the liquid surface (null when flat): from high corners to low ones
             let flowAngle = null;
             if (lc && F.n[1] > 0) {
@@ -424,13 +542,25 @@ export class World {
                 a = s1 && s2 ? 0 : 3 - (s1 + s2 + cr);
               }
               ao[i] = a;
+              if (lights) {
+                // Smooth light: average of the cells in front of this corner that light can be in
+                const ax = du * F.u[0], ay = du * F.u[1], az = du * F.u[2];
+                const bx = dv * F.v[0], by = dv * F.v[1], bz = dv * F.v[2];
+                let sum = lvl(nx, ny, nz), n = 1;
+                if (!occ(nx + ax, ny + ay, nz + az)) { sum += lvl(nx + ax, ny + ay, nz + az); n++; }
+                if (!occ(nx + bx, ny + by, nz + bz)) { sum += lvl(nx + bx, ny + by, nz + bz); n++; }
+                if (!occ(nx + ax + bx, ny + ay + by, nz + az + bz)) { sum += lvl(nx + ax + bx, ny + ay + by, nz + az + bz); n++; }
+                let v = sum / n;
+                if (!flush || lc) v = Math.max(v, lvl(lx, ly, lz));   // faces inside the block's own cell
+                lights[i] = lightCurve(v);
+              }
               const l = glow ? 1 : F.shade * AO_LEVELS[a];
               // Pack textures bring their own see-through pixels (glass), so no extra fading
               cols[i] = [fr * l, fg * l, fb * l, (P.packed[id] & faceBit) && kind === KIND_GLASS ? 1 : alpha];
             }
             // Flip the diagonal so AO gradients look even
             const flip = ao[0] + ao[2] < ao[1] + ao[3];
-            (atlas.animOf(tile) === undefined ? target : animTarget(target)).quad(pts, cols, flip, uvs);
+            (atlas.animOf(tile) === undefined ? target : animTarget(target)).quad(pts, cols, flip, uvs, lights);
           }
           }
         }

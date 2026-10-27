@@ -73,6 +73,10 @@ export const sfx = {
   swing() {
     noise(0.08, 3000, 1200, 0.06, 'bandpass');
   },
+  thunder() {
+    noise(0.25, 3000, 400, 0.6, 'lowpass');
+    setTimeout(() => noise(2.8, 500, 40, 1.0, 'lowpass'), 120);
+  },
   crit() {
     noise(0.18, 4000, 800, 0.5, 'highpass');
     tone(900, 500, 0.12, 0.08);

@@ -601,6 +601,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                 JsonObject m = new JsonObject();
                 m.addProperty("t", "time");
                 m.addProperty("v", p.getWorld().getFullTime());
+                WcWeather.addTo(m, ((org.bukkit.craftbukkit.entity.CraftPlayer) p).getHandle());
                 s.send(m);
             }
         }
@@ -987,7 +988,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
     private static boolean shown(Entity e) {
         return e instanceof LivingEntity || e instanceof Item || e instanceof org.bukkit.entity.FallingBlock
                 || e instanceof org.bukkit.entity.Display || e instanceof org.bukkit.entity.Vehicle
-                || e instanceof org.bukkit.entity.Projectile;
+                || e instanceof org.bukkit.entity.Projectile || e instanceof org.bukkit.entity.LightningStrike;
     }
 
     private static String plain(net.kyori.adventure.text.Component c) {
