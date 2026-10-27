@@ -2,7 +2,7 @@
 
 Ein Block-Spiel im Browser, das sich mit einem **Minecraft-Server** verbindet: **Paper** (als Plugin) oder **Fabric** (als Mod, damit auch für Vanilla). WebCraft-Spieler sind auf dem Server **echte Spieler**: Sie stehen in der Tab-Liste, bekommen Schaden, sterben, benutzen Befehle und Menüs von Plugins und Mods. Für den Server gibt es keinen Unterschied zu einem Minecraft-Spieler. So können Leute ohne Minecraft-Account mit Freunden auf dem Server spielen.
 
-Version 0.11.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
+Version 0.12.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
 
 ## Aufbau
 
@@ -165,7 +165,7 @@ Das Bild wird auf 32×32 Pixel verkleinert (bei Items wird der Hintergrund entfe
 - ✅ Lifesteal: mehr als 10 Herzen werden angezeigt, verlorene und gewonnene Herzen auch
 - ✅ Plugin-Befehle und Plugin-Menüs (Truhen-GUIs), Rechts- und Linksklick-Abilities
 - ✅ Truhen, Öfen, Werkbank, Türen, Betten, Eimer: alles über den echten Server
-- ✅ Mobs mit echten Texturen und Minecraft-Form: Spieler, Zombie (auch Wüsten-, Wasser- und Dorfbewohner-Zombie), Skelett (auch Eiswanderer, Witherskelett), Creeper, Kuh, Pilzkuh, Schwein, Schaf (Wolle in ihrer Farbe), Huhn, Spinne, Höhlenspinne, Enderman, Dorfbewohner (nach Beruf), Wolf. Rüstung mit Textur, Item in der Hand. Andere Mobs sind noch Blockfiguren
+- ✅ Mobs mit echten Texturen und Minecraft-Form: Spieler, Zombie (auch Wüsten-, Wasser- und Dorfbewohner-Zombie), Skelett (auch Eiswanderer, Witherskelett), Creeper, Kuh, Pilzkuh, Schwein, Schaf (Wolle in ihrer Farbe), Huhn, Spinne, Höhlenspinne, Enderman, Dorfbewohner (nach Beruf), Wolf, Eisengolem, Schneegolem, Katze (alle Fellarten), Ozelot, Fuchs (auch Polarfuchs), Biene, Pferd (nach Farbe), Esel, Maultier, Skelett- und Zombiepferd, Schleim, Magmawürfel, Hexe, Fahrender Händler, Plünderer, Diener, Magier, Piglin, Piglin-Barbar, Zombifizierter Piglin, Eisbär, Panda, Hase, Lama. Rüstung mit Textur, Item in der Hand. Seltenere Mobs (Papagei, Fische, Ghast ...) sind noch Blockfiguren
 - ✅ Fließendes Wasser und Lava wie in Minecraft: die Oberfläche fällt zum Rand hin ab, die Textur fließt bergab, Wasserfälle
 - ✅ Steinsäge (Rezept auswählen), Webstuhl (Muster auswählen), Leuchtfeuer (Effekte auswählen und bezahlen)
 - ✅ Mobs und Tiere als Blockfiguren mit eigener Form: Creeper, Spinne, Huhn, Biene, Fledermaus, Papagei, Fische, Delfin, Tintenfisch, Ghast, Blaze, Breeze, Phantom, Wächter, Schleim, Shulker, Wither, Enderdrache ... Tiere mit Schwanz, Hörnern, Ohren, langem Hals. Flügel schlagen, Tentakel wackeln
@@ -198,11 +198,12 @@ Das Bild wird auf 32×32 Pixel verkleinert (bei Items wird der Hintergrund entfe
 - ✅ Partikel: Blocksplitter beim Abbauen (mit der Textur des Blocks), Flammen und Rauch an Fackeln, Öfen, Lagerfeuern und Feuer, Portal-Partikel, dazu alle Partikel vom Server (Herzen, Explosionen, Tränke, kritische Treffer, Knochenmehl ...)
 - ✅ Skins: Im Login kann man den Namen eines Minecraft-Spielers angeben und hat dann dessen Skin, auch für Minecraft-Spieler (der Server holt den von Mojang signierten Skin). Im Browser sieht man alle Spieler mit ihrem echten Skin (auch schmale Arme und die zweite Schicht)
 - ✅ Alle Blöcke haben eine Textur, auch die neueren (Kerzen, Köpfe, Kupferkisten, Froschlichter, Amethyst, Tropfblatt, Endportal ...)
+- ✅ Licht: Fackeln, Lava, Glowstone, Laternen ... leuchten wie in Minecraft (weiche Übergänge, warmes Licht), nachts und in Höhlen
+- ✅ Wetter wie auf dem Server: Regen (nicht unter Dächern), Schnee in kalten Biomen, grauer Himmel, Gewitter mit Blitzen und Donner
 
 ### Noch offen
 
-- ⏳ Weitere Mobs mit Textur (Pferd, Katze, Fuchs, Biene, Eisengolem ... sind noch Blockfiguren)
-- ⏳ Licht von Fackeln und Lava in der Nacht, Wetter (Regen, Gewitter)
+- ⏳ Seltenere Mobs mit Textur (Papagei, Fische, Ghast, Blaze, Schildkröte ...)
 
 ## Gegen Griefing
 

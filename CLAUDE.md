@@ -154,6 +154,14 @@ Liquids: the palette entry of water/lava has `lh` (surface height from `FluidSta
 Minecraft (neighbours >= 0.8 weigh 10x, liquid above = full); the top texture is turned in quarter steps
 downhill (other angles would sample neighbouring tiles of the animation atlas).
 
+Light: blocks that give light get `le` (`getLightEmission()`). `world.js computeLight()` floods block light like
+Minecraft over the 3x3x3 sections around the section being meshed (only when a light block is near), the mesher
+averages it per corner (smooth light) into a `light` vertex attribute, and the world materials (`withBlockLight`)
+use max(sky brightness uniform, warm block light). Light changes re-mesh the sections around (`markLightAround`).
+
+Weather: the `time` message also carries `rain`, `thunder` (0..1) and `snow`/`dry` for the player's biome
+(`WcWeather`). Lightning bolts are sent as entities.
+
 Lit: blocks with `LIT` = true (furnace, campfire, candles, redstone torch/ore) get `li` (flames and smoke in the browser).
 
 Facing: blocks with `HORIZONTAL_FACING` get `fa` (north/east/south/west) in their palette entry; the browser draws
@@ -174,7 +182,7 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
   int8 sectionY + 4096 × uint16 LE palette ids, index = (y*16+z)*16+x.
 - Server → client `t`: `welcome world pal tp vel stats inv items menu ents anim blocks unload chat notice
   dead dig_info board tab pack error time fx skin`.
-- `time` (every second): `v` = full world clock ticks (`World.getFullTime()` / `Level.getDefaultClockTime()`);
+- `time` (every second): `rain`, `thunder`, `snow`, `dry` (weather) and `v` = full world clock ticks (`World.getFullTime()` / `Level.getDefaultClockTime()`);
   the browser runs it on and stops when two values are equal (`doDaylightCycle` off).
 - `fx` (per tick, `WcParticles`): list of `[kind, x, y, z, dx, dy, dz, speed, count, extra]` from
   `ClientboundLevelParticlesPacket` (kind = particle key, extra = palette id for block particles or RGB for
@@ -196,6 +204,7 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
 |---|---|
 | `main.js` | Entry: renderer, loop, WebSocket, message switch, login/pause/chat/death UI, `window.wc` debug handle |
 | `sky.js` | Day/night: gradient dome (shader), sun, moon phases, stars, fog color, world brightness (`World.setBrightness`, entity lights, `dimUnlit` for MeshBasic materials of hand and entities). Only in `NORMAL` worlds |
+| `weather.js` | Rain streaks / snow points around the player (stop at the highest blocking block of the column), storm darkening for `sky.js`, lightning flash (entity `lightning_bolt` → `Entities.onLightning`) |
 | `particles.js` | Instanced camera-facing quads: block pieces (atlas tiles), particle sheet drawn on a canvas (flame, smoke, heart ...), `KINDS` per server particle key, ambient emitters like Minecraft's `animateTick` (random blocks around the player: torches, furnaces with palette `li`, campfires, fire, portals ...) |
 | `world.js` | Chunk storage, greedy-ish meshing with atlas UVs, multi-box shapes, fire walls, raycast, `remeshAll`, collision boxes |
 | `player.js` | Movement/physics, multi-box collision, world border wall, auto-jump |
@@ -238,6 +247,6 @@ heads cut from the mob pictures, end portal stars, copper chests); keeps everyth
 
 ## Backlog / ideas
 
-- Block light (torches, lava) at night, weather (rain, thunder)
-- Textured models for the remaining mobs (horse, cat, fox, bee, iron golem ... are still block figures); the
-  pack has more pictures in `entity/` (e.g. horse, cat, fox, bee, iron golem, slime 128x64)
+- Textured models for the remaining mobs (parrot, fish, ghast, blaze, turtle, dolphin, squid ... are still block
+  figures); the pack has more pictures in `entity/`
+- Sky light (caves are as bright as the sky outside, only block light is computed)

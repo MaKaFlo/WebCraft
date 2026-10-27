@@ -33,6 +33,18 @@ ENTITY_FILES = {
     'enderman_eyes': 'enderman/enderman_eyes', 'villager': 'villager/villager', 'villager_farmer': 'villager/farmer',
     'villager_librarian': 'villager/librarian', 'villager_priest': 'villager/priest', 'villager_smith': 'villager/smith',
     'villager_butcher': 'villager/butcher', 'wolf': 'wolf/wolf',
+    'iron_golem': 'iron_golem/iron_golem', 'snow_golem': 'snow_golem', 'ocelot': 'cat/ocelot',
+    **{'cat_' + c: 'cat/' + c for c in ('tabby', 'black', 'red', 'siamese', 'british_shorthair', 'calico', 'persian',
+                                        'ragdoll', 'white', 'jellie', 'all_black')},
+    'fox': 'fox/fox', 'snow_fox': 'fox/snow_fox', 'bee': 'bee/bee', 'bee_angry': 'bee/bee_angry',
+    **{'horse_' + c: 'horse/horse_' + c for c in ('white', 'creamy', 'chestnut', 'brown', 'black', 'gray', 'darkbrown')},
+    'donkey': 'horse/donkey', 'mule': 'horse/mule', 'skeleton_horse': 'horse/horse_skeleton', 'zombie_horse': 'horse/horse_zombie',
+    'slime': 'slime/slime', 'magma_cube': 'slime/magmacube', 'wandering_trader': 'wandering_trader', 'witch': 'witch',
+    'pillager': 'illager/pillager', 'vindicator': 'illager/vindicator', 'evoker': 'illager/evoker', 'illusioner': 'illager/illusioner',
+    'piglin': 'piglin/piglin', 'piglin_brute': 'piglin/piglin_brute', 'zombified_piglin': 'piglin/zombified_piglin',
+    'polar_bear': 'bear/polarbear', 'panda': 'panda/panda',
+    **{'rabbit_' + c: 'rabbit/' + c for c in ('brown', 'white', 'black', 'white_splotched', 'gold', 'salt', 'caerbannog')},
+    **{'llama_' + c: 'llama/' + c for c in ('creamy', 'white', 'brown', 'gray')},
 }
 # Front faces (shown on the side the block faces): block name -> picture in the pack
 FRONT_FILES = {
