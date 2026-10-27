@@ -519,8 +519,19 @@ function unlockPointer() {
   if (document.pointerLockElement) { expectUnlock = true; document.exitPointerLock(); }
 }
 
+// Esc that closes a chest, the inventory or the chat must not open the game menu: the browser handles Esc
+// itself after our keydown and would drop the mouse again right after we took it. So wait for the key-up.
+let escDown = false, lockAfterEsc = false;
+document.addEventListener('keydown', (e) => { if (e.code === 'Escape') escDown = true; }, true);
+document.addEventListener('keyup', (e) => {
+  if (e.code !== 'Escape') return;
+  escDown = false;
+  if (lockAfterEsc) { lockAfterEsc = false; setTimeout(lockPointer, 30); }
+}, true);
+
 function lockPointer() {
   if (dead || inventory.open || chatOpen || !ui.pause.hidden || studio.isOpen) return;
+  if (escDown) { lockAfterEsc = true; return; }
   // After Esc the browser only allows this on the next click; then we ask for that click
   const p = renderer.domElement.requestPointerLock?.();
   if (p && p.catch) p.catch(() => showResume());
