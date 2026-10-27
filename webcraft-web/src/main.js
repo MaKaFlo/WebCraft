@@ -16,6 +16,7 @@ import { clearIconCache } from './items.js';
 import { Studio } from './studio.js';
 import { Border } from './border.js';
 import { atlas } from './textures.js';
+import { Sky } from './sky.js';
 
 const SKIES = {
   NORMAL: 0x9fc9ff,
@@ -66,6 +67,7 @@ window.addEventListener('resize', () => {
 });
 
 const world = new World(scene);
+const sky = new Sky(scene);
 const player = new Player(world);
 player.autoJump = settings.autoJump;
 const entities = new Entities(scene);
@@ -218,6 +220,9 @@ function connect(url, name) {
           ws.send(JSON.stringify({ t: 'tp_ok', id: msg.id, x: msg.x, y: msg.y, z: msg.z, yaw: msg.yaw, pitch: msg.pitch }));
         }
         break;
+      case 'time':
+        sky.setTime(msg.v, performance.now());
+        break;
       case 'vel':
         player.push(msg.x, msg.y, msg.z);
         break;
@@ -303,9 +308,10 @@ function setBorder(b) {
 function setWorld(msg) {
   world.minY = msg.minY; world.maxY = msg.maxY;
   setBorder(msg.border);
-  const sky = SKIES[msg.env] ?? SKIES.NORMAL;
-  scene.background.setHex(sky);
-  scene.fog.color.setHex(sky);
+  const color = SKIES[msg.env] ?? SKIES.NORMAL;
+  scene.background.setHex(color);
+  scene.fog.color.setHex(color);
+  sky.setEnv(msg.env);
   const far = (world.viewDistance + 1) * 16;
   scene.fog.near = msg.env === 'NETHER' ? 8 : far * 0.55;
   scene.fog.far = msg.env === 'NETHER' ? far * 0.6 : far;
@@ -669,6 +675,7 @@ document.addEventListener('wheel', (e) => {
 let last = performance.now();
 let fps = 0, fpsFrames = 0, fpsTime = 0;
 let hudTime = 0;
+let shownLight = 1;
 
 function frame(now) {
   requestAnimationFrame(frame);
@@ -707,6 +714,8 @@ function frame(now) {
     hand.update(dt, moving);
     updateAttackIndicator();
     border.update(player.x, player.eyeY, player.z, now / 1000);
+    const light = sky.update(dt, scene, camera);
+    if (Math.abs(light - shownLight) > 0.004) { shownLight = light; world.setBrightness(light); entities.setBrightness(light); }
 
     if (!ui.loading.hidden && player.groundLoaded() && world.dirty.size < 20) ui.loading.hidden = true;
     checkMissingChunks(dt);
@@ -715,7 +724,7 @@ function frame(now) {
   renderer.render(scene, camera);
   if (connected && world.palette && !dead && hand.visibleMode !== false) {
     renderer.autoClear = false;
-    hand.render(renderer);
+    hand.render(renderer, shownLight);
     renderer.autoClear = true;
   }
 
@@ -778,4 +787,4 @@ function updateHud() {
 }
 
 // Handy for debugging in the browser console: wc.player, wc.world
-window.wc = { player, world, entities, renderer, scene, camera, inventory, interaction, send, hud, sidebar, studio, pack, hand };
+window.wc = { player, world, entities, renderer, scene, camera, inventory, interaction, send, hud, sidebar, studio, pack, hand, sky };

@@ -580,6 +580,13 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                 s.statsDirty = false;
                 sendStats(s, p);
             }
+            if (tickCounter % 20 == 0) {
+                // World clock for the day/night sky; the browser runs it on between these messages
+                JsonObject m = new JsonObject();
+                m.addProperty("t", "time");
+                m.addProperty("v", p.getWorld().getFullTime());
+                s.send(m);
+            }
         }
         if (!pendingBlocks.isEmpty()) flushBlockChanges();
         if (tickCounter % 2 == 0) sendEntities();

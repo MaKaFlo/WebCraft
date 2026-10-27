@@ -1,5 +1,6 @@
 // First person: your arm and the item you hold, drawn on top of the world, with swing animation.
 import * as THREE from 'three';
+import { dimUnlit } from './sky.js';
 import { itemModel } from './models.js';
 
 const SWING_TIME = 0.28;
@@ -160,7 +161,8 @@ export class Hand {
     }
   }
 
-  render(renderer) {
+  render(renderer, brightness = 1) {
+    dimUnlit(this.scene, brightness);
     renderer.clearDepth();
     renderer.render(this.scene, this.camera);
   }

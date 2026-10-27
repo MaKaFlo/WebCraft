@@ -591,6 +591,13 @@ public final class WcMod implements ModInitializer, WcHost {
                 s.statsDirty = false;
                 sendStats(s, p);
             }
+            if (tickCounter % 20 == 0) {
+                // World clock for the day/night sky; the browser runs it on between these messages
+                JsonObject m = new JsonObject();
+                m.addProperty("t", "time");
+                m.addProperty("v", p.level().getDefaultClockTime());
+                s.send(m);
+            }
         }
         if (!pendingBlocks.isEmpty()) flushBlockChanges();
         if (tickCounter % 2 == 0) sendEntities();

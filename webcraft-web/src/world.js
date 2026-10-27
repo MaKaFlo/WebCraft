@@ -101,6 +101,13 @@ export class World {
     });
   }
 
+  /** Day/night: all block materials get darker (1 = full daylight). */
+  setBrightness(b) {
+    for (const m of [this.matOpaque, this.matCross, this.matTrans, this.matIce, this.matAnimOpaque, this.matAnimCross, this.matAnimTrans]) {
+      m.color.setScalar(b);
+    }
+  }
+
   // ---------------------------------------------------------------- block access
 
   getId(x, y, z) {

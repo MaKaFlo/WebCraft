@@ -1,6 +1,7 @@
 // Players, mobs and dropped items. Common mobs get textured models (skins.js, pictures from the texture
 // pack); the others are simple block figures.
 import * as THREE from 'three';
+import { dimUnlit } from './sky.js';
 import { blockMesh, itemModel } from './models.js';
 import { MOBS } from './mobs.js';
 import { buildSkin, hasSkin } from './skins.js';
@@ -680,10 +681,19 @@ export class Entities {
     this.scene = scene;
     this.map = new Map();
     this.palette = null;
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8a8a, 2.6));
-    const sun = new THREE.DirectionalLight(0xffffff, 0.8);
-    sun.position.set(0.4, 1, 0.25);
-    scene.add(sun);
+    this.hemi = new THREE.HemisphereLight(0xffffff, 0x8a8a8a, 2.6);
+    scene.add(this.hemi);
+    this.sun = new THREE.DirectionalLight(0xffffff, 0.8);
+    this.sun.position.set(0.4, 1, 0.25);
+    scene.add(this.sun);
+  }
+
+  /** Day/night: mobs get as dark as the blocks around them. */
+  setBrightness(b) {
+    this.brightness = b;
+    this.hemi.intensity = 2.6 * b;
+    this.sun.intensity = 0.8 * b;
+    for (const e of this.map.values()) dimUnlit(e.group, b);
   }
 
   /** Server sends the full list of nearby entities a few times per second. */
@@ -699,6 +709,7 @@ export class Entities {
         e = new Entity(d, this.palette);
         this.map.set(d.i, e);
         this.scene.add(e.group);
+        if (this.brightness !== undefined && this.brightness < 1) dimUnlit(e.group, this.brightness);
       }
       e.target = d;
     }
