@@ -63,6 +63,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
     private boolean logBlocks;
 
     private BlockPalette palette;
+    private WcSkins skins;
     private WcServer server;
     private final Map<Integer, WcSession> sessions = new ConcurrentHashMap<>(); // logged-in sessions
     private final Map<UUID, WcSession> byPlayer = new ConcurrentHashMap<>();
@@ -83,6 +84,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         textures = new WcTextures(getDataFolder(), getLogger());
         textures.load();
         blockLog = new WcBlockLog(new File(getDataFolder(), "blocklog.csv"), getLogger());
+        skins = new WcSkins(new File(getDataFolder(), "skins").toPath(), getLogger());
         getServer().getPluginManager().registerEvents(new WcListener(this), this);
         Bukkit.getScheduler().runTaskTimer(this, this::tick, 1L, 1L);
         startServer();
@@ -144,7 +146,10 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         String type = str(json, "t");
         if (type == null) return;
         if (!s.loggedIn()) {
-            if ("hello".equals(type) && s.name == null) login(s, str(json, "name"));
+            if ("hello".equals(type) && s.name == null && !s.helloSeen) {
+                s.helloSeen = true;
+                login(s, str(json, "name"), str(json, "skin"));
+            }
             else if (s.name == null) s.conn.close(1008, "Login first");
             return;
         }
@@ -190,6 +195,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                 case "interact" -> f.interact(integer(json, "id"), num(json, "hx"), num(json, "hy"), num(json, "hz"));
                 case "button" -> { f.menuButton(integer(json, "id")); s.invDirty = true; }
                 case "trade" -> { f.selectTrade(integer(json, "i")); s.invDirty = true; }
+                case "skin" -> sendSkin(s, str(json, "h"));
                 case "beacon" -> { f.beacon(str(json, "p"), str(json, "s")); s.invDirty = true; }
                 case "rename" -> { f.rename(str(json, "name")); s.invDirty = true; }
                 case "swing" -> p.swingMainHand();   // only the animation (digging), no click event
@@ -247,7 +253,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         }
     }
 
-    private void login(WcSession s, String rawName) {
+    private void login(WcSession s, String rawName, String skinName) {
         if (rawName == null || !NAME_PATTERN.matcher(rawName).matches()) {
             fail(s, "Name must be 3-13 characters: letters, digits or _");
             return;
@@ -290,6 +296,8 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                 : s.conn.getRemoteSocketAddress().getAddress();
         UUID uuid = WcFakePlayer.uuidFor(fullName);
         Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+            // The skin of the Minecraft account the player picked (signed by Mojang, so everybody sees it)
+            if (skinName != null && !skinName.isBlank()) s.skin = skins.lookup(skinName.trim());
             org.bukkit.event.player.AsyncPlayerPreLoginEvent pre = new org.bukkit.event.player.AsyncPlayerPreLoginEvent(fullName, ip, uuid);
             try {
                 Bukkit.getPluginManager().callEvent(pre);
@@ -304,6 +312,12 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
     }
 
     private final Set<String> joining = new HashSet<>();
+
+    /** A skin picture for the browser (downloaded once, then from plugins/WebCraft/skins/). */
+    private void sendSkin(WcSession s, String hash) {
+        if (hash == null || s.skinsAsked.size() > 200 || !s.skinsAsked.add(hash)) return;
+        Bukkit.getScheduler().runTaskAsynchronously(this, () -> s.send(skins.message(hash, skins.picture(hash))));
+    }
 
     private void finishLogin(WcSession s, String fullName, boolean firstJoin, org.bukkit.event.player.AsyncPlayerPreLoginEvent pre) {
         if (s.closed) return;
@@ -1085,6 +1099,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         }
         if (e instanceof Player p) {
             o.addProperty("n", p.getName());
+            skins.addTo(o, ((org.bukkit.craftbukkit.entity.CraftPlayer) p).getHandle().getGameProfile());
             if (byPlayer.containsKey(p.getUniqueId())) o.addProperty("wc", true);
             if (p.isSneaking()) o.addProperty("sn", true);
             if (p.isSwimming()) o.addProperty("sw", true);

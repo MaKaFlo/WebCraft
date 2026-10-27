@@ -92,7 +92,7 @@ public final class WcFakePlayer {
     public static WcFakePlayer join(WcMod mod, WcSession session, String name, ServerLevel level, SocketAddress address) {
         MinecraftServer server = mod.server();
         WcFakePlayer fake = new WcFakePlayer(mod, session, name);
-        GameProfile profile = new GameProfile(uuidFor(name), name);
+        GameProfile profile = WcSkins.profile(uuidFor(name), name, session.skin);
         // Like a real client with the server's view distance, so the chunks around the player tick
         ClientInformation def = ClientInformation.createDefault();
         int view = Math.max(4, Math.min(12, server.getPlayerList().getViewDistance()));

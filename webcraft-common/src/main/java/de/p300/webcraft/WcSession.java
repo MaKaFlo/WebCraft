@@ -19,6 +19,11 @@ public final class WcSession {
     public final WebSocket conn;
 
     public String name;              // full name incl. prefix, null until logged in
+    public boolean helloSeen;        // login is running (skin lookup, pre-login event)
+    /** Signed skin of the Minecraft account the player chose in the login form, or null (Steve). */
+    public volatile com.mojang.authlib.properties.Property skin;
+    /** Skin pictures this browser asked for (each only once). */
+    public final java.util.Set<String> skinsAsked = java.util.concurrent.ConcurrentHashMap.newKeySet();
     public WcFakePlayer fake;        // the real server player behind this browser (Paper or Fabric version)
 
     public int centerChunkX = Integer.MIN_VALUE;

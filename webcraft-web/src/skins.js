@@ -25,6 +25,69 @@ function textureOf(path) {
   return t;
 }
 
+// Skins of players: texture hash -> THREE.Texture, 'loading', or null (not available)
+const playerSkins = new Map();
+let askForSkin = null;
+
+/** main.js: how to ask the server for a skin picture ({t: 'skin', h}). */
+export function setSkinRequester(fn) { askForSkin = fn; }
+
+/** `skin` message: the PNG (base64) of a texture hash, or nothing when the server could not get it. */
+export function addPlayerSkin(hash, base64) {
+  if (!base64) { playerSkins.set(hash, null); return; }
+  const img = new Image();
+  img.onload = () => {
+    const t = new THREE.Texture(cleanSkin(img));
+    t.magFilter = THREE.NearestFilter;
+    t.minFilter = THREE.NearestFilter;
+    t.generateMipmaps = false;
+    t.colorSpace = THREE.NoColorSpace;
+    t.needsUpdate = true;
+    playerSkins.set(hash, t);
+  };
+  img.onerror = () => playerSkins.set(hash, null);
+  img.src = 'data:image/png;base64,' + base64;
+}
+
+/**
+ * Like Minecraft: the base layer is always opaque, and an old 64x32 skin whose hat layer has no see-through
+ * pixel at all (often painted black) gets no hat ("Notch transparency hack").
+ */
+function cleanSkin(img) {
+  const c = document.createElement('canvas');
+  c.width = img.width; c.height = img.height;
+  const g = c.getContext('2d');
+  g.drawImage(img, 0, 0);
+  const k = img.width / 64;   // HD skins
+  const data = g.getImageData(0, 0, c.width, c.height);
+  const px = data.data;
+  const region = (x0, y0, x1, y1, fn) => {
+    for (let y = y0 * k; y < y1 * k; y++) for (let x = x0 * k; x < x1 * k; x++) fn((y * c.width + x) * 4);
+  };
+  const noAlpha = (x0, y0, x1, y1) => region(x0, y0, x1, y1, (i) => { px[i + 3] = 255; });
+  noAlpha(0, 0, 32, 16);
+  if (img.height * 2 === img.width) {
+    let seeThrough = false;
+    region(32, 0, 64, 32, (i) => { if (px[i + 3] < 128) seeThrough = true; });
+    if (!seeThrough) region(32, 0, 64, 32, (i) => { px[i + 3] = 0; });
+    noAlpha(0, 16, 64, 32);
+  } else {
+    noAlpha(0, 16, 64, 32);
+    noAlpha(16, 48, 48, 64);
+  }
+  g.putImageData(data, 0, 0);
+  return c;
+}
+
+/** True once the picture is there (entities rebuild the model then). */
+export function skinLoaded(hash) { return playerSkins.get(hash) instanceof THREE.Texture; }
+
+function playerTexture(hash) {
+  const t = playerSkins.get(hash);
+  if (t === undefined && askForSkin) { playerSkins.set(hash, 'loading'); askForSkin(hash); }
+  return t instanceof THREE.Texture ? t : null;
+}
+
 // ------------------------------------------------------------------ boxes
 
 /**
@@ -74,11 +137,14 @@ function boxGeometry(b, tw, th) {
 // part: { pivot: [x, y, z], rot: [x, y, z] (radians), boxes: [...], parent?: name }
 const L = (u, v) => [u, v];   // readability for texture origins
 
-const BIPED_PARTS = (wide) => ({
+const BIPED_PARTS = (wide, slim = false) => ({
   head: { pivot: [0, 0, 0], boxes: [[...L(0, 0), -4, -8, -4, 8, 8, 8], [...L(32, 0), -4, -8, -4, 8, 8, 8, 0.5]] },
   body: { pivot: [0, 0, 0], boxes: [[...L(16, 16), -4, 0, -2, 8, 12, 4], ...(wide ? [[...L(16, 32), -4, 0, -2, 8, 12, 4, 0.25]] : [])] },
-  rightArm: { pivot: [-5, 2, 0], boxes: [[...L(40, 16), -3, -2, -2, 4, 12, 4], ...(wide ? [[...L(40, 32), -3, -2, -2, 4, 12, 4, 0.25]] : [])] },
-  leftArm: { pivot: [5, 2, 0], boxes: wide ? [[...L(32, 48), -1, -2, -2, 4, 12, 4], [...L(48, 48), -1, -2, -2, 4, 12, 4, 0.25]]
+  // Slim ("Alex") skins have arms 3 pixels wide
+  rightArm: slim ? { pivot: [-5, 2, 0], boxes: [[...L(40, 16), -2, -2, -2, 3, 12, 4], [...L(40, 32), -2, -2, -2, 3, 12, 4, 0.25]] }
+    : { pivot: [-5, 2, 0], boxes: [[...L(40, 16), -3, -2, -2, 4, 12, 4], ...(wide ? [[...L(40, 32), -3, -2, -2, 4, 12, 4, 0.25]] : [])] },
+  leftArm: { pivot: [5, 2, 0], boxes: slim ? [[...L(32, 48), -1, -2, -2, 3, 12, 4], [...L(48, 48), -1, -2, -2, 3, 12, 4, 0.25]]
+    : wide ? [[...L(32, 48), -1, -2, -2, 4, 12, 4], [...L(48, 48), -1, -2, -2, 4, 12, 4, 0.25]]
     : [[...L(40, 16), -1, -2, -2, 4, 12, 4, 0, true]] },
   rightLeg: { pivot: [-1.9, 12, 0], boxes: [[...L(0, 16), -2, 0, -2, 4, 12, 4], ...(wide ? [[...L(0, 32), -2, 0, -2, 4, 12, 4, 0.25]] : [])] },
   leftLeg: { pivot: [1.9, 12, 0], boxes: wide ? [[...L(16, 48), -2, 0, -2, 4, 12, 4], [...L(0, 48), -2, 0, -2, 4, 12, 4, 0.25]]
@@ -121,6 +187,7 @@ const QUAD_LEGS = (legH, xs, zs, u = 0, v = 16) => {
 const MODELS = {
   biped: { tw: 64, th: 64, parts: BIPED_PARTS(true), kind: 'biped' },
   biped32: { tw: 64, th: 32, parts: BIPED_PARTS(false), kind: 'biped' },
+  biped_slim: { tw: 64, th: 64, parts: BIPED_PARTS(true, true), kind: 'biped' },
   skeleton: { tw: 64, th: 32, parts: SKELETON_PARTS, kind: 'biped' },
   villager: { tw: 64, th: 64, parts: VILLAGER_PARTS(false), kind: 'biped' },
   zombie_villager: { tw: 64, th: 64, parts: VILLAGER_PARTS(true), kind: 'biped' },
@@ -228,7 +295,11 @@ const VILLAGER_JOBS = {
   butcher: 'butcher', leatherworker: 'butcher', mason: 'smith',
 };
 const SKINS = {
-  player: () => ['biped', 'entity/steve'],
+  // Players with a Minecraft skin (the server sends the picture), else the pack's Steve
+  player: (d) => {
+    const t = d.skin && playerTexture(d.skin);
+    return t ? [d.slim ? 'biped_slim' : 'biped', t] : ['biped', 'entity/steve'];
+  },
   zombie: () => ['biped', 'entity/zombie'],
   husk: () => ['biped', 'entity/husk'],
   drowned: () => ['biped', 'entity/drowned'],
@@ -263,7 +334,9 @@ function armorMaterial(key) {
 /** Does this mob have a textured model (and is its picture loaded)? */
 export function hasSkin(d) {
   const s = SKINS[d.type];
-  return !!s && !!textureOf(s(d)[1]);
+  if (!s) return false;
+  const tex = s(d)[1];
+  return tex instanceof THREE.Texture || !!textureOf(tex);
 }
 
 function material(tex, opts = {}) {
@@ -306,9 +379,10 @@ export function buildSkin(d, root, opts) {
   const s = SKINS[d.type];
   if (!s) return null;
   const [modelName, texPath] = s(d);
-  const tex = textureOf(texPath);
+  const tex = texPath instanceof THREE.Texture ? texPath : textureOf(texPath);
   if (!tex) return null;
-  const model = MODELS[modelName === 'biped' && tex.image.height < tex.image.width ? 'biped32' : modelName];
+  // Old pictures (64x32) have no second layer and no own left arm and leg
+  const model = MODELS[modelName.startsWith('biped') && tex.image.height < tex.image.width ? 'biped32' : modelName];
   // Minecraft model space -> ours: half a turn around x (y down -> up, front -z -> +z), ground at y = 24
   const frame = new THREE.Group();
   frame.rotation.x = Math.PI;

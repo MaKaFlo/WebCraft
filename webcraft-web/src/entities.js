@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { dimUnlit } from './sky.js';
 import { blockMesh, itemModel } from './models.js';
 import { MOBS } from './mobs.js';
-import { buildSkin, hasSkin } from './skins.js';
+import { buildSkin, hasSkin, skinLoaded } from './skins.js';
 
 const SKIN = 0xd8a27a;
 const HUMANOID = {
@@ -72,7 +72,7 @@ const JOBS = {
 };
 
 /** What makes a mob look different (rebuild the model when it changes). */
-const lookKey = (d) => [d.var, d.col, d.sheared ? 1 : 0, d.hand, (d.arm || []).join(',')].join('|');
+const lookKey = (d) => [d.var, d.col, d.sheared ? 1 : 0, d.hand, (d.arm || []).join(','), d.skin ? d.skin + (skinLoaded(d.skin) ? '+' : '') : ''].join('|');
 
 // Extra parts for animals, so a cow, a pig and a horse don't all look the same
 const ANIMAL_EXTRAS = {

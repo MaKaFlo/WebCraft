@@ -18,6 +18,7 @@ import { Border } from './border.js';
 import { atlas } from './textures.js';
 import { Sky } from './sky.js';
 import { Particles } from './particles.js';
+import { addPlayerSkin, setSkinRequester } from './skins.js';
 
 const SKIES = {
   NORMAL: 0x9fc9ff,
@@ -40,7 +41,7 @@ const MOVE_SEND_INTERVAL = 0.05; // seconds (one per server tick)
 const $ = (id) => document.getElementById(id);
 const ui = {
   login: $('login'), form: $('login-form'), server: $('server'), name: $('name'), error: $('login-error'),
-  play: $('play'), pause: $('pause'), hud: $('hud'), coords: $('coords'), info: $('info'),
+  play: $('play'), skin: $('skin'), pause: $('pause'), hud: $('hud'), coords: $('coords'), info: $('info'),
   players: $('players'), chatLog: $('chat-log'), chatInput: $('chat-input'), loading: $('loading'),
   notice: $('notice'), death: $('death'), deathMsg: $('death-msg'), respawn: $('respawn'), resume: $('resume'),
 };
@@ -111,6 +112,7 @@ const inventory = new Inventory({
 });
 const interaction = new Interaction(scene, world, player, entities, inventory, send);
 interaction.onSwing = () => hand.swing();
+setSkinRequester((h) => send({ t: 'skin', h }));
 interaction.onBreak = (x, y, z, id) => particles.breakBlock(x, y, z, id);
 interaction.onDigHit = (x, y, z, n, id) => particles.digHit(x, y, z, n, id);
 
@@ -155,7 +157,7 @@ function connect(url, name) {
   ws.binaryType = 'arraybuffer';
   let welcomed = false;
 
-  ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', name }));
+  ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', name, skin: ui.skin.value.trim() || undefined }));
   ws.onmessage = (ev) => {
     // Chunks are decompressed in parallel, but applied strictly in arrival order
     const ready = typeof ev.data === 'string' ? ev.data : decodeChunk(ev.data);
@@ -223,6 +225,9 @@ function connect(url, name) {
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ t: 'tp_ok', id: msg.id, x: msg.x, y: msg.y, z: msg.z, yaw: msg.yaw, pitch: msg.pitch }));
         }
+        break;
+      case 'skin':
+        addPlayerSkin(msg.h, msg.png);
         break;
       case 'fx':
         particles.serverList(msg.l);
@@ -390,6 +395,7 @@ function defaultServer() {
 }
 ui.server.value = params.get('server') || localStorage.getItem('wc.server') || defaultServer();
 ui.name.value = localStorage.getItem('wc.name') || '';
+ui.skin.value = localStorage.getItem('wc.skin') || '';
 // The server's name prefix (only known to the page through the web server's settings)
 const namePrefix = (window.WC_CONFIG && window.WC_CONFIG.namePrefix) || 'wc_';
 document.getElementById('name-prefix').textContent = namePrefix;
@@ -406,7 +412,12 @@ ui.form.addEventListener('submit', (e) => {
     return;
   }
   localStorage.setItem('wc.server', ui.server.value.trim());
+  if (!/^[A-Za-z0-9_]{0,16}$/.test(ui.skin.value.trim())) {
+    showLoginError('Skin: Name eines Minecraft-Spielers (Buchstaben, Zahlen und _)');
+    return;
+  }
   localStorage.setItem('wc.name', name);
+  localStorage.setItem('wc.skin', ui.skin.value.trim());
   connect(url, name);
 });
 

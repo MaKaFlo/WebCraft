@@ -95,7 +95,7 @@ public final class WcFakePlayer {
         WcFakePlayer fake = new WcFakePlayer(plugin, session);
         MinecraftServer server = ((CraftServer) Bukkit.getServer()).getServer();
         ServerLevel level = ((CraftWorld) world).getHandle();
-        GameProfile profile = new GameProfile(uuidFor(name), name);
+        GameProfile profile = WcSkins.profile(uuidFor(name), name, session.skin);
         // Like a real client with the server's view distance. The default (2) is too small: Paper then
         // gives the player almost no ticking chunks, so mobs around WebCraft players freeze and can't be killed.
         ClientInformation def = ClientInformation.createDefault();

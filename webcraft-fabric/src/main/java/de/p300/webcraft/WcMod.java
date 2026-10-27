@@ -109,6 +109,7 @@ public final class WcMod implements ModInitializer, WcHost {
     private final File dataFolder = FabricLoader.getInstance().getConfigDir().resolve("webcraft").toFile();
     private volatile MinecraftServer server;
     private BlockPalette palette;
+    private WcSkins skins;
     private WcServer socket;
     private WcTextures textures;
     private WcBlockLog blockLog;
@@ -146,6 +147,7 @@ public final class WcMod implements ModInitializer, WcHost {
         textures = new WcTextures(dataFolder, logger);
         textures.load();
         blockLog = new WcBlockLog(new File(dataFolder, "blocklog.csv"), logger);
+        skins = new WcSkins(new File(dataFolder, "skins").toPath(), logger);
         encoder = Executors.newFixedThreadPool(2, r -> {
             Thread t = new Thread(r, "WebCraft chunk encoder");
             t.setDaemon(true);
@@ -276,7 +278,16 @@ public final class WcMod implements ModInitializer, WcHost {
         String type = str(json, "t");
         if (type == null) return;
         if (!s.loggedIn()) {
-            if ("hello".equals(type) && s.name == null) login(s, str(json, "name"));
+            if ("hello".equals(type) && s.name == null && !s.helloSeen) {
+                s.helloSeen = true;
+                String name = str(json, "name"), skin = str(json, "skin");
+                // Skin of the chosen Minecraft account first (asks Mojang, so not on the server thread)
+                java.util.concurrent.CompletableFuture.runAsync(() -> {
+                    if (skin != null && !skin.isBlank()) s.skin = skins.lookup(skin.trim());
+                }).whenComplete((ok, err) -> server.execute(() -> {
+                    if (!s.closed) login(s, name);
+                }));
+            }
             else if (s.name == null) s.conn.close(1008, "Login first");
             return;
         }
@@ -329,6 +340,7 @@ public final class WcMod implements ModInitializer, WcHost {
                 case "interact" -> f.interact(integer(json, "id"), num(json, "hx"), num(json, "hy"), num(json, "hz"));
                 case "button" -> { f.menuButton(integer(json, "id")); s.invDirty = true; }
                 case "trade" -> { f.selectTrade(integer(json, "i")); s.invDirty = true; }
+                case "skin" -> sendSkin(s, str(json, "h"));
                 case "beacon" -> { f.beacon(str(json, "p"), str(json, "s")); s.invDirty = true; }
                 case "rename" -> { f.rename(str(json, "name")); s.invDirty = true; }
                 case "swing" -> f.swing();   // only the animation (digging), no click
@@ -396,6 +408,12 @@ public final class WcMod implements ModInitializer, WcHost {
         }
         // Browsers have no chat signing keys: an unsigned message, like on servers without secure chat
         server.getPlayerList().broadcastChatMessage(PlayerChatMessage.unsigned(p.getUUID(), msg), p, ChatType.bind(ChatType.CHAT, p));
+    }
+
+    /** A skin picture for the browser (downloaded once, then from config/webcraft/skins/). */
+    private void sendSkin(WcSession s, String hash) {
+        if (hash == null || s.skinsAsked.size() > 200 || !s.skinsAsked.add(hash)) return;
+        java.util.concurrent.CompletableFuture.runAsync(() -> s.send(skins.message(hash, skins.picture(hash))));
     }
 
     private void login(WcSession s, String rawName) {
@@ -1141,6 +1159,7 @@ public final class WcMod implements ModInitializer, WcHost {
         }
         if (e instanceof Player p) {
             o.addProperty("n", p.getGameProfile().name());
+            skins.addTo(o, p.getGameProfile());
             if (byPlayer.containsKey(p.getUUID())) o.addProperty("wc", true);
             if (p.isShiftKeyDown()) o.addProperty("sn", true);
             if (p.isSwimming()) o.addProperty("sw", true);
