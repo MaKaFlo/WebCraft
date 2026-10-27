@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { atlas, tileUV } from './textures.js';
 import { KIND_CROSS, KIND_CUBE, KIND_LIQUID } from './palette.js';
-import { isPlaceable } from './items.js';
+import { isPlaceable, prettyName } from './items.js';
 
 const BLOCK_REACH = 4.5;
 const ENTITY_REACH = 3.0;
@@ -64,6 +64,22 @@ export class Interaction {
     this.progressEl = document.getElementById('dig-progress');
   }
 
+  /** Name of the block or mob under the crosshair, at the top in the middle of the screen. */
+  showLookName(P) {
+    if (!this.lookEl) this.lookEl = document.getElementById('look');
+    let text = '';
+    if (this.targetEntity) {
+      const e = this.targetEntity.entity;
+      text = e?.target?.n || (e ? prettyName(e.type) : '');
+    } else if (this.target && P) {
+      text = prettyName(P.names[this.target.id] || '');
+    }
+    if (text === this.lookText) return;
+    this.lookText = text;
+    this.lookEl.textContent = text;
+    this.lookEl.hidden = !text;
+  }
+
   direction() {
     const yr = this.player.yaw * Math.PI / 180, pr = this.player.pitch * Math.PI / 180;
     return [-Math.sin(yr) * Math.cos(pr), -Math.sin(pr), Math.cos(yr) * Math.cos(pr)];
@@ -81,6 +97,7 @@ export class Interaction {
     if (this.target) this.target.hit = [ox + dx * blockDist, oy + dy * blockDist, oz + dz * blockDist];
 
     document.body.classList.toggle('aim-entity', !!this.targetEntity);
+    this.showLookName(P);
     if (this.target) {
       const b = P.kind[this.target.id] === KIND_CROSS ? [0.15, 0, 0.15, 0.85, 0.9, 0.85] : (P.box[this.target.id] || [0, 0, 0, 1, 1, 1]);
       this.outline.visible = true;

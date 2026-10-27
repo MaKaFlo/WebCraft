@@ -315,6 +315,11 @@
   .beacon .opt, .opt.done { padding: 5px 8px; border: 2px solid var(--ink); background: #f4efe0; cursor: pointer; font: inherit; }
   .beacon .opt:disabled, .opt.done:disabled { opacity: 0.4; cursor: default; }
   .opt.done { margin-top: 6px; }
+  #look { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 5; pointer-events: none;
+    background: rgba(16, 0, 16, 0.78); color: #fff; padding: 4px 14px; border: 2px solid #2d0a63; font-size: 15px;
+    text-shadow: 1px 1px 0 #3f3f3f; white-space: nowrap; }
+  #look[hidden] { display: none; }
+  @media (max-width: 1100px) { #look { top: 66px; } }
   .item-tip { position: fixed; z-index: 22; pointer-events: none; white-space: pre-line; max-width: 260px;
     background: rgba(16, 0, 16, 0.94); color: #fff; border: 2px solid #2d0a63; outline: 1px solid #100010;
     padding: 4px 8px; font-size: 14px; line-height: 1.35; text-shadow: 1px 1px 0 #3f3f3f; }
@@ -345,6 +350,7 @@
 
 <div id="hud" hidden>
   <div id="crosshair"></div>
+  <div id="look" hidden></div>
   <div id="atk" hidden><i></i></div>
   <div id="coords" class="panel"></div>
   <div id="info" class="panel"></div>
