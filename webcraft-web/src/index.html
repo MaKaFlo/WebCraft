@@ -134,6 +134,9 @@
   .mr-text small { color: #aaa; }
   .mr-text span { color: #ccc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #pause .mr-item .mbtn { width: 90px; }
+  #pause label.mbtn { display: flex; align-items: center; justify-content: center; }
+  #login-packs { margin-top: 8px; }
+  #pause { z-index: 40; }
   #pause .setting { color: #fff; text-shadow: 2px 2px 0 #3f3f3f; font: 400 16px var(--pixel); }
   /* Pixel font: Minecraft's GUI scale 2 (one font pixel = 2 screen pixels), crisp edges */
   #pause { --pixel: 'WebCraft Pixel', var(--mono); -webkit-font-smoothing: none; font-smooth: never; }
@@ -427,6 +430,7 @@
     <label for="skin">Skin <small>(Name eines Minecraft-Spielers, freiwillig)</small></label>
     <input id="skin" name="skin" maxlength="16" placeholder="z.B. Notch" spellcheck="false">
     <button id="play" type="submit">Spielen</button>
+    <button id="login-packs" type="button" class="login-extra">🎨 Texturpakete</button>
     <p id="login-error"></p>
     <p class="hint">Im Spiel siehst du dich als <b><span id="name-prefix-hint">wc_</span>Name</b>. Minecraft-Spieler sehen dich auch so. Mit einem Skin siehst du für alle so aus wie dieser Spieler.</p>
   </form>
@@ -513,7 +517,11 @@
       <input type="search" class="mr-search" placeholder="Texturpaket suchen (Modrinth)" autocomplete="off">
       <div class="mr-status"></div>
       <div class="mr-list"></div>
-      <small class="mr-hint">Pakete von modrinth.com, nur für dich in diesem Browser. Mehrere Pakete liegen übereinander.</small>
+      <div class="mc-row">
+        <label class="mbtn mr-upload">ZIP hochladen<input type="file" accept=".zip,.jar" hidden></label>
+        <label class="mbtn mr-folder">Ordner hochladen<input type="file" webkitdirectory multiple hidden></label>
+      </div>
+      <small class="mr-hint">Texturpakete von modrinth.com oder aus deinen Dateien, nur für dich in diesem Browser. Mehrere Pakete liegen übereinander. Mods (.jar, z. B. Wurst) sind Programme für das echte Minecraft und laufen im Browser nicht.</small>
       <div class="mc-row">
         <button type="button" class="mbtn mr-reset">Standard-Texturen</button>
         <button type="button" class="mbtn" data-back>Fertig</button>

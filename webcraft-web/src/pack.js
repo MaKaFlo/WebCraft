@@ -195,7 +195,11 @@ class Pack {
 
   /** Loads a zip as your own textures. Returns the number of textures. */
   async importZip(bytes) {
-    const files = await unzipFiles(bytes);
+    return this.importFiles(await unzipFiles(bytes));
+  }
+
+  /** Loads files ({name, data}, e.g. from a zip or a folder) as your own textures. Returns the number of textures. */
+  async importFiles(files) {
     let n = 0;
     const anims = {};
     // Works for WebCraft packs (block/x.png) and normal Minecraft resource packs

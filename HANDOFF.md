@@ -10,6 +10,10 @@ _Last update: 2026-10-28, version 0.22.3 (main)._
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- In progress (built, NOT tested yet): texture pack page also on the login screen ("🎨 Texturpakete"), upload of a zip
+  or a folder (`pack.importFiles`), mod files (.jar with .class / fabric.mod.json) get a clear message. Owner's next
+  wish: WebCraft's own client mods with switches before the game (freecam, zoom, fullbright, minimap ...); asked which
+  ones and whether the server may forbid cheat-like ones (config). No upload of foreign code (security).
 - 0.22.3: 3D glasses on phones: a tap anywhere opens the game menu (touch buttons are hidden there, you were stuck).
 - 0.22.2: Modrinth button shows progress and "Geladen ✓" (remembered in localStorage `wc.modrinthLoaded`). Faithful 64x
   tested: 2131 textures in 26 s, shrunk to 32 px like everything (atlas tiles are 32 px).

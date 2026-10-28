@@ -2,6 +2,7 @@
 // Modrinth (the API and CDN allow it) and loads it as own textures (pack.importZip, kept in IndexedDB).
 // Only resource packs: Java mods are program code for Minecraft itself and can't run in the browser.
 import { pack } from './pack.js';
+import { unzipFiles } from './zip.js';
 
 const API = 'https://api.modrinth.com/v2';
 const LOADED_KEY = 'wc.modrinthLoaded';   // project ids of the packs loaded in this browser
@@ -73,6 +74,8 @@ export class ModrinthPacks {
     // Letters typed here must not move the player
     this.input.addEventListener('keydown', (e) => { if (e.code !== 'Escape') e.stopPropagation(); });
     this.input.addEventListener('keyup', (e) => e.stopPropagation());
+    el.querySelector('.mr-upload input').addEventListener('change', (e) => { this.uploadZip(e.target.files[0]); e.target.value = ''; });
+    el.querySelector('.mr-folder input').addEventListener('change', (e) => { this.uploadFolder([...e.target.files]); e.target.value = ''; });
     el.querySelector('.mr-reset').addEventListener('click', async (e) => {
       const b = e.currentTarget;
       if (!b.dataset.sure) { b.dataset.sure = '1'; b.textContent = 'Wirklich? Nochmal klicken'; return; }
@@ -129,6 +132,49 @@ export class ModrinthPacks {
       row.querySelector('button').addEventListener('click', (e) => this.load(h, e.currentTarget));
       this.list.appendChild(row);
     }
+  }
+
+  /** A zip (or jar) from the own computer. */
+  async uploadZip(file) {
+    if (!file || this.busy) return;
+    this.busy = true;
+    try {
+      this.say(`${file.name}: wird gelesen ...`);
+      const files = await unzipFiles(new Uint8Array(await file.arrayBuffer()));
+      await this.importOwn(file.name, files);
+    } catch (e) {
+      this.say(`${file.name}: keine gültige ZIP-Datei`);
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  /** A whole folder (an unpacked resource pack). Only the pictures and .mcmeta files are read. */
+  async uploadFolder(list) {
+    if (!list.length || this.busy) return;
+    this.busy = true;
+    const name = (list[0].webkitRelativePath || list[0].name).split('/')[0];
+    try {
+      const wanted = list.filter((f) => /\.(png|mcmeta|class)$/i.test(f.name) || /fabric\.mod\.json$/i.test(f.name));
+      this.say(`${name}: ${wanted.length} Dateien werden gelesen ...`);
+      const files = await Promise.all(wanted.map(async (f) => ({ name: f.webkitRelativePath || f.name, data: new Uint8Array(await f.arrayBuffer()) })));
+      await this.importOwn(name, files);
+    } catch (e) {
+      this.say(`${name}: Lesen fehlgeschlagen (${e.message})`);
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  async importOwn(name, files) {
+    // Mods are program code (.class, fabric.mod.json ...): they only run inside the real Minecraft
+    if (files.some((f) => /\.class$|(^|\/)(fabric|quilt)\.mod\.json$|(^|\/)META-INF\/(neo)?mods\.toml$/i.test(f.name))) {
+      this.say(`${name} ist ein Mod (Programm), kein Texturpaket. Mods laufen nur im echten Minecraft, nicht im Browser.`);
+      return;
+    }
+    this.say(`${name}: Texturen werden eingebaut ...`);
+    const n = await pack.importFiles(files);
+    this.say(n ? `${name}: ${n} Texturen geladen ✓` : `${name}: keine Block- oder Item-Texturen gefunden`);
   }
 
   async load(hit, button) {

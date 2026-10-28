@@ -638,7 +638,9 @@ $('m-settings').addEventListener('click', () => { syncSettingsUi(); showMenu('me
 $('m-keys').addEventListener('click', () => showMenu('menu-keys'));
 const modrinth = new ModrinthPacks($('menu-packs'));
 $('m-packs').addEventListener('click', () => { showMenu('menu-packs'); modrinth.open(); });
-for (const b of ui.pause.querySelectorAll('[data-back]')) b.addEventListener('click', () => showMenu());
+// "Fertig" goes back to the main menu, or to the login when the page was opened there
+for (const b of ui.pause.querySelectorAll('[data-back]')) b.addEventListener('click', () => { if (connected) showMenu(); else ui.pause.hidden = true; });
+$('login-packs').addEventListener('click', () => { showMenu('menu-packs'); modrinth.open(); });
 $('m-leave').addEventListener('click', () => {
   leaving = true;
   ui.pause.hidden = true;
