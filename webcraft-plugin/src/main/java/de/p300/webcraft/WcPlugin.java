@@ -278,8 +278,10 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
             fail(s, "Einzelspieler ist auf diesem Server ausgeschaltet");
             return;
         }
-        // Single player is an own player (own inventory, own world): another name prefix
-        String fullName = (single ? singlePlayer.prefix : namePrefix) + rawName;
+        // Creative single player is an own player (own inventory, own world): another name prefix. Survival single
+        // player is the normal player on the normal world, only without the others.
+        boolean ownWorld = single && creative;
+        String fullName = (ownWorld ? singlePlayer.prefix : namePrefix) + rawName;
         String accountName = namePrefix + rawName;   // bans and the whitelist count for both
         // Same WebCraft name logged in again (second tab, or the old connection died without closing, e.g. a
         // laptop going to sleep): like Minecraft, the new login wins and the old one is closed.
@@ -305,7 +307,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
             fail(s, "Not on the whitelist. Ask an admin: /webcraft whitelist " + rawName);
             return;
         }
-        boolean firstJoin = !Bukkit.getOfflinePlayer(WcFakePlayer.uuidFor(fullName)).hasPlayedBefore() && !single;
+        boolean firstJoin = !Bukkit.getOfflinePlayer(WcFakePlayer.uuidFor(fullName)).hasPlayedBefore() && !ownWorld;
         if (!joining.add(fullName.toLowerCase())) {
             fail(s, "Name is already in use");
             return;
@@ -363,7 +365,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         }
         try {
             // Single player: the own world is loaded first, so a position saved there is found again
-            World start = single ? singlePlayer.world(fullName, World.Environment.NORMAL) : joinWorld();
+            World start = single && creative ? singlePlayer.world(fullName, World.Environment.NORMAL) : joinWorld();
             s.fake = WcFakePlayer.join(this, s, fullName, start, s.conn.getRemoteSocketAddress());
         } catch (WcFakePlayer.LoginDenied e) {
             fail(s, e.getMessage());
@@ -376,7 +378,8 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         Player p = s.fake.bukkit();
         sessions.put(s.id, s);
         byPlayer.put(p.getUniqueId(), s);
-        if (single) singlePlayer.afterJoin(p, creative);
+        if (single && creative) singlePlayer.afterJoin(p);
+        else if (single) singlePlayer.afterJoinSolo(p);
         boolean moved = firstJoin && migrateOldData(p);
         if (!moved && !validLocation(p.getLocation())) {
             // Broken saved position: back to the world spawn on solid ground
@@ -426,6 +429,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
     public void handleDisconnect(WcSession s) {
         if (s.name == null || sessions.remove(s.id) == null) return;
         if (s.fake != null) {
+            if (singlePlayer != null) singlePlayer.leftSolo(s.fake.bukkit());
             byPlayer.remove(s.fake.bukkit().getUniqueId());
             if (!s.fake.isRemoved()) s.fake.remove();
         }

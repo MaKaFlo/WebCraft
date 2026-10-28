@@ -486,9 +486,13 @@ function showLoginChoice() {
   for (const b of document.querySelectorAll('#mode-choice button')) b.classList.toggle('on', b.dataset.mode === loginChoice.mode);
   for (const b of document.querySelectorAll('#gm-choice button')) b.classList.toggle('on', b.dataset.gm === loginChoice.gm);
   const single = loginChoice.mode === 'single';
+  const ownWorld = single && loginChoice.gm === 'creative';
   $('gm-choice').hidden = !single;
   $('single-hint').hidden = !single;
-  $('name-prefix').textContent = single ? 'sp_' : namePrefix;
+  $('single-hint').textContent = ownWorld
+    ? 'Kreativ: eine eigene Welt mit derselben Landschaft wie der Server. Nur du kommst hinein, was du baust, sieht niemand. Eigenes Inventar (Name sp_...).'
+    : 'Überleben: die normale Server-Welt mit deinem Inventar, aber du siehst keine anderen Spieler und ihren Chat. Die anderen sehen dich und was du baust.';
+  $('name-prefix').textContent = ownWorld ? 'sp_' : namePrefix;
 }
 for (const b of document.querySelectorAll('#mode-choice button, #gm-choice button')) {
   b.addEventListener('click', () => {

@@ -21,15 +21,23 @@ import org.bukkit.event.player.PlayerTeleportEvent;
 import java.util.Locale;
 
 /**
- * Single player: a WebCraft player gets an own world (with own nether and end) on the server that nobody else can
- * enter. It is a separate player (name prefix "sp_" by default, so inventory, ender chest and xp are its own),
- * hidden from everybody else, without join/quit/death/advancement messages for the others, and chat stays private.
- * Worlds are folders "wcsp_<name>", "_nether", "_the_end" in the server folder, loaded on login, unloaded on leave.
+ * Single player, two kinds:
+ * <ul>
+ * <li>Survival: the normal player on the normal server world, only the other players (and their chat) are hidden
+ *     for him ({@link #solo}). The others still see him and what he builds.</li>
+ * <li>Creative: an own world with the seed of the server's world (own nether and end) that nobody else can enter,
+ *     always creative. A separate player (name prefix "sp_" by default, so inventory, ender chest and xp are its
+ *     own), hidden from everybody, without join/quit/death/advancement messages, chat stays private. Worlds are
+ *     folders "wcsp_<name>", "_nether", "_the_end" (Paper 26: in world/dimensions/minecraft/), loaded on login,
+ *     unloaded on leave.</li>
+ * </ul>
  */
 final class WcSingle implements Listener {
 
     private final WcPlugin plugin;
     final String prefix;
+    /** Survival single players: on the server world, but they see nobody else. */
+    private final java.util.Set<java.util.UUID> solo = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     WcSingle(WcPlugin plugin, String prefix) {
         this.plugin = plugin;
@@ -64,18 +72,38 @@ final class WcSingle implements Listener {
         World w = Bukkit.getWorld(name);
         if (w != null) return w;
         plugin.getLogger().info("WebCraft: loading single player world " + name);
-        return new WorldCreator(name).environment(env).keepSpawnLoaded(net.kyori.adventure.util.TriState.FALSE).createWorld();
+        // The same seed as the server's world: the same landscape, only empty and creative
+        long seed = plugin.joinWorld().getSeed();
+        return new WorldCreator(name).environment(env).seed(seed).keepSpawnLoaded(net.kyori.adventure.util.TriState.FALSE).createWorld();
     }
 
-    /** After the join: into the own world (first time, or after it was somewhere else), game mode, hidden. */
-    void afterJoin(Player p, boolean creative) {
+    /** After the join of a creative single player: into the own world, creative, hidden both ways. */
+    void afterJoin(Player p) {
         if (!owns(p.getName(), p.getWorld())) p.teleport(safeSpawn(world(p.getName(), World.Environment.NORMAL)));
-        p.setGameMode(creative ? GameMode.CREATIVE : GameMode.SURVIVAL);
+        p.setGameMode(GameMode.CREATIVE);
         for (Player o : Bukkit.getOnlinePlayers()) {
             if (o == p) continue;
             o.hidePlayer(plugin, p);
             p.hidePlayer(plugin, o);
         }
+    }
+
+    /** After the join of a survival single player: the others disappear for him (he stays visible for them). */
+    void afterJoinSolo(Player p) {
+        solo.add(p.getUniqueId());
+        for (Player o : Bukkit.getOnlinePlayers()) {
+            if (o != p) p.hidePlayer(plugin, o);
+        }
+    }
+
+    boolean isSolo(Player p) {
+        return solo.contains(p.getUniqueId());
+    }
+
+    /** The survival single player left: next time he may come as a normal player again. */
+    void leftSolo(Player p) {
+        if (!solo.remove(p.getUniqueId())) return;
+        for (Player o : Bukkit.getOnlinePlayers()) p.showPlayer(plugin, o);
     }
 
     /** Unloads the player's worlds (saved) when nobody is in them any more. */
@@ -103,10 +131,14 @@ final class WcSingle implements Listener {
             e.joinMessage(null);
             return;
         }
-        // Somebody else came online: single players stay invisible for them (and the other way round)
+        // Somebody else came online: creative single players stay invisible for them (and the other way round),
+        // survival single players don't see the newcomer
         for (Player o : Bukkit.getOnlinePlayers()) {
-            if (o != p && isSingle(o)) {
+            if (o == p) continue;
+            if (isSingle(o)) {
                 p.hidePlayer(plugin, o);
+                o.hidePlayer(plugin, p);
+            } else if (isSolo(o)) {
                 o.hidePlayer(plugin, p);
             }
         }
@@ -115,6 +147,7 @@ final class WcSingle implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onQuit(PlayerQuitEvent e) {
         if (isSingle(e.getPlayer().getName())) e.quitMessage(null);
+        solo.remove(e.getPlayer().getUniqueId());
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -130,11 +163,11 @@ final class WcSingle implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onChat(io.papermc.paper.event.player.AsyncChatEvent e) {
         Player p = e.getPlayer();
-        if (isSingle(p.getName())) {
+        if (isSingle(p.getName()) || isSolo(p)) {
             // Talking to yourself (and the console)
             e.viewers().removeIf(v -> v instanceof Player o && o != p);
         } else {
-            e.viewers().removeIf(v -> v instanceof Player o && isSingle(o.getName()));
+            e.viewers().removeIf(v -> v instanceof Player o && (isSingle(o.getName()) || isSolo(o)));
         }
     }
 
