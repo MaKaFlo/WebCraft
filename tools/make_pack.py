@@ -740,8 +740,12 @@ for i in range(10):
     if stem in block_files:
         out['block/' + stem] = png(load(block_files[stem], stem, False)[0])
 
+# Item pictures that are no item of their own: the bow and crossbow while being drawn (first-person hand)
+EXTRA_ITEMS = ['bow_pulling_0', 'bow_pulling_1', 'bow_pulling_2', 'crossbow_pulling_0', 'crossbow_pulling_1',
+               'crossbow_pulling_2', 'crossbow_arrow', 'crossbow_firework', 'crossbow_standby']
+
 missing_items = []
-for name in names['list']:
+for name in names['list'] + [n for n in EXTRA_ITEMS if n not in names['list']]:
     stem = name if name in item_files else ITEM_ALIAS.get(name, name)
     if stem in item_files:
         im, anim = load(item_files[stem], stem)

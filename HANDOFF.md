@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-10-28, version 0.23.1 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
+_Last update: 2026-10-28, version 0.23.2 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
 
 ## Current state
 
@@ -10,6 +10,9 @@ _Last update: 2026-10-28, version 0.23.1 (main). Tag pushes are refused by this 
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- 0.23.2: drawn bow/crossbow shows the arrow (`bow_pulling_0-2`, `crossbow_pulling_0-2` added to texturen.zip and to
+  `make_pack.py EXTRA_ITEMS`, `hand.js drawnPicture`); snowballs, eggs, pearls, splash potions ... are thrown with an arm
+  swing (`THROWN`, also sent as `swing` for the others). Other players' drawn bows are not shown yet.
 - 0.23.1: eating/drinking stops after one item, the next bite needs a new right click (`interaction.stopUse`, `useLocked`).
 - 0.23.0 (tested headless): texture pack page also on the login screen ("🎨 Texturpakete"), upload of a zip
   or a folder (`pack.importFiles`), mod files (.jar with .class / fabric.mod.json) get a clear message. Owner's next

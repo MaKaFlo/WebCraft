@@ -22,6 +22,19 @@ const DRINK = /potion$|milk_bucket|honey_bottle|ominous_bottle/;
 const BOW = /^bow$|crossbow|trident|spear$/;
 
 /** What kind of "hold right click" animation an item has. */
+/** Thrown with right click (an arm swing, no holding): snowballs, eggs, ender pearls, splash potions ... */
+export const THROWN = /^(snowball|egg|blue_egg|brown_egg|ender_pearl|ender_eye|splash_potion|lingering_potion|experience_bottle|wind_charge)$/;
+
+/**
+ * The picture of a bow or crossbow while it is drawn, like Minecraft's item models: bow after 0.65 / 0.9 of a full
+ * draw (1 s), crossbow after 0.58 / 1.0 of its load time (1.25 s). Others keep their own picture.
+ */
+export function drawnPicture(key, seconds) {
+  if (key === 'bow') return seconds >= 0.9 ? 'bow_pulling_2' : seconds >= 0.65 ? 'bow_pulling_1' : 'bow_pulling_0';
+  if (key === 'crossbow') { const f = seconds / 1.25; return f >= 1 ? 'crossbow_pulling_2' : f >= 0.58 ? 'crossbow_pulling_1' : 'crossbow_pulling_0'; }
+  return key;
+}
+
 export function useKind(key) {
   if (!key) return null;
   if (DRINK.test(key)) return 'drink';
@@ -65,10 +78,12 @@ export class Hand {
     if (this.swingT < SWING_TIME * 0.5) this.swingT = SWING_TIME;
   }
 
-  setItem(palette, key) {
-    if (key === this.itemKey && palette === this.palette) return;
+  /** key: the item in hand; shown: the picture to draw (e.g. the drawn bow), without a new equip movement. */
+  setItem(palette, key, shown = key) {
+    if (key === this.itemKey && shown === this.shownKey && palette === this.palette) return;
     if (this.itemKey !== key) this.equipT = 0.2;
     this.itemKey = key;
+    this.shownKey = shown;
     this.palette = palette;
     this.rebuildItem();
   }
@@ -102,7 +117,7 @@ export class Hand {
     }
     // Minecraft's "firstperson_righthand" display: items and tools turned -90 deg around y and 25 deg around z,
     // moved by (1.13, 3.2, 1.13)/16 and scaled 0.68; blocks turned 45 deg and scaled 0.4 (models are 1 block big)
-    const m = itemModel(this.palette, this.itemKey, 0.4, 0.68);
+    const m = itemModel(this.palette, this.shownKey ?? this.itemKey, 0.4, 0.68);
     if (m.userData.flat) {
       m.rotation.set(0, -Math.PI / 2, 25 * Math.PI / 180);
       m.position.set(1.13 / 16, 3.2 / 16, 1.13 / 16);

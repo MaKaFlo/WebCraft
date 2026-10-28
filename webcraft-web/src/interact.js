@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { atlas, tileUV } from './textures.js';
 import { KIND_CROSS, KIND_CUBE, KIND_LIQUID } from './palette.js';
 import { isPlaceable, prettyName } from './items.js';
+import { THROWN } from './hand.js';
 
 const BLOCK_REACH = 4.5;
 const ENTITY_REACH = 3.0;
@@ -287,7 +288,8 @@ export class Interaction {
       const hx = this.player.x + dx * te.t - e.x, hy = this.player.eyeY + dy * te.t - e.y, hz = this.player.z + dz * te.t - e.z;
       this.send({ t: 'interact', id: te.id, hx, hy, hz });
       this.onSwing();
-      if (item && !isPlaceable(this.world.palette, item.k)) { this.using = true; this.send({ t: 'use' }); }
+      if (item && THROWN.test(item.k)) this.send({ t: 'use' });
+      else if (item && !isPlaceable(this.world.palette, item.k)) { this.using = true; this.send({ t: 'use' }); }
       return;
     }
     if (t) {
@@ -302,6 +304,13 @@ export class Interaction {
       }
       this.send({ t: 'use_on', x: t.x, y: t.y, z: t.z, face: faceIndex(t.face), hx: t.hit[0], hy: t.hit[1], hz: t.hit[2] });
       this.lastUseOn = { x: t.x, y: t.y, z: t.z, face: t.face, at: performance.now() };   // sounds of what the server changes
+      // Snowballs, eggs, pearls ... fly off with an arm swing, also when you look at a block
+      if (item && THROWN.test(item.k) && !this.isInteractive(P.names[t.id])) {
+        this.send({ t: 'use' });
+        this.send({ t: 'swing' });   // so the others see the throw
+        this.onSwing();
+        return;
+      }
       // Like Minecraft: food, potions, bows ... still get used when you look at a block
       if (item && !this.using && !isPlaceable(P, item.k) && !this.isInteractive(P.names[t.id])) {
         this.using = true;
@@ -310,6 +319,12 @@ export class Interaction {
       }
       this.onSwing();
       this.predictPlace(t, item);
+      return;
+    }
+    if (item && THROWN.test(item.k)) {
+      this.send({ t: 'use' });
+      this.send({ t: 'swing' });
+      this.onSwing();
       return;
     }
     if (item && !this.using) {

@@ -9,7 +9,7 @@ import { Interaction } from './interact.js';
 import { Hud } from './hud.js';
 import { TabList } from './tablist.js';
 import { Sidebar } from './sidebar.js';
-import { Hand, useKind } from './hand.js';
+import { Hand, useKind, drawnPicture } from './hand.js';
 import { sounds, Music, setVolume, setMusicVolume, unlockAudio } from './sounds.js';
 import { pack } from './pack.js';
 import { clearIconCache, setNames } from './items.js';
@@ -1005,7 +1005,6 @@ function frame(now) {
     // The own skin arrives a moment after the login: then the first-person arm gets it
     if (!skinArmReady && skinLoaded(mySkin)) { skinArmReady = true; hand.setSkin(mySkin, mySlim); }
 
-    hand.setItem(world.palette, inventory.selectedItem()?.k ?? null);
     const moving = player.onGround && (player.keys.has('KeyW') || player.keys.has('KeyA') || player.keys.has('KeyS') || player.keys.has('KeyD'));
     // One bite at a time: when the food or drink in hand was used up (count or item changed), eating stops
     if (interaction.using) {
@@ -1018,6 +1017,8 @@ function frame(now) {
     }
     const kind = interaction.using ? useKind(inventory.selectedItem()?.k) : null;
     hand.setUsing(kind);
+    const heldKey = inventory.selectedItem()?.k ?? null;
+    hand.setItem(world.palette, heldKey, kind === 'bow' ? drawnPicture(heldKey, hand.useT) : heldKey);
     if (kind === 'eat' || kind === 'drink') {
       eatTimer -= dt;
       if (eatTimer <= 0 && hand.useT > 0.25) {
