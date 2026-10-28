@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-10-28, version 0.22.3 (main)._
+_Last update: 2026-10-28, version 0.23.0 (main, released as v0.23.0)._
 
 ## Current state
 
@@ -10,7 +10,7 @@ _Last update: 2026-10-28, version 0.22.3 (main)._
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
-- In progress (built, NOT tested yet): texture pack page also on the login screen ("🎨 Texturpakete"), upload of a zip
+- 0.23.0 (tested headless): texture pack page also on the login screen ("🎨 Texturpakete"), upload of a zip
   or a folder (`pack.importFiles`), mod files (.jar with .class / fabric.mod.json) get a clear message. Owner's next
   wish: WebCraft's own client mods with switches before the game (freecam, zoom, fullbright, minimap ...); asked which
   ones and whether the server may forbid cheat-like ones (config). No upload of foreign code (security).
