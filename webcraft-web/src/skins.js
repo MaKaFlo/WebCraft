@@ -265,6 +265,8 @@ const MODELS = {
   biped: { tw: 64, th: 64, parts: BIPED_PARTS(true), kind: 'biped' },
   biped32: { tw: 64, th: 32, parts: BIPED_PARTS(false), kind: 'biped' },
   biped_slim: { tw: 64, th: 64, parts: BIPED_PARTS(true, true), kind: 'biped' },
+  // Zombies and husks: 64x64 picture, but the left arm and leg are the mirrored right ones (like Minecraft)
+  biped_mirror: { tw: 64, th: 64, parts: BIPED_PARTS(false), kind: 'biped' },
   piglin: { tw: 64, th: 64, parts: PIGLIN_PARTS, kind: 'biped' },
   // Witch: villager with the pointed hat (64x128 picture)
   witch: {
@@ -865,10 +867,10 @@ const SKINS = {
     const t = d.skin && playerTexture(d.skin);
     return t ? [d.slim ? 'biped_slim' : 'biped', t] : ['biped', 'entity/steve'];
   },
-  zombie: () => ['biped', 'entity/zombie'],
-  husk: () => ['biped', 'entity/husk'],
+  zombie: () => ['biped_mirror', 'entity/zombie'],
+  husk: () => ['biped_mirror', 'entity/husk'],
   drowned: () => ['biped', 'entity/drowned'],
-  giant: () => ['biped', 'entity/zombie'],
+  giant: () => ['biped_mirror', 'entity/zombie'],
   zombie_villager: () => ['zombie_villager', 'entity/zombie_villager'],
   skeleton: () => ['skeleton', 'entity/skeleton'],
   stray: () => ['skeleton', 'entity/stray'],
@@ -973,14 +975,15 @@ export function hasSkin(d) {
 }
 
 /**
- * First person: the right arm of the pack's default skin (with sleeve) in Minecraft model space, block units
- * (pivot included), or null without a picture. Unlit, like the rest of the hand.
+ * First person: the right arm of the player's skin (hash, null: the pack's Steve) with sleeve in Minecraft model
+ * space, block units (pivot included), or null without a picture (or while the skin is still loading).
+ * Unlit, like the rest of the hand.
  */
-export function firstPersonArm() {
-  const tex = textureOf('entity/steve');
+export function firstPersonArm(skin = null, slim = false) {
+  const tex = skin ? playerTexture(skin) : textureOf('entity/steve');
   if (!tex) return null;
   const wide = tex.image.height >= tex.image.width;
-  const part = BIPED_PARTS(wide).rightArm;
+  const part = BIPED_PARTS(wide, slim && wide).rightArm;
   const arm = new THREE.Group();
   arm.position.set(...part.pivot);
   for (const b of part.boxes) {

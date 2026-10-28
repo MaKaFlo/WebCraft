@@ -19,7 +19,8 @@ import { atlas } from './textures.js';
 import { Sky } from './sky.js';
 import { Particles } from './particles.js';
 import { Weather } from './weather.js';
-import { addPlayerSkin, setSkinRequester } from './skins.js';
+import { addPlayerSkin, setSkinRequester, skinLoaded } from './skins.js';
+import { ChunkGrid } from './chunkgrid.js';
 import pixelFont from './mcfont.ttf';
 import { TouchControls, isTouch } from './touch.js';
 import { GamepadControls } from './gamepad.js';
@@ -31,7 +32,7 @@ const SKIES = {
   THE_END: 0x150f22,
 };
 // Settings (kept in the browser)
-const settings = { sens: 15, fov: 75, autoJump: true, vol: 60, gyro: false, vr: false, eye: 64, lens: 60 };
+const settings = { sens: 15, fov: 75, autoJump: true, vol: 60, gyro: false, vr: false, eye: 64, lens: 60, hitboxes: false, chunks: false };
 // Settings saved under the old name (gg.*) move over once
 try {
   for (const k of ['settings', 'server', 'name']) {
@@ -118,7 +119,7 @@ const inventory = new Inventory({
   },
 });
 const interaction = new Interaction(scene, world, player, entities, inventory, send);
-interaction.onSwing = () => hand.swing();
+interaction.onSwing = () => { hand.swing(); if (entities.self) entities.self.swingT = SELF_SWING; };
 setSkinRequester((h) => send({ t: 'skin', h }));
 entities.onLightning = () => {
   weather.strike();
@@ -223,6 +224,10 @@ function connect(url, name) {
         connected = true;
         myName = msg.name;
         myEntityId = msg.entityId;
+        mySkin = msg.skin || null;
+        mySlim = !!msg.slim;
+        hand.setSkin(mySkin, mySlim);
+        skinArmReady = !mySkin;
         world.viewDistance = msg.viewDistance;
         setWorld(msg);
         enterGame();
@@ -588,6 +593,8 @@ function syncSettingsUi() {
   $('s-autojump').checked = player.autoJump;
   $('s-gyro').checked = !!touch?.gyroOn;
   $('s-vr').checked = settings.vr;
+  $('s-hitboxes').checked = settings.hitboxes;
+  $('s-chunks').checked = settings.chunks;
   $('s-eye').value = settings.eye; $('s-eye-v').textContent = settings.eye + ' mm';
   $('s-lens').value = settings.lens; $('s-lens-v').textContent = settings.lens ? settings.lens + '%' : 'aus';
   $('s-vol').value = settings.vol; $('s-vol-v').textContent = settings.vol + '%';
@@ -610,6 +617,8 @@ $('s-fov').addEventListener('input', (e) => {
 });
 $('s-autojump').addEventListener('change', (e) => { player.autoJump = settings.autoJump = e.target.checked; saveSettings(); });
 $('s-vr').addEventListener('change', (e) => setVr(e.target.checked));
+$('s-hitboxes').addEventListener('change', (e) => { settings.hitboxes = e.target.checked; saveSettings(); });
+$('s-chunks').addEventListener('change', (e) => { settings.chunks = e.target.checked; saveSettings(); });
 $('s-eye').addEventListener('input', (e) => {
   settings.eye = +e.target.value;
   stereo.setEyeDistance(settings.eye);
@@ -675,6 +684,7 @@ const touch = isTouch ? new TouchControls({
   closeOverlay: () => { if (chatOpen) closeChat(); else if (inventory.open) inventory.setOpen(false); },
   openChat: () => openChat(),
   openMenu: () => showMenu(),
+  toggleView: () => cycleView(),
   drop: () => send({ t: 'drop', all: false }),
 }) : null;
 
@@ -687,6 +697,7 @@ const pad = new GamepadControls({
   toggleMenu: () => { if (ui.pause.hidden) showMenu(); else hideMenu(); },
   drop: () => send({ t: 'drop', all: false }),
   toggleVr: () => setVr(!settings.vr),
+  toggleView: () => cycleView(),
   clickDefault: () => { if (!ui.death.hidden) ui.respawn.click(); },
 });
 
@@ -732,6 +743,19 @@ const normKey = (code) => (code === 'ShiftRight' ? 'ShiftLeft' : code);
 
 document.addEventListener('keydown', (e) => {
   // Tab: show all players while held
+  // F5: first person, from behind, from the front (like Minecraft; the browser must not reload the page)
+  if (e.code === 'F5' && connected) {
+    e.preventDefault();
+    if (!e.repeat && !chatOpen) cycleView();
+    return;
+  }
+  // F3 + B: hitboxes, F3 + G: chunk borders (like Minecraft)
+  if (e.code === 'F3') { e.preventDefault(); f3Down = true; return; }
+  if (f3Down && (e.code === 'KeyB' || e.code === 'KeyG') && connected && !chatOpen) {
+    e.preventDefault();
+    if (!e.repeat) toggleDebug(e.code === 'KeyB' ? 'hitboxes' : 'chunks');
+    return;
+  }
   if (e.code === 'Tab' && connected && !chatOpen) {
     e.preventDefault();
     tablist.show(true);
@@ -778,6 +802,7 @@ document.addEventListener('keydown', (e) => {
   sendInput();
 });
 document.addEventListener('keyup', (e) => {
+  if (e.code === 'F3') f3Down = false;
   if (e.code === 'Tab') tablist.show(false);
   if (e.code === 'KeyW') player.sprinting = false;
   player.keys.delete(normKey(e.code));
@@ -807,6 +832,36 @@ let fps = 0, fpsFrames = 0, fpsTime = 0;
 let hudTime = 0;
 let shownLight = 1, handLight = 1, handLightT = 0;
 let stereoOn = false;
+let view = 0;                 // 0 first person, 1 from behind, 2 from the front (F5)
+let f3Down = false;
+let mySkin = null, mySlim = false, skinArmReady = true;
+const SELF_SWING = 0.3;
+const chunkGrid = new ChunkGrid(scene);
+
+function cycleView() {
+  view = (view + 1) % 3;
+}
+
+function toggleDebug(what) {
+  settings[what] = !settings[what];
+  saveSettings();
+  syncSettingsUi();
+  showNotice((what === 'hitboxes' ? 'Hitboxen ' : 'Chunk-Grenzen ') + (settings[what] ? 'an' : 'aus'));
+}
+
+/** Third person: the camera moves back (or in front) along the view, but not into walls. */
+function placeThirdPersonCamera() {
+  const [dx, dy, dz] = interaction.direction();
+  const s = view === 1 ? -1 : 1;
+  const P = world.palette;
+  let dist = 4;
+  for (let k = 0.2; k <= 4; k += 0.1) {
+    const id = world.getId(Math.floor(player.x + dx * s * k), Math.floor(player.eyeY + dy * s * k), Math.floor(player.z + dz * s * k));
+    if (P.occluding[id] || P.solid[id]) { dist = Math.max(0.2, k - 0.3); break; }
+  }
+  camera.position.set(player.x + dx * s * dist, player.eyeY + dy * s * dist, player.z + dz * s * dist);
+  if (view === 2) { camera.rotation.y += Math.PI; camera.rotation.x = -camera.rotation.x; }
+}
 
 function frame(now) {
   requestAnimationFrame(frame);
@@ -836,6 +891,16 @@ function frame(now) {
     camera.rotation.x = -player.pitch * Math.PI / 180;
     hurtTilt = Math.max(0, hurtTilt - dt);
     camera.rotation.z = (dead ? 0.4 : Math.sin(hurtTilt / 0.35 * Math.PI) * 0.06) + (stereoOn && touch?.gyroOn ? touch.roll : 0);
+    if (view && !dead) placeThirdPersonCamera();
+    entities.showSelf(view && !dead ? {
+      i: -2, type: 'player', x: player.x, y: player.y, z: player.z, yaw: player.yaw, pitch: player.pitch, body: player.yaw,
+      w: 0.6, h: 1.8, skin: mySkin || undefined, slim: mySlim || undefined, hand: inventory.selectedItem()?.k,
+      sn: (player.keys.has('ShiftLeft') && !player.flying) || undefined, use: interaction.using || undefined,
+    } : null);
+    entities.showHitboxes = settings.hitboxes;
+    chunkGrid.update(settings.chunks, player.x, player.z, world.minY, world.maxY);
+    // The own skin arrives a moment after the login: then the first-person arm gets it
+    if (!skinArmReady && skinLoaded(mySkin)) { skinArmReady = true; hand.setSkin(mySkin, mySlim); }
 
     hand.setItem(world.palette, inventory.selectedItem()?.k ?? null);
     const moving = player.onGround && (player.keys.has('KeyW') || player.keys.has('KeyA') || player.keys.has('KeyS') || player.keys.has('KeyD'));
@@ -866,11 +931,11 @@ function frame(now) {
   }
 
   if (stereoOn) {
-    stereo.render(renderer, scene, camera, hand, handLight, hand.visibleMode !== false);
+    stereo.render(renderer, scene, camera, hand, handLight, hand.visibleMode !== false && !view);
   } else {
     renderer.render(scene, camera);
   }
-  if (!stereoOn && connected && world.palette && !dead && hand.visibleMode !== false) {
+  if (!stereoOn && connected && world.palette && !dead && hand.visibleMode !== false && !view) {
     renderer.autoClear = false;
     hand.render(renderer, handLight);
     renderer.autoClear = true;
@@ -916,7 +981,7 @@ function updateHud() {
   const yaw = ((player.yaw % 360) + 360) % 360;
   const dir = DIRS[Math.round(yaw / 90) % 4];
   ui.coords.textContent = `${myName}   X ${player.x.toFixed(1)}  Y ${player.y.toFixed(1)}  Z ${player.z.toFixed(1)}   Blick: ${dir}`
-    + (player.flying ? '   ✈️ Fliegen' : '');
+    + (player.flying ? '   ✈️ Fliegen' : '') + (sky.enabled ? (sky.night ? '   🌙 Nacht' : '   ☀️ Tag') : '');
   const s = world.stats();
   ui.info.textContent = `${fps} fps · ${s.chunks} Chunks${s.pending ? ' · baue ' + s.pending : ''}`;
   const names = entities.playerNames();

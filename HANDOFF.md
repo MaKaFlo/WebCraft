@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-10-28, version 0.17.1 (main, CI green)._
+_Last update: 2026-10-28, version 0.18.0 (main; check CI after the push)._
 
 ## Current state
 
@@ -10,6 +10,9 @@ _Last update: 2026-10-28, version 0.17.1 (main, CI green)._
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- Done in session 2026-10-28, part 3 (0.17.1 → 0.18.0): options for hitboxes and chunk borders (also F3+B/G),
+  F5 third person (behind/front, own skin; server sends the own skin in `welcome`, also used for the first-person arm),
+  Tag/Nacht top left, zombie/husk had only one leg and one arm (fixed: mirrored left limbs).
 - Done in session 2026-10-28, part 2 (0.16.0 → 0.17.0): phones and controllers
   - Touch controls (`touch.js`): joystick, buttons, drag to look, hotbar taps, close button, fullscreen + landscape.
   - Optional gyro look (setting "Gyro-Steuerung", off by default; needs https, the owner's server has it).
@@ -41,7 +44,6 @@ _Last update: 2026-10-28, version 0.17.1 (main, CI green)._
 ## Open wishes / next steps
 
 - Ideas offered to the owner: real sounds, own skin upload. Possible: inventory navigation with the controller.
-- First-person arm with the player's own skin (server would need to send the own skin hash).
 - Warden glow layers, baby pictures of the new mobs (`goat_baby`, `axolotl_*_baby`, `camel_baby`, `snifflet` ...).
 - Cow, pig, rabbit, magma cube could use new models for the Faithful pictures.
 - The owner cares about cost: keep sessions lean (few screenshots, batch changes, one build per batch).

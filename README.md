@@ -2,7 +2,7 @@
 
 Ein Block-Spiel im Browser, das sich mit einem **Minecraft-Server** verbindet: **Paper** (als Plugin) oder **Fabric** (als Mod, damit auch für Vanilla). WebCraft-Spieler sind auf dem Server **echte Spieler**: Sie stehen in der Tab-Liste, bekommen Schaden, sterben, benutzen Befehle und Menüs von Plugins und Mods. Für den Server gibt es keinen Unterschied zu einem Minecraft-Spieler. So können Leute ohne Minecraft-Account mit Freunden auf dem Server spielen.
 
-Version 0.17.1 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
+Version 0.18.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
 
 ## Aufbau
 
@@ -205,6 +205,8 @@ Das Bild wird auf 32×32 Pixel verkleinert (bei Items wird der Hintergrund entfe
 - ✅ Handy und Tablet: Touch-Steuerung (Joystick, Knöpfe, Wischen zum Umsehen, Hotbar antippen), Vollbild im Querformat. Optional Gyro-Steuerung: Handy drehen zum Umsehen (Einstellungen)
 - ✅ Controller (Xbox, PlayStation, Bluetooth-Pads, auch am Handy): Belegung wie Minecraft auf der Konsole, Spielmenü mit Steuerkreuz bedienbar
 - ✅ 3D-Brille (Handy in Cardboard-Halterung): zwei Bilder nebeneinander, Kopfbewegung über den Gyro, Hotbar und Herzen im Bild, Augenabstand und Linsenkorrektur (Ausgleich der Verzerrung durch die Linsen) einstellbar. Gedacht mit Controller (Back schaltet die Brille an und aus)
+- ✅ F5 wechselt die Ansicht wie in Minecraft (Ich, von hinten, von vorn; mit eigenem Skin). Oben links steht Tag oder Nacht
+- ✅ Optionen: Hitboxen und Chunk-Grenzen anzeigen (auch mit F3+B und F3+G)
 - ℹ️ Gyro und Controller brauchen im Browser **https://** (die Seite hinter HTTPS ausliefern)
 
 ### Noch offen

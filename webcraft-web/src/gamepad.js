@@ -95,6 +95,7 @@ export class GamepadControls {
     if (pressed(BTN.RB) || pressed(BTN.RIGHT)) inventory.select((inventory.selected + 1) % 9);
     if (pressed(BTN.X)) this.drop();
     if (pressed(BTN.Y)) this.openInventory();
+    if (pressed(BTN.RS)) this.toggleView();
     this.held = true;
   }
 

@@ -39,6 +39,7 @@ export class TouchControls {
       <div class="t-top">
         <button class="t-small t-inv" aria-label="Inventar">🎒</button>
         <button class="t-small t-drop" aria-label="Wegwerfen">🗑️</button>
+        <button class="t-small t-view" aria-label="Ansicht wechseln">👁️</button>
         <button class="t-small t-chat" aria-label="Chat">💬</button>
         <button class="t-small t-menu" aria-label="Spielmenü">⏸️</button>
       </div>`;
@@ -81,6 +82,7 @@ export class TouchControls {
     this.tap(q('.t-inv'), () => this.openInventory());
     this.tap(q('.t-drop'), () => this.drop());
     this.tap(q('.t-chat'), () => this.openChat());
+    this.tap(q('.t-view'), () => this.toggleView());
     this.tap(q('.t-menu'), () => this.openMenu());
 
     // Hotbar: tap a slot to pick it

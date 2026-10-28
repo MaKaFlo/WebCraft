@@ -159,6 +159,12 @@ export class Sky {
     this.drift = v - this.time;   // pulled in slowly by update()
   }
 
+  /** Night like in Minecraft (monsters spawn, beds work): day time 13000 to 23000. */
+  get night() {
+    const t = ((this.time % 24000) + 24000) % 24000;
+    return t >= 13000 && t < 23000;
+  }
+
   setEnv(env) {
     this.enabled = env === 'NORMAL';
     this.group.visible = this.enabled;

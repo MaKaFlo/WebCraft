@@ -189,8 +189,17 @@ Game menu font: `tools/make_font.py` turns the pack's `font/ascii.png` into `web
 (pixel squares, Minecraft widths, umlauts and ß added by hand), bundled as base64 (`.ttf` loader) and used as
 `WebCraft Pixel` in `#pause` at 16px (GUI scale 2).
 
-First-person empty hand: `skins.js firstPersonArm()` (right arm + sleeve of `entity/steve`) placed with the matrix
-steps of Minecraft's `ItemInHandRenderer.renderPlayerArm` (`hand.js ARM_MATRIX`). Not the player's own skin yet.
+First-person empty hand: `skins.js firstPersonArm(skin, slim)` (right arm + sleeve of the own skin, else `entity/steve`)
+placed with the matrix steps of Minecraft's `ItemInHandRenderer.renderPlayerArm` (`hand.js ARM_MATRIX`). The
+`welcome` message carries the own `skin`/`slim` (`WcSkins.addTo`).
+
+F5 (`main.js view`): 0 first person, 1 behind, 2 in front. The camera moves 4 blocks along the view (stopped by
+blocks), our own figure is `Entities.showSelf()` (an `Entity` with `exact` position, rebuilt on `lookKey`). Also the
+pad's right stick click and the touch 👁️ button. Hitboxes (F3+B / setting): `Entities.hitbox()` white box + blue
+look line per entity. Top left shows Tag/Nacht (`Sky.night`: day time 13000-23000).
+
+Zombies/husks/giants use `biped_mirror`: their 64x64 pictures have no own left arm/leg (Minecraft mirrors the right
+ones); players, drowned and piglins have them.
 
 Touch, controllers, 3D glasses: no pointer lock there, so "playing" = connected, alive, no screen open (`main.js
 frame`), and `interaction.update` runs when locked OR (touch/pad and playing). Gyro and Gamepad API need a secure
@@ -253,7 +262,8 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
 | `skins.js` | Textured mob models with the classic Minecraft box layout (`MODELS`, built in Minecraft model space: y down, ground y = 24, front -z, then turned half around x). `SKINS` maps mob type (+ variant) to model and picture, `GLOW` eye layers, armor from `armor/<material>_layer_1/2`. Scaled to the hitbox height; players always 1.8 |
 | `entities.js` | Mob/player models (humanoid, quadruped, part specs from `mobs.js`), variants/colors (`VARIANTS`, `JOBS`), held item in right arm, armor, swing/hurt anims, projectiles, items, holograms. Rebuild when `lookKey(d)` changes |
 | `models.js` | `blockMesh`, `itemExtruded` (pixel-extruded 3D item, front/back one-sided), `itemModel` |
-| `hand.js` | First-person arm/item, swing, eat/drink/bow animations, crumbs |
+| `hand.js` | First-person arm/item (arm with the own skin from `welcome.skin/slim`), swing, eat/drink/bow animations, crumbs |
+| `chunkgrid.js` | Chunk borders (F3+G / setting): yellow every 2 blocks on the own chunk, blue section heights, red corners around. Upright lines are cut into 16-block pieces (long lines vanished in swiftshader) |
 | `touch.js` | Phones/tablets (`isTouch`): joystick (8 directions as WASD keys, sprint at the edge), buttons, drag anywhere to look (pointer events on `document`, not on controls), gyro look (`setGyro`, deltas of heading/elevation from `deviceorientation`, `roll` for the 3D glasses), close button for inventory/chat |
 | `gamepad.js` | Gamepad API, console layout, polled per frame; `recent` = used within a minute (then `lockPointer` is skipped like on touch); d-pad/A/B navigate the game menu (`.pad-focus`) |
 | `vr.js` | 3D glasses: `StereoCamera` for world and hand scene, half-screen viewports, own HUD canvas (hotbar, hearts, food) and crosshair in the hand scene. Lens correction (setting 0-150 %, Cardboard K1 0.34 / K2 0.55 at 100 %): both eyes go into a render target (its own `viewport`/`scissor`), then a full-screen shader bends each half like a barrel. Only while playing (`stereoOn`); screens (inventory, menu, chat) show normally |
@@ -301,4 +311,3 @@ heads cut from the mob pictures, end portal stars, copper chests); keeps everyth
   parts turned around two axes (Minecraft's order). `leftTwin()` mirrors right-side parts (ender dragon).
   Baby mobs use the adult picture and model (26.x babies have own pictures: `goat_baby`, `axolotl_*_baby` ...).
 - Warden glow layers (`warden_bioluminescent_layer`, heart, pulsating spots) are not drawn yet.
-- First-person arm with the player's own skin (needs the own skin hash from the server).

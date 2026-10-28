@@ -87,7 +87,7 @@ export class Hand {
     if (!this.itemKey || !this.palette) {
       // Empty hand: the arm of the skin where Minecraft puts it, else a plain arm from the bottom right corner
       if (this.skinArm === undefined && this.palette) {
-        this.skinArm = firstPersonArm();
+        this.skinArm = firstPersonArm(this.skin, this.slim);
         if (this.skinArm) {
           this.skinArm.matrixAutoUpdate = false;
           this.skinArm.matrix.copy(ARM_MATRIX).multiply(new THREE.Matrix4().makeScale(1 / 16, 1 / 16, 1 / 16));
@@ -111,6 +111,14 @@ export class Hand {
     }
     this.itemModel = m;
     this.itemHolder.add(m);
+  }
+
+  /** Own skin (texture hash from the server, null: Steve); the arm is rebuilt once its picture is there. */
+  setSkin(hash, slim) {
+    this.skin = hash || null;
+    this.slim = !!slim;
+    this.dropSkinArm();
+    this.rebuildItem();
   }
 
   /** New textures: the skin arm is built again with the next empty hand. */

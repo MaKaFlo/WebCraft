@@ -475,6 +475,7 @@ public final class WcMod implements ModInitializer, WcHost {
         welcome.addProperty("t", "welcome");
         welcome.addProperty("name", fullName);
         welcome.addProperty("entityId", p.getId());
+        skins.addTo(welcome, p.getGameProfile());   // own skin (F5, hand)
         addWorld(welcome, level);
         welcome.addProperty("viewDistance", viewDistance);
         addPos(welcome, p);

@@ -572,7 +572,7 @@ class Entity {
   }
 
   update(dt) {
-    const t = 1 - Math.exp(-dt * 12);
+    const t = this.exact ? 1 : 1 - Math.exp(-dt * 12);   // our own figure (F5) sits exactly where we are
     const px = this.x, pz = this.z;
     const d = this.target;
     this.x += (d.x - this.x) * t;
@@ -734,7 +734,7 @@ export class Entities {
       let e = this.map.get(d.i);
       // Rebuild when the type or the hologram text changed
       if (e && (e.type !== d.type || (d.txt !== undefined && e.target.txt !== d.txt) ||
-        (e.lookKey !== undefined && e.lookKey !== lookKey(d)))) { e.dispose(this.scene); e = null; }
+        (e.lookKey !== undefined && e.lookKey !== lookKey(d)))) { this.disposeOne(e); e = null; }
       if (!e) {
         if (d.type === 'lightning_bolt') this.onLightning?.();
         e = new Entity(d, this.palette);
@@ -745,16 +745,65 @@ export class Entities {
       e.target = d;
     }
     for (const [id, e] of this.map) {
-      if (!seen.has(id)) { e.dispose(this.scene); this.map.delete(id); }
+      if (!seen.has(id)) { this.disposeOne(e); this.map.delete(id); }
     }
   }
 
   update(dt) {
-    for (const e of this.map.values()) {
+    const all = this.self ? [...this.map.values(), this.self] : this.map.values();
+    for (const e of all) {
       e.update(dt);
       e.lightT = (e.lightT ?? 0) - dt;
       if (e.lightT <= 0) { e.lightT = 0.3 + Math.random() * 0.1; this.light(e); }
+      if (this.showHitboxes) this.hitbox(e);
+      else if (e.hitbox) e.hitbox.visible = false;
     }
+  }
+
+  /** Like Minecraft's F3+B: a white box around every entity and a blue line where it looks. */
+  hitbox(e) {
+    const d = e.target;
+    if (!e.hitbox) {
+      const w = d.w || e.w || 0.6, h = d.h || e.h || 1.8;
+      const box = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, w).translate(0, h / 2, 0)),
+        new THREE.LineBasicMaterial({ color: 0xffffff }));
+      const eye = h * 0.85;
+      const look = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 2)]),
+        new THREE.LineBasicMaterial({ color: 0x3050ff }));
+      look.position.y = eye;
+      look.rotation.order = 'YXZ';
+      box.add(look);
+      box.userData.look = look;
+      e.hitbox = box;
+      this.scene.add(box);
+    }
+    e.hitbox.visible = !e.hidden;
+    e.hitbox.position.set(e.x, e.y, e.z);
+    const look = e.hitbox.userData.look;
+    look.visible = !e.static && !d.proj && d.type !== 'item';
+    look.rotation.set((e.pitch || 0) * Math.PI / 180, -(e.headYaw || 0) * Math.PI / 180, 0);
+  }
+
+  /** Third person (F5): our own figure from our data (null: hide it). */
+  showSelf(d) {
+    if (!d) {
+      if (this.self) { this.disposeOne(this.self); this.self = null; }
+      return;
+    }
+    if (this.self && this.self.lookKey !== lookKey(d)) { this.disposeOne(this.self); this.self = null; }
+    if (!this.self) {
+      this.self = new Entity(d, this.palette);
+      this.self.exact = true;
+      this.self.lookKey = lookKey(d);
+      this.self.lightT = 0;
+      this.scene.add(this.self.group);
+    }
+    this.self.target = d;
+  }
+
+  disposeOne(e) {
+    if (e.hitbox) { this.scene.remove(e.hitbox); e.hitbox.geometry.dispose(); e.hitbox = null; }
+    e.dispose(this.scene);
   }
 
   /** Animations from the server: [entity id, kind] (0 swing, 1 hurt, 3 offhand swing, 4/5 crit). */
@@ -788,7 +837,8 @@ export class Entities {
   }
 
   clear() {
-    for (const e of this.map.values()) e.dispose(this.scene);
+    for (const e of this.map.values()) this.disposeOne(e);
+    this.showSelf(null);
     this.map.clear();
   }
 }

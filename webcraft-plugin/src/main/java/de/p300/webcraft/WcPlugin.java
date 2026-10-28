@@ -361,6 +361,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         welcome.addProperty("t", "welcome");
         welcome.addProperty("name", fullName);
         welcome.addProperty("entityId", p.getEntityId());
+        skins.addTo(welcome, ((org.bukkit.craftbukkit.entity.CraftPlayer) p).getHandle().getGameProfile());   // own skin (F5, hand)
         welcome.addProperty("world", loc.getWorld().getName());
         welcome.addProperty("minY", loc.getWorld().getMinHeight());
         welcome.addProperty("maxY", loc.getWorld().getMaxHeight());
