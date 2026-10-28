@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-10-28, version 0.17.0 (main; check CI after the push)._
+_Last update: 2026-10-28, version 0.17.0 (main, CI green)._
 
 ## Current state
 
