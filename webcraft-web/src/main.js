@@ -21,6 +21,7 @@ import { Particles } from './particles.js';
 import { Weather } from './weather.js';
 import { addPlayerSkin, setSkinRequester } from './skins.js';
 import pixelFont from './mcfont.ttf';
+import { TouchControls, isTouch } from './touch.js';
 
 const SKIES = {
   NORMAL: 0x9fc9ff,
@@ -28,7 +29,7 @@ const SKIES = {
   THE_END: 0x150f22,
 };
 // Settings (kept in the browser)
-const settings = { sens: 15, fov: 75, autoJump: true, vol: 60 };
+const settings = { sens: 15, fov: 75, autoJump: true, vol: 60, gyro: false };
 // Settings saved under the old name (gg.*) move over once
 try {
   for (const k of ['settings', 'server', 'name']) {
@@ -448,6 +449,11 @@ ui.form.addEventListener('submit', (e) => {
   }
   localStorage.setItem('wc.name', name);
   localStorage.setItem('wc.skin', ui.skin.value.trim());
+  if (touch) {
+    // Phones: whole screen, turned sideways (Android; iPhones ignore it), gyro asks for permission on this tap
+    document.documentElement.requestFullscreen?.().then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
+    if (settings.gyro) touch.setGyro(true).then((ok) => { if (!ok) { settings.gyro = false; saveSettings(); } });
+  }
   connect(url, name);
 });
 
@@ -540,6 +546,7 @@ document.addEventListener('keyup', (e) => {
 
 function lockPointer() {
   if (dead || inventory.open || chatOpen || !ui.pause.hidden || studio.isOpen) return;
+  if (touch) { ui.resume.hidden = true; return; }   // phones play without a mouse
   if (escDown) { lockAfterEsc = true; return; }
   // After Esc the browser only allows this on the next click; then we ask for that click
   const p = renderer.domElement.requestPointerLock?.();
@@ -577,6 +584,7 @@ function syncSettingsUi() {
   $('s-sens').value = settings.sens; $('s-sens-v').textContent = settings.sens;
   $('s-fov').value = settings.fov; $('s-fov-v').textContent = settings.fov + '°';
   $('s-autojump').checked = player.autoJump;
+  $('s-gyro').checked = !!touch?.gyroOn;
   $('s-vol').value = settings.vol; $('s-vol-v').textContent = settings.vol + '%';
 }
 $('s-vol').addEventListener('input', (e) => {
@@ -596,6 +604,12 @@ $('s-fov').addEventListener('input', (e) => {
   saveSettings();
 });
 $('s-autojump').addEventListener('change', (e) => { player.autoJump = settings.autoJump = e.target.checked; saveSettings(); });
+$('s-gyro').addEventListener('change', async (e) => {
+  const ok = await touch?.setGyro(e.target.checked);
+  settings.gyro = !!(e.target.checked && ok);
+  e.target.checked = settings.gyro;
+  saveSettings();
+});
 
 function openChat(prefix = '') {
   chatOpen = true;
@@ -634,6 +648,17 @@ function addChat(text, cls) {
 }
 
 renderer.domElement.addEventListener('click', () => { if (connected) { ui.resume.hidden = true; lockPointer(); } });
+
+// Phones and tablets: joystick, buttons, look by dragging (and the gyro when switched on)
+const touch = isTouch ? new TouchControls({
+  player, interaction, inventory, settings, sendInput, lookEl: renderer.domElement,
+  notice: (text) => showNotice(text),
+  openInventory: () => inventory.setOpen(true),
+  closeOverlay: () => { if (chatOpen) closeChat(); else if (inventory.open) inventory.setOpen(false); },
+  openChat: () => openChat(),
+  openMenu: () => showMenu(),
+  drop: () => send({ t: 'drop', all: false }),
+}) : null;
 
 const isLocked = () => document.pointerLockElement === renderer.domElement;
 
@@ -747,7 +772,9 @@ function frame(now) {
     world.setCenter(Math.floor(player.x) >> 4, Math.floor(player.z) >> 4);
     world.processDirty(8, player.x, player.y, player.z);
     entities.update(dt);
-    interaction.update(dt, isLocked() && !dead);
+    const playing = connected && !dead && !inventory.open && !chatOpen && ui.pause.hidden && !studio.isOpen;
+    touch?.update(playing, connected && (inventory.open || chatOpen));
+    interaction.update(dt, (isLocked() || (touch && playing)) && !dead);
     hud.tick(dt);
 
     sendTimer += dt;
