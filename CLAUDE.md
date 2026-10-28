@@ -3,6 +3,20 @@
 Guide for continuing work on **WebCraft**: a browser block game whose players join a Paper 26.3 or
 Fabric 26.3 Minecraft server as real server players. Read README.md for the user-facing side.
 
+**Start of every session: read [HANDOFF.md](HANDOFF.md) first.** It holds the current state, what was done last,
+open problems and the next steps.
+
+## Session handoff (HANDOFF.md)
+
+- `HANDOFF.md` in the repo root is the hand-over between sessions. Keep it current and **commit + push it**.
+- Update it (and commit + push) after every larger finished task, and also during long sessions: a session can end
+  without warning, so the file in the repo must never be far behind.
+- Contents: current version and state, what was done in the last session(s), things that are known to be broken or
+  untested, open wishes of the owner, next steps, useful local paths (test servers, texture pack sources).
+  Keep it short; details belong in this file or the README.
+- **Ending a session** (when the owner asks to end it) always means: update `HANDOFF.md`, commit and push
+  everything, stop test servers.
+
 ## History
 
 The project was called **gg** until 0.6.5 (plugin "GgBridge", name prefix `gg_`, classes `Gg*`).
