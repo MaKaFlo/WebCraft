@@ -971,6 +971,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
             if (e instanceof org.bukkit.entity.Cow c) return c.getVariant().getKey().getKey();
             if (e instanceof org.bukkit.entity.Pig p) return p.getVariant().getKey().getKey();
             if (e instanceof org.bukkit.entity.Chicken c) return c.getVariant().getKey().getKey();
+            if (e instanceof org.bukkit.entity.TropicalFish t) return t.getPattern().name().toLowerCase();
         } catch (Throwable ignored) {
             // API differs on this server version: just the default look
         }
@@ -1078,6 +1079,10 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
             if (e instanceof org.bukkit.entity.Sheep sheep) {
                 if (sheep.getColor() != null) o.addProperty("col", sheep.getColor().getColor().asRGB());
                 if (sheep.isSheared()) o.addProperty("sheared", true);
+            }
+            if (e instanceof org.bukkit.entity.TropicalFish fish) {
+                o.addProperty("col", fish.getBodyColor().getColor().asRGB());
+                o.addProperty("col2", fish.getPatternColor().getColor().asRGB());
             }
             if (le instanceof org.bukkit.entity.Ageable ag && !ag.isAdult()) o.addProperty("baby", true);
             if (le.getEquipment() != null) {

@@ -79,15 +79,19 @@ function moonTexture(phase) {
   });
 }
 
-/** Darkens the unlit (MeshBasic) materials below `root` for the night (not glowing eyes); the own color is kept in userData. */
-export function dimUnlit(root, b) {
+/**
+ * Darkens the unlit (MeshBasic) materials below `root` to b (not glowing eyes); the own color is kept in userData.
+ * lit: factor for the lit (Lambert) materials on top of the scene lights (dark places like caves), default 1.
+ */
+export function dimUnlit(root, b, lit = 1) {
   root.traverse((o) => {
     const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
     for (const m of mats) {
-      if (!m.isMeshBasicMaterial || m.userData.noTint || m.userData.dimmed === b) continue;
+      const f = m.isMeshBasicMaterial ? b : m.isMeshLambertMaterial ? lit : null;
+      if (f === null || m.userData.noTint || m.userData.dimmed === f) continue;
       m.userData.baseColor ??= m.color.clone();
-      m.color.copy(m.userData.baseColor).multiplyScalar(b);
-      m.userData.dimmed = b;
+      m.color.copy(m.userData.baseColor).multiplyScalar(f);
+      m.userData.dimmed = f;
     }
   });
 }

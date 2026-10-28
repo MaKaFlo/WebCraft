@@ -2,7 +2,7 @@
 
 Ein Block-Spiel im Browser, das sich mit einem **Minecraft-Server** verbindet: **Paper** (als Plugin) oder **Fabric** (als Mod, damit auch für Vanilla). WebCraft-Spieler sind auf dem Server **echte Spieler**: Sie stehen in der Tab-Liste, bekommen Schaden, sterben, benutzen Befehle und Menüs von Plugins und Mods. Für den Server gibt es keinen Unterschied zu einem Minecraft-Spieler. So können Leute ohne Minecraft-Account mit Freunden auf dem Server spielen.
 
-Version 0.15.1 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
+Version 0.16.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
 
 ## Aufbau
 
@@ -165,7 +165,7 @@ Das Bild wird auf 32×32 Pixel verkleinert (bei Items wird der Hintergrund entfe
 - ✅ Lifesteal: mehr als 10 Herzen werden angezeigt, verlorene und gewonnene Herzen auch
 - ✅ Plugin-Befehle und Plugin-Menüs (Truhen-GUIs), Rechts- und Linksklick-Abilities
 - ✅ Truhen, Öfen, Werkbank, Türen, Betten, Eimer: alles über den echten Server
-- ✅ Mobs mit echten Texturen und Minecraft-Form: Spieler, Zombie (auch Wüsten-, Wasser- und Dorfbewohner-Zombie), Skelett (auch Eiswanderer, Witherskelett), Creeper, Kuh, Pilzkuh, Schwein, Schaf (Wolle in ihrer Farbe), Huhn, Spinne, Höhlenspinne, Enderman, Dorfbewohner (nach Beruf), Wolf, Eisengolem, Schneegolem, Katze (alle Fellarten), Ozelot, Fuchs (auch Polarfuchs), Biene, Pferd (nach Farbe), Esel, Maultier, Skelett- und Zombiepferd, Schleim, Magmawürfel, Hexe, Fahrender Händler, Plünderer, Diener, Magier, Piglin, Piglin-Barbar, Zombifizierter Piglin, Eisbär, Panda, Hase, Lama, Papagei, Kabeljau, Lachs, Kugelfisch, Ghast, Blaze, Tintenfisch, Leuchttintenfisch, Silberfischchen, Endermilbe, Wächter, Großer Wächter, Schildkröte, Delfin, Phantom, Hoglin, Zoglin, Schreiter, Plagegeist, Hilfsgeist, Shulker, Wither. Rüstung mit Textur, Item in der Hand
+- ✅ Mobs mit echten Texturen und Minecraft-Form: Spieler, Zombie (auch Wüsten-, Wasser- und Dorfbewohner-Zombie), Skelett (auch Eiswanderer, Witherskelett), Creeper, Kuh, Pilzkuh, Schwein, Schaf (Wolle in ihrer Farbe), Huhn, Spinne, Höhlenspinne, Enderman, Dorfbewohner (nach Beruf), Wolf, Eisengolem, Schneegolem, Katze (alle Fellarten), Ozelot, Fuchs (auch Polarfuchs), Biene, Pferd (nach Farbe), Esel, Maultier, Skelett- und Zombiepferd, Schleim, Magmawürfel, Hexe, Fahrender Händler, Plünderer, Diener, Magier, Piglin, Piglin-Barbar, Zombifizierter Piglin, Eisbär, Panda, Hase, Lama, Papagei, Kabeljau, Lachs, Kugelfisch, Ghast, Blaze, Tintenfisch, Leuchttintenfisch, Silberfischchen, Endermilbe, Wächter, Großer Wächter, Schildkröte, Delfin, Phantom, Hoglin, Zoglin, Schreiter, Plagegeist, Hilfsgeist, Shulker, Wither, Fledermaus, Frosch, Axolotl, Ziege, Kamel, Gürteltier, Schnüffler, Wärter, Verwüster, Breeze, Tropenfisch (mit Muster und Farben), Enderdrache. Rüstung mit Textur, Item in der Hand
 - ✅ Fließendes Wasser und Lava wie in Minecraft: die Oberfläche fällt zum Rand hin ab, die Textur fließt bergab, Wasserfälle
 - ✅ Steinsäge (Rezept auswählen), Webstuhl (Muster auswählen), Leuchtfeuer (Effekte auswählen und bezahlen)
 - ✅ Mobs und Tiere als Blockfiguren mit eigener Form: Creeper, Spinne, Huhn, Biene, Fledermaus, Papagei, Fische, Delfin, Tintenfisch, Ghast, Blaze, Breeze, Phantom, Wächter, Schleim, Shulker, Wither, Enderdrache ... Tiere mit Schwanz, Hörnern, Ohren, langem Hals. Flügel schlagen, Tentakel wackeln
@@ -200,10 +200,12 @@ Das Bild wird auf 32×32 Pixel verkleinert (bei Items wird der Hintergrund entfe
 - ✅ Alle Blöcke haben eine Textur, auch die neueren (Kerzen, Köpfe, Kupferkisten, Froschlichter, Amethyst, Tropfblatt, Endportal ...)
 - ✅ Licht: Fackeln, Lava, Glowstone, Laternen ... leuchten wie in Minecraft (weiche Übergänge, warmes Licht), nachts und in Höhlen
 - ✅ Wetter wie auf dem Server: Regen (nicht unter Dächern), Schnee in kalten Biomen, grauer Himmel, Gewitter mit Blitzen und Donner
+- ✅ Himmelslicht: Höhlen und Räume sind dunkel, unter Dächern und Bäumen wird es schattig, Licht fällt durch Öffnungen herein; Mobs und die eigene Hand werden im Dunkeln auch dunkel
+- ✅ Spielmenü in Minecrafts Pixelschrift (aus Faithful, mit Umlauten), leere Hand wie in Minecraft (Arm mit Skin-Textur)
 
 ### Noch offen
 
-- ⏳ Die letzten Mobs mit Textur: Fledermaus, Frosch, Axolotl, Ziege, Kamel, Gürteltier, Schnüffler, Wärter, Verwüster, Breeze, Tropenfisch, Enderdrache (noch Blockfiguren)
+- ⏳ Echte Sounds, Steuerung für Handys, eigenen Skin hochladen (Ideen)
 
 ## Gegen Griefing
 
@@ -212,6 +214,6 @@ Jeder Block, den ein WebCraft-Spieler abbaut oder setzt, steht in `plugins/WebCr
 ## Lizenzen
 
 - Eingebaute Texturen (`webcraft-web/src/texturen.zip`): **[Faithful 32x](https://faithfulpack.net)** (Copyright Faithful Resource Pack, Lizenz: [faithfulpack.net/license](https://faithfulpack.net/license), Kopie in `LICENSE-Faithful.txt` und in der ZIP). Blöcke, Items, Kisten, Rüstungen und die meisten Mobs sind aus Faithful; Dorfbewohner sind aus Haut, Kleidung und Beruf zusammengesetzt, die Kistenseiten aus dem Kistenmodell geschnitten, die Enderman-Augen aus seinem Bild gemacht. Mobs, deren Bild in Faithful ein neueres Layout hat (Kuh, Pilzkuh, Schwein, Hase, Magmawürfel), sind noch aus **Pixel Perfection Community Edition** (XSSheep und Community, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)). Keine Minecraft-Originalgrafik.
-- Neu bauen: `python3 tools/make_pack.py <Faithful-Ordner> tools/items.json webcraft-web/src/texturen.zip`, dann `python3 tools/make_pack.py --entities <Faithful-Ordner> <PixelPerfectionCE-Ordner> webcraft-web/src/texturen.zip` (Mobs: das erste Paket mit passendem Bild gewinnt).
+- Neu bauen: `python3 tools/make_pack.py <Faithful-Ordner> tools/items.json webcraft-web/src/texturen.zip`, dann `python3 tools/make_pack.py --entities <Faithful-Ordner> <PixelPerfectionCE-Ordner> webcraft-web/src/texturen.zip` (Mobs: das erste Paket mit passendem Bild gewinnt). Pixelschrift: `python3 tools/make_font.py <Faithful-Ordner> webcraft-web/src/mcfont.ttf` (braucht `pip install fonttools`).
 - three.js: MIT. Java-WebSocket: MIT (im Plugin-Jar enthalten, verschoben nach `de.p300.webcraft.lib.websocket`).
 - Minecraft ist eine Marke von Mojang/Microsoft. WebCraft ist kein offizielles Produkt.

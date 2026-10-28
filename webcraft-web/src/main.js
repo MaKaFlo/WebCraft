@@ -20,6 +20,7 @@ import { Sky } from './sky.js';
 import { Particles } from './particles.js';
 import { Weather } from './weather.js';
 import { addPlayerSkin, setSkinRequester } from './skins.js';
+import pixelFont from './mcfont.ttf';
 
 const SKIES = {
   NORMAL: 0x9fc9ff,
@@ -76,6 +77,7 @@ const weather = new Weather(scene, world, particles);
 const player = new Player(world);
 player.autoJump = settings.autoJump;
 const entities = new Entities(scene);
+entities.world = world;
 const hud = new Hud();
 const tablist = new TabList($('tablist'));
 const hand = new Hand();
@@ -134,6 +136,11 @@ const studio = new Studio({
   },
 });
 
+// Minecraft's pixel font (built from the Faithful pack by tools/make_font.py) for the game menu
+const fontStyle = document.createElement('style');
+fontStyle.textContent = `@font-face { font-family: 'WebCraft Pixel'; src: url(data:font/ttf;base64,${pixelFont}) format('truetype'); }`;
+document.head.appendChild(fontStyle);
+
 /** Game menu in Minecraft's look: buttons and sliders from the texture pack (when it has them). */
 function applyGuiPictures() {
   const pics = { '--mc-button': 'gui/button', '--mc-button-hl': 'gui/button_highlighted', '--mc-slider': 'gui/slider',
@@ -155,6 +162,7 @@ pack.onChange(() => {
   clearIconCache();
   inventory.refreshIcons();
   entities.rebuild();
+  hand.dropSkinArm();
   hand.rebuildItem();
 });
 
@@ -345,6 +353,7 @@ function setWorld(msg) {
   scene.background.setHex(color);
   scene.fog.color.setHex(color);
   sky.setEnv(msg.env);
+  world.setEnv(msg.env);
   const far = (world.viewDistance + 1) * 16;
   scene.fog.near = msg.env === 'NETHER' ? 8 : far * 0.55;
   scene.fog.far = msg.env === 'NETHER' ? far * 0.6 : far;
@@ -725,7 +734,7 @@ document.addEventListener('wheel', (e) => {
 let last = performance.now();
 let fps = 0, fpsFrames = 0, fpsTime = 0;
 let hudTime = 0;
-let shownLight = 1;
+let shownLight = 1, handLight = 1, handLightT = 0;
 
 function frame(now) {
   requestAnimationFrame(frame);
@@ -770,6 +779,8 @@ function frame(now) {
     weather.snowMat.color.setScalar(light);
     if (Math.abs(light - shownLight) > 0.004) { shownLight = light; world.setBrightness(light); entities.setBrightness(light); }
     particles.brightness = light;
+    handLightT -= dt;
+    if (handLightT <= 0 && world.palette) { handLightT = 0.25; handLight = world.brightnessAt(player.x, player.eyeY, player.z, light); }
     particles.update(dt, player.x, player.eyeY, player.z);
 
     if (!ui.loading.hidden && player.groundLoaded() && world.dirty.size < 20) ui.loading.hidden = true;
@@ -779,7 +790,7 @@ function frame(now) {
   renderer.render(scene, camera);
   if (connected && world.palette && !dead && hand.visibleMode !== false) {
     renderer.autoClear = false;
-    hand.render(renderer, shownLight);
+    hand.render(renderer, handLight);
     renderer.autoClear = true;
   }
 

@@ -98,11 +98,11 @@
      pictures: 200x20 with a border of 20 left/right and 4 top/bottom, shown at GUI scale 2) */
   #pause { background: rgba(0, 0, 0, 0.4); }   /* the world stays visible behind the menu */
   #pause .card, #pause .card.menu { background: none; border: none; box-shadow: none; color: #fff; width: min(416px, 100%); }
-  #pause h2 { color: #fff; font-size: 20px; font-weight: 400; text-shadow: 2px 2px 0 #3f3f3f; margin-bottom: 26px; }
+  #pause h2 { color: #fff; font: 400 16px var(--pixel); text-shadow: 2px 2px 0 #3f3f3f; margin-bottom: 26px; }
   #pause .menu-page { gap: 8px; }
   .mc-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   #pause .mbtn {
-    height: 40px; padding: 0 8px; font: 400 17px var(--mono); color: #fff; text-shadow: 2px 2px 0 #3f3f3f;
+    height: 40px; padding: 0 8px; font: 400 16px var(--pixel); color: #fff; text-shadow: 2px 2px 0 #3f3f3f;
     background: #6f6f6f; border: 2px solid #000; box-shadow: inset 2px 2px 0 #a9a9a9, inset -2px -4px 0 #555;
     image-rendering: pixelated;
   }
@@ -115,7 +115,9 @@
   #pause .mbtn.primary, #pause .mbtn.danger { background-color: #6f6f6f; color: #fff; }
   #pause.mc-gui .mbtn.primary, #pause.mc-gui .mbtn.danger { background: none; }
   #pause .mbtn.primary:hover, #pause .mbtn.danger:hover { color: #ffffa0; }
-  #pause .setting { color: #fff; text-shadow: 2px 2px 0 #3f3f3f; font-weight: 400; }
+  #pause .setting { color: #fff; text-shadow: 2px 2px 0 #3f3f3f; font: 400 16px var(--pixel); }
+  /* Pixel font: Minecraft's GUI scale 2 (one font pixel = 2 screen pixels), crisp edges */
+  #pause { --pixel: 'WebCraft Pixel', var(--mono); -webkit-font-smoothing: none; font-smooth: never; }
   #pause.mc-gui .setting input[type=range] {
     -webkit-appearance: none; appearance: none; height: 40px; background: none; image-rendering: pixelated;
     border-style: solid; border-width: 8px 4px; border-image: var(--mc-slider) 8 40 fill;

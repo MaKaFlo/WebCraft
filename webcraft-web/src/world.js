@@ -48,16 +48,17 @@ function rayBox(ox, oy, oz, dx, dy, dz, b) {
 }
 
 class GeoBuilder {
-  constructor() { this.pos = []; this.col = []; this.uv = []; this.idx = []; this.light = []; }
+  constructor() { this.pos = []; this.col = []; this.uv = []; this.idx = []; this.light = []; this.sky = []; }
   get empty() { return this.idx.length === 0; }
-  /** light: block light per corner (0..1), or null for none. */
-  quad(p, c, flip, uv, light = null) {
+  /** light: block light per corner (0..1), or null for none; sky: sky light per corner (0..1), null = open sky. */
+  quad(p, c, flip, uv, light = null, sky = null) {
     const base = this.pos.length / 3;
     for (let i = 0; i < 4; i++) {
       this.pos.push(p[i][0], p[i][1], p[i][2]);
       this.col.push(c[i][0], c[i][1], c[i][2], c[i][3]);
       this.uv.push(uv[i][0], uv[i][1]);
       this.light.push(light ? light[i] : 0);
+      this.sky.push(sky ? sky[i] : 1);
     }
     if (flip) this.idx.push(base + 1, base + 2, base + 3, base + 1, base + 3, base);
     else this.idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
@@ -68,6 +69,7 @@ class GeoBuilder {
     g.setAttribute('color', new THREE.Float32BufferAttribute(this.col, 4));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(this.uv, 2));
     g.setAttribute('light', new THREE.Float32BufferAttribute(this.light, 1));
+    g.setAttribute('sky', new THREE.Float32BufferAttribute(this.sky, 1));
     g.setIndex(this.idx);
     g.computeBoundingSphere();
     return g;
@@ -81,21 +83,22 @@ const lightCurve = (level) => {
   return (x + 1 - (1 - x) ** 4) / 2;
 };
 
-/** World materials: vertex colors times max(sky brightness, warm block light). */
+/** World materials: vertex colors times max(sky brightness x sky light, warm block light, a little cave ambient). */
 const skyUniform = { value: 1 };
 function withBlockLight(mat) {
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.uSky = skyUniform;
-    shader.vertexShader = 'attribute float light;\nvarying float vLight;\n' + shader.vertexShader
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvLight = light;');
-    shader.fragmentShader = 'uniform float uSky;\nvarying float vLight;\n' + shader.fragmentShader
+    shader.vertexShader = 'attribute float light;\nattribute float sky;\nvarying float vLight;\nvarying float vSkyL;\n' + shader.vertexShader
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvLight = light;\nvSkyL = sky;');
+    shader.fragmentShader = 'uniform float uSky;\nvarying float vLight;\nvarying float vSkyL;\n' + shader.fragmentShader
       .replace('#include <color_fragment>', '#include <color_fragment>\n'
-        + 'diffuseColor.rgb *= max(vec3(uSky), vec3(vLight, vLight * 0.9, vLight * 0.75));');
+        + 'diffuseColor.rgb *= max(vec3(max(uSky * vSkyL, 0.05)), vec3(vLight, vLight * 0.9, vLight * 0.75));');
   };
   return mat;
 }
 
 const R = 48;   // light region: the section and its 26 neighbours
+export { lightCurve };
 
 export class World {
   constructor(scene) {
@@ -128,6 +131,15 @@ export class World {
     this.lightIds = new Uint16Array(R * R * R);
     this.lightLevels = new Uint8Array(R * R * R);
     this.lightQueue = new Int32Array(R * R * R);
+    this.skyLevels = new Uint8Array(R * R * R);
+    this.skyQueue = new Int32Array(R * R * R);
+    this.skyTops = new Int16Array(R * R);
+    this.hasSky = true;
+  }
+
+  /** Only the overworld has sky light (nether and end stay as they are). */
+  setEnv(env) {
+    this.hasSky = env === 'NORMAL';
   }
 
   /** Day/night: all block materials get darker (1 = full daylight). */
@@ -158,6 +170,29 @@ export class World {
     return n;
   }
 
+  /** World y of the first cell from which the column is open sky (one above the highest block that stops or dims sky light). */
+  columnTop(c, x, z) {
+    const P = this.palette;
+    const ys = c.sortedY ??= [...c.sections.keys()].sort((a, b) => b - a);
+    for (const sy of ys) {
+      const sec = c.sections.get(sy);
+      for (let y = 15; y >= 0; y--) {
+        const id = sec[(y * S + z) * S + x];
+        if (P.skyStop[id] || P.skyDim[id]) return sy * 16 + y + 1;
+      }
+    }
+    return this.minY;
+  }
+
+  /** Sky heights of a chunk per column (z * 16 + x), cached. */
+  heights(c) {
+    if (!c.top) {
+      c.top = new Int16Array(256);
+      for (let z = 0; z < 16; z++) for (let x = 0; x < 16; x++) c.top[z * 16 + x] = this.columnTop(c, x, z);
+    }
+    return c.top;
+  }
+
   /** The section and its neighbours need new light (a light block or a wall near one changed). */
   markLightAround(cx, cz, sy) {
     for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) for (let dy = -1; dy <= 1; dy++) {
@@ -167,12 +202,36 @@ export class World {
   }
 
   /**
-   * Block light like Minecraft for the 3x3x3 sections around one section: flood fill from every light
-   * block, one level less per step, not through full opaque blocks. Returns the levels (index
-   * ((y * R) + z) * R + x, the section starts at 16,16,16) or null when no light block is near.
+   * Light like Minecraft for the 3x3x3 sections around one section (index ((y * R) + z) * R + x, the
+   * section starts at 16,16,16). block: flood fill from every light block, one level less per step, not
+   * through full opaque blocks; null when no light block is near. sky: 15 in open sky (above the column's
+   * top), flooding sideways and down under roofs and into caves; a number when it is the same everywhere.
    */
   computeLight(cx, cz, sy) {
-    if (!this.emittersAround(cx, cz, sy)) return null;
+    const needBlock = this.emittersAround(cx, cz, sy) > 0;
+    const y0 = (sy - 1) * 16;
+    let sky = 15;
+    const H = this.skyTops;
+    if (this.hasSky) {
+      const own = this.chunks.get(chunkKey(cx, cz));
+      let lo = Infinity, hi = -Infinity;
+      for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+        // A missing neighbour (edge of the view) is taken as like this chunk
+        const t = this.heights(this.chunks.get(chunkKey(cx + dx, cz + dz)) || own);
+        const bx = (dx + 1) * 16, bz = (dz + 1) * 16;
+        for (let z = 0; z < 16; z++) for (let x = 0; x < 16; x++) {
+          const v = t[z * 16 + x];
+          H[(bz + z) * R + bx + x] = v;
+          if (v < lo) lo = v;
+          if (v > hi) hi = v;
+        }
+      }
+      if (hi <= y0) sky = 15;            // open sky everywhere
+      else if (lo >= y0 + R) sky = 0;    // deep down: no open sky in reach
+      else sky = this.skyLevels;
+    }
+    if (!needBlock && sky !== this.skyLevels) return { block: null, sky };
+
     const P = this.palette, ids = this.lightIds, lv = this.lightLevels, q = this.lightQueue;
     ids.fill(0); lv.fill(0);
     let head = 0, tail = 0;
@@ -189,11 +248,13 @@ export class World {
             const id = sec[src + x];
             ids[dst + x] = id;
             const e = P.emit[id];
-            if (e) { lv[dst + x] = e; q[tail++] = dst + x; }
+            if (needBlock && e) { lv[dst + x] = e; q[tail++] = dst + x; }
           }
         }
       }
     }
+    if (sky === this.skyLevels) this.floodSky(y0);
+    if (!needBlock) return { block: null, sky };
     const occ = P.occluding;
     while (head < tail) {
       const i = q[head++];
@@ -208,7 +269,73 @@ export class World {
       if (y > 0) spread(i - R * R);
       if (y < R - 1) spread(i + R * R);
     }
-    return lv;
+    return { block: lv, sky };
+  }
+
+  /** Sky light of the region whose ids are in lightIds and column tops in skyTops (y0: world y of the region's bottom). */
+  floodSky(y0) {
+    const P = this.palette, ids = this.lightIds, sl = this.skyLevels, q = this.skyQueue, H = this.skyTops;
+    const stop = P.skyStop;
+    sl.fill(0);
+    let head = 0, tail = 0;
+    for (let z = 0; z < R; z++) for (let x = 0; x < R; x++) {
+      const col = z * R + x, top = H[col];
+      // Neighbour columns that are covered lower than here get light from the side
+      const side = Math.max(x > 0 ? H[col - 1] : 0, x < R - 1 ? H[col + 1] : 0, z > 0 ? H[col - R] : 0, z < R - 1 ? H[col + R] : 0);
+      for (let y = Math.max(0, top - y0); y < R; y++) {
+        const i = (y * R + z) * R + x;
+        if (stop[ids[i]]) continue;
+        sl[i] = 15;
+        if (y0 + y === top || y0 + y < side) q[tail++] = i;
+      }
+    }
+    while (head < tail) {
+      const i = q[head++];
+      const l = sl[i] - 1;
+      if (l <= 0) continue;
+      const x = i % R, z = ((i / R) | 0) % R, y = (i / (R * R)) | 0;
+      if (x > 0 && sl[i - 1] < l && !stop[ids[i - 1]]) { sl[i - 1] = l; q[tail++] = i - 1; }
+      if (x < R - 1 && sl[i + 1] < l && !stop[ids[i + 1]]) { sl[i + 1] = l; q[tail++] = i + 1; }
+      if (z > 0 && sl[i - R] < l && !stop[ids[i - R]]) { sl[i - R] = l; q[tail++] = i - R; }
+      if (z < R - 1 && sl[i + R] < l && !stop[ids[i + R]]) { sl[i + R] = l; q[tail++] = i + R; }
+      if (y > 0 && sl[i - R * R] < l && !stop[ids[i - R * R]]) { sl[i - R * R] = l; q[tail++] = i - R * R; }
+      if (y < R - 1 && sl[i + R * R] < l && !stop[ids[i + R * R]]) { sl[i + R * R] = l; q[tail++] = i + R * R; }
+    }
+  }
+
+  /**
+   * Light levels at a point for mobs and the hand: { sky, block } (0..15), estimated without the flood fill
+   * (sky from the column tops nearby, block light from light blocks within a few blocks).
+   */
+  lightAt(x, y, z) {
+    const bx = Math.floor(x), by = Math.floor(y), bz = Math.floor(z);
+    let sky = 15;
+    if (this.hasSky && this.palette) {
+      sky = 0;
+      for (let dz = -4; dz <= 4 && sky < 15; dz++) for (let dx = -4; dx <= 4; dx++) {
+        const c = this.chunks.get(chunkKey((bx + dx) >> 4, (bz + dz) >> 4));
+        if (!c) continue;
+        const top = this.heights(c)[((bz + dz) & 15) * 16 + ((bx + dx) & 15)];
+        const v = 15 - Math.abs(dx) - Math.abs(dz) - Math.max(0, top - by);
+        if (v > sky) sky = v;
+      }
+    }
+    let block = 0;
+    const E = this.palette?.emit;
+    const c0 = this.chunks.get(chunkKey(bx >> 4, bz >> 4));
+    if (E && c0 && this.emittersAround(bx >> 4, bz >> 4, by >> 4)) {
+      for (let dy = -5; dy <= 5; dy++) for (let dz = -5; dz <= 5; dz++) for (let dx = -5; dx <= 5; dx++) {
+        const e = E[this.getId(bx + dx, by + dy, bz + dz)];
+        if (e) block = Math.max(block, e - Math.abs(dx) - Math.abs(dy) - Math.abs(dz));
+      }
+    }
+    return { sky, block };
+  }
+
+  /** Brightness 0..1 of a mob or the hand at a point, with the day brightness b (like the blocks' shader, no warm tint). */
+  brightnessAt(x, y, z, b) {
+    const { sky, block } = this.lightAt(x, y, z);
+    return Math.max(b * lightCurve(sky), lightCurve(Math.max(0, block)), 0.05);
   }
 
   // ---------------------------------------------------------------- block access
@@ -278,9 +405,22 @@ export class World {
     const old = sec[idx];
     sec[idx] = id;
     c.emit?.delete(sy);
-    if (!c.meshed) return;
+    c.sortedY = null;
     const P = this.palette;
-    if (P && (P.emit[old] || P.emit[id] || (P.occluding[old] !== P.occluding[id] && this.emittersAround(cx, cz, sy)))) {
+    let skyChange = false;
+    if (P && (P.skyStop[old] !== P.skyStop[id] || P.skyDim[old] !== P.skyDim[id])) {
+      skyChange = this.hasSky;
+      if (c.top) {
+        // The column's open sky may now start higher or lower: everything in between gets new light
+        const k = (z & 15) * 16 + (x & 15), was = c.top[k], now = this.columnTop(c, x & 15, z & 15);
+        c.top[k] = now;
+        if (now !== was && c.meshed) {
+          for (let s = (Math.min(was, now) >> 4) - 1; s <= (Math.max(was, now) >> 4) + 1; s++) this.markLightAround(cx, cz, s);
+        }
+      }
+    }
+    if (!c.meshed) return;
+    if (P && (P.emit[old] || P.emit[id] || skyChange || (P.occluding[old] !== P.occluding[id] && this.emittersAround(cx, cz, sy)))) {
       this.markLightAround(cx, cz, sy);
     }
     this.dirty.add(cx + ',' + cz + ',' + sy);
@@ -385,9 +525,11 @@ export class World {
       return this.getId(ox + lx, oy + ly, oz + lz);
     };
     const occ = (lx, ly, lz) => P.occluding[idAt(lx, ly, lz)];
-    // Block light of the cells around this section (null: no light block near)
-    const L = this.computeLight(cx, cz, sy);
+    // Block light of the cells around this section (null: no light block near), sky light (array or one level)
+    const { block: L, sky: SK } = this.computeLight(cx, cz, sy);
     const lvl = (lx, ly, lz) => L[((ly + 16) * R + lz + 16) * R + lx + 16];
+    const skyFlat = typeof SK === 'number' ? (SK >= 15 ? null : lightCurve(SK)) : undefined;
+    const slv = (lx, ly, lz) => SK[((ly + 16) * R + lz + 16) * R + lx + 16];
 
     // Liquid surface like Minecraft: each top corner is the average height of the (up to) four liquid
     // blocks around it, so flowing water slopes down and the texture runs downhill.
@@ -440,16 +582,18 @@ export class World {
             const cb = atlas.animOf(tl) === undefined ? cross : aCross;
             const own = L ? lightCurve(lvl(lx, ly, lz)) : 0;
             const ql = L ? [own, own, own, own] : null;
+            const os = skyFlat === undefined ? lightCurve(slv(lx, ly, lz)) : skyFlat;
+            const qs = os === null ? null : [os, os, os, os];
             if (P.fire[id]) {
               // Fire burns on the sides of the block like in Minecraft: four leaning walls plus an X
               const fh = 1.4, k = 0.18;
-              cb.quad([[lx, ly, lz + k], [lx + 1, ly, lz + k], [lx + 1, ly + fh, lz + k + 0.25], [lx, ly + fh, lz + k + 0.25]], cc, false, uv, ql);
-              cb.quad([[lx, ly, lz + 1 - k], [lx + 1, ly, lz + 1 - k], [lx + 1, ly + fh, lz + 0.75 - k], [lx, ly + fh, lz + 0.75 - k]], cc, false, uv, ql);
-              cb.quad([[lx + k, ly, lz], [lx + k, ly, lz + 1], [lx + k + 0.25, ly + fh, lz + 1], [lx + k + 0.25, ly + fh, lz]], cc, false, uv, ql);
-              cb.quad([[lx + 1 - k, ly, lz], [lx + 1 - k, ly, lz + 1], [lx + 0.75 - k, ly + fh, lz + 1], [lx + 0.75 - k, ly + fh, lz]], cc, false, uv, ql);
+              cb.quad([[lx, ly, lz + k], [lx + 1, ly, lz + k], [lx + 1, ly + fh, lz + k + 0.25], [lx, ly + fh, lz + k + 0.25]], cc, false, uv, ql, qs);
+              cb.quad([[lx, ly, lz + 1 - k], [lx + 1, ly, lz + 1 - k], [lx + 1, ly + fh, lz + 0.75 - k], [lx, ly + fh, lz + 0.75 - k]], cc, false, uv, ql, qs);
+              cb.quad([[lx + k, ly, lz], [lx + k, ly, lz + 1], [lx + k + 0.25, ly + fh, lz + 1], [lx + k + 0.25, ly + fh, lz]], cc, false, uv, ql, qs);
+              cb.quad([[lx + 1 - k, ly, lz], [lx + 1 - k, ly, lz + 1], [lx + 0.75 - k, ly + fh, lz + 1], [lx + 0.75 - k, ly + fh, lz]], cc, false, uv, ql, qs);
             }
-            cb.quad([[lx + s, ly, lz + s], [lx + e, ly, lz + e], [lx + e, ly + h, lz + e], [lx + s, ly + h, lz + s]], cc, false, uv, ql);
-            cb.quad([[lx + s, ly, lz + e], [lx + e, ly, lz + s], [lx + e, ly + h, lz + s], [lx + s, ly + h, lz + e]], cc, false, uv, ql);
+            cb.quad([[lx + s, ly, lz + s], [lx + e, ly, lz + e], [lx + e, ly + h, lz + e], [lx + s, ly + h, lz + s]], cc, false, uv, ql, qs);
+            cb.quad([[lx + s, ly, lz + e], [lx + e, ly, lz + s], [lx + e, ly + h, lz + s], [lx + s, ly + h, lz + e]], cc, false, uv, ql, qs);
             continue;
           }
 
@@ -500,6 +644,7 @@ export class World {
 
             const pts = new Array(4), cols = new Array(4), ao = new Array(4), uvs = new Array(4);
             const lights = L ? new Array(4) : null;
+            const skies = skyFlat === null ? null : new Array(4);
             // Slope of the liquid surface (null when flat): from high corners to low ones
             let flowAngle = null;
             if (lc && F.n[1] > 0) {
@@ -554,13 +699,27 @@ export class World {
                 if (!flush || lc) v = Math.max(v, lvl(lx, ly, lz));   // faces inside the block's own cell
                 lights[i] = lightCurve(v);
               }
+              if (skies) {
+                if (skyFlat !== undefined) skies[i] = skyFlat;
+                else {
+                  const ax = du * F.u[0], ay = du * F.u[1], az = du * F.u[2];
+                  const bx = dv * F.v[0], by = dv * F.v[1], bz = dv * F.v[2];
+                  let sum = slv(nx, ny, nz), n = 1;
+                  if (!occ(nx + ax, ny + ay, nz + az)) { sum += slv(nx + ax, ny + ay, nz + az); n++; }
+                  if (!occ(nx + bx, ny + by, nz + bz)) { sum += slv(nx + bx, ny + by, nz + bz); n++; }
+                  if (!occ(nx + ax + bx, ny + ay + by, nz + az + bz)) { sum += slv(nx + ax + bx, ny + ay + by, nz + az + bz); n++; }
+                  let v = sum / n;
+                  if (!flush || lc) v = Math.max(v, slv(lx, ly, lz));
+                  skies[i] = lightCurve(v);
+                }
+              }
               const l = glow ? 1 : F.shade * AO_LEVELS[a];
               // Pack textures bring their own see-through pixels (glass), so no extra fading
               cols[i] = [fr * l, fg * l, fb * l, (P.packed[id] & faceBit) && kind === KIND_GLASS ? 1 : alpha];
             }
             // Flip the diagonal so AO gradients look even
             const flip = ao[0] + ao[2] < ao[1] + ao[3];
-            (atlas.animOf(tile) === undefined ? target : animTarget(target)).quad(pts, cols, flip, uvs, lights);
+            (atlas.animOf(tile) === undefined ? target : animTarget(target)).quad(pts, cols, flip, uvs, lights, skies);
           }
           }
         }

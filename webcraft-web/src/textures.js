@@ -241,14 +241,14 @@ export const atlas = new Atlas();
 /** Like tileUV, for a slot of the animation atlas. */
 export function animUV(k, s, t) {
   const col = k % ANIM_COLS, row = Math.floor(k / ANIM_COLS);
-  const inset = 0.02 / TILE_PX;
+  const inset = 0.5 / TILE_PX;    // a quarter pixel: never sample the neighbour tile (its see-through pixels made gaps)
   return [(col + inset + s * (1 - 2 * inset)) / ANIM_COLS, 1 - (row + 1 - inset - t * (1 - 2 * inset)) / ANIM_COLS];
 }
 
 /** Texture coordinates of point (s, t) inside a tile (0..1 each, t = 0 is the bottom). */
 export function tileUV(tile, s, t) {
   const col = tile % COLS, row = Math.floor(tile / COLS);
-  const inset = 0.02 / TILE_PX;
+  const inset = 0.5 / TILE_PX;    // a quarter pixel: never sample the neighbour tile (its see-through pixels made gaps)
   const u = (col + inset + s * (1 - 2 * inset)) / COLS;
   const v = 1 - (row + 1 - inset - t * (1 - 2 * inset)) / COLS;
   return [u, v];

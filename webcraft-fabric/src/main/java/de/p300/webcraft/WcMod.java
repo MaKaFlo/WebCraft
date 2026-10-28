@@ -1005,6 +1005,7 @@ public final class WcMod implements ModInitializer, WcHost {
         try {
             if (e instanceof net.minecraft.world.entity.npc.villager.Villager v) return holderName(v.getVillagerData().profession());
             if (e instanceof net.minecraft.world.entity.monster.zombie.ZombieVillager v) return holderName(v.getVillagerData().profession());
+            if (e instanceof net.minecraft.world.entity.animal.fish.TropicalFish t) return t.getPattern().name().toLowerCase();
             java.lang.reflect.Method m = findMethod(e.getClass(), "getVariant");
             if (m == null) return null;
             Object v = m.invoke(e);
@@ -1141,6 +1142,10 @@ public final class WcMod implements ModInitializer, WcHost {
             if (e instanceof Sheep sheep) {
                 o.addProperty("col", sheep.getColor().getTextureDiffuseColor() & 0xFFFFFF);
                 if (sheep.isSheared()) o.addProperty("sheared", true);
+            }
+            if (e instanceof net.minecraft.world.entity.animal.fish.TropicalFish fish) {
+                o.addProperty("col", fish.getBaseColor().getTextureDiffuseColor() & 0xFFFFFF);
+                o.addProperty("col2", fish.getPatternColor().getTextureDiffuseColor() & 0xFFFFFF);
             }
             if (le.isBaby()) o.addProperty("baby", true);
             String hand = itemKey(le.getItemBySlot(EquipmentSlot.MAINHAND));

@@ -53,6 +53,8 @@ export class Palette {
     this.facing = [];      // face index (world.js FACES) the block looks to, or -1
     this.lit = [];         // lit furnace, campfire, candle, redstone torch ... (particles)
     this.emit = [];        // block light 0..15 (torch 14, lava 15 ...)
+    this.skyStop = [];     // sky light can't pass (full cubes, slabs, stairs: a floor over the whole cell)
+    this.skyDim = [];      // sky light goes through but no longer counts as open sky (water, leaves, ice ...)
     this.tileFront = [];   // picture for that face ("_front"), or -1
     this.fluid = [];       // 1 water, 2 lava, 0 no liquid (several ids per fluid: one per water level)
     this.liquidH = [];     // surface height of a liquid block (source 0.89, flowing lower)
@@ -100,6 +102,9 @@ export class Palette {
     this.facing[i] = FACING[e.fa] ?? -1;
     this.lit[i] = e.li ? 1 : 0;
     this.emit[i] = e.le | 0;
+    const floor = kind === KIND_CUBE && solid && (e.rs || [e.r || FULL]).some((b) => b[0] <= 0 && b[2] <= 0 && b[3] >= 1 && b[5] >= 1);
+    this.skyStop[i] = this.occluding[i] || (floor && !/leaves/.test(name)) ? 1 : 0;
+    this.skyDim[i] = kind === KIND_LIQUID || /leaves|ice$|cobweb|slime_block|honey_block|bubble_column/.test(name) ? 1 : 0;
     this.fluid[i] = kind === KIND_LIQUID ? (name === 'lava' ? 2 : 1) : 0;
     this.liquidH[i] = e.lh ?? 0.875;
     this.liquidFall[i] = e.lf ? 1 : 0;

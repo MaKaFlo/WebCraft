@@ -59,6 +59,15 @@ ENTITY_FILES = {
     'phantom_eyes': ['phantom/phantom_eyes', 'phantom_eyes'], 'hoglin': 'hoglin/hoglin', 'zoglin': 'hoglin/zoglin',
     'strider': 'strider/strider', 'vex': 'illager/vex', 'allay': 'allay/allay', 'shulker': 'shulker/shulker',
     'wither': 'wither/wither',
+    # Newest mobs (only in packs for Minecraft 1.19+)
+    'bat': 'bat/bat', **{'frog_' + c: 'frog/frog_' + c for c in ('temperate', 'warm', 'cold')},
+    **{'axolotl_' + c: 'axolotl/axolotl_' + c for c in ('lucy', 'wild', 'gold', 'cyan', 'blue')},
+    'goat': 'goat/goat', 'camel': 'camel/camel', 'camel_husk': 'camel/camel_husk', 'armadillo': 'armadillo/armadillo',
+    'sniffer': 'sniffer/sniffer', 'warden': 'warden/warden', 'ravager': 'illager/ravager', 'breeze': 'breeze/breeze',
+    'breeze_wind': 'breeze/breeze_wind', 'breeze_eyes': 'breeze/breeze_eyes',
+    **{'tropical_' + k: 'fish/tropical_' + k for k in ('a', 'b')},
+    **{f'tropical_{k}_pattern_{i}': f'fish/tropical_{k}_pattern_{i}' for k in ('a', 'b') for i in range(1, 7)},
+    'dragon': 'enderdragon/dragon', 'dragon_eyes': 'enderdragon/dragon_eyes',
 }
 # Newer packs draw villagers in layers (skin + biome clothes + job): put them together. Our old job names too.
 COMPOSED = {
@@ -72,7 +81,8 @@ COMPOSED = {
 OLD_RATIO = {'cow': 2, 'mooshroom': 2, 'brown_mooshroom': 2, 'pig': 2, 'magma_cube': 2,
              **{'rabbit_' + c: 2 for c in ('brown', 'white', 'black', 'white_splotched', 'gold', 'salt', 'caerbannog')}}
 # Glowing eyes only fit the picture of the same pack
-SAME_PACK = {'spider_eyes': 'spider', 'enderman_eyes': 'enderman', 'phantom_eyes': 'phantom'}
+SAME_PACK = {'spider_eyes': 'spider', 'enderman_eyes': 'enderman', 'phantom_eyes': 'phantom', 'breeze_eyes': 'breeze',
+             'breeze_wind': 'breeze', 'dragon_eyes': 'dragon'}
 GUI_FILES = ['button', 'button_highlighted', 'button_disabled', 'slider', 'slider_highlighted', 'slider_handle',
              'slider_handle_highlighted']
 # Front faces (shown on the side the block faces): block name -> picture in the pack

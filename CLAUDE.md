@@ -45,7 +45,7 @@ to `wc.*`; the IndexedDB for own textures is still called `gg`.
 | `webcraft-plugin/` | Paper plugin "WebCraft" (Java 25, Mojang mappings) |
 | `webcraft-fabric/` | Fabric server mod "webcraft" (Gradle + Loom, Minecraft 26.3 is unobfuscated, so the same Mojang names) |
 | `webcraft-web/` | Browser client (plain ES modules, three.js r186, bundled by esbuild into ONE html file) + nginx Docker image |
-| `tools/` | `fetch-paper.sh`, texture pack builder `make_pack.py` (+ `items.json`), `test/` helpers |
+| `tools/` | `fetch-paper.sh`, texture pack builder `make_pack.py` (+ `items.json`), pixel font builder `make_font.py`, `test/` helpers |
 
 ### Build
 
@@ -138,7 +138,7 @@ Important details learned the hard way:
 - Entity JSON (in `WcPlugin`): `i` id, `type`, `x y z yaw pitch body`, `w h`, `n` name, `hand` main hand
   item key, `arm` armor keys, `use` hand raised, `var` variant (`variantOf()`: cat/wolf/frog/cow/pig/
   chicken keys, villager profession, fox/axolotl/parrot/horse/llama/rabbit/mooshroom types), `col` sheep
-  wool RGB, `sheared`, `baby`, projectiles `proj, k, vx vy vz`, block displays/text displays.
+  wool RGB (tropical fish: `col` body, `col2` pattern color, `var` pattern name), `sheared`, `baby`, projectiles `proj, k, vx vy vz`, block displays/text displays.
 
 ## Fabric mod (`webcraft-fabric/src/main/java/de/p300/webcraft`)
 
@@ -171,7 +171,26 @@ downhill (other angles would sample neighbouring tiles of the animation atlas).
 Light: blocks that give light get `le` (`getLightEmission()`). `world.js computeLight()` floods block light like
 Minecraft over the 3x3x3 sections around the section being meshed (only when a light block is near), the mesher
 averages it per corner (smooth light) into a `light` vertex attribute, and the world materials (`withBlockLight`)
-use max(sky brightness uniform, warm block light). Light changes re-mesh the sections around (`markLightAround`).
+use max(sky brightness uniform x sky light, warm block light, 0.05 cave ambient). Light changes re-mesh the sections
+around (`markLightAround`).
+
+Sky light (overworld only, `World.setEnv`): per chunk column `heights()` = one above the highest block that stops
+(`skyStop`: occluding cubes, slabs/stairs with a floor over the whole cell) or dims (`skyDim`: water, leaves, ice ...)
+sky light; cells from there up are 15. `floodSky()` spreads it sideways and down (one level per step, not through
+`skyStop`) in the same 48^3 region as block light, into a `sky` vertex attribute. Fast paths: whole region open (15)
+or no open sky in reach (0). A changed column top re-meshes the sections between old and new top. Mobs and the
+first-person hand get `World.brightnessAt()` (estimate from column tops and light blocks nearby, no flood fill),
+applied with `dimUnlit(root, basic, lambert)`. Costs about 10-20 % more meshing time.
+
+Atlas UVs keep a quarter-to-half pixel away from tile edges (`tileUV`/`animUV` inset): with less, edge pixels
+sampled the neighbour tile's see-through pixels and alphaTest cut gaps into walls (bright lines in dark caves).
+
+Game menu font: `tools/make_font.py` turns the pack's `font/ascii.png` into `webcraft-web/src/mcfont.ttf`
+(pixel squares, Minecraft widths, umlauts and ß added by hand), bundled as base64 (`.ttf` loader) and used as
+`WebCraft Pixel` in `#pause` at 16px (GUI scale 2).
+
+First-person empty hand: `skins.js firstPersonArm()` (right arm + sleeve of `entity/steve`) placed with the matrix
+steps of Minecraft's `ItemInHandRenderer.renderPlayerArm` (`hand.js ARM_MATRIX`). Not the player's own skin yet.
 
 Weather: the `time` message also carries `rain`, `thunder` (0..1) and `snow`/`dry` for the player's biome
 (`WcWeather`). Lightning bolts are sent as entities.
@@ -267,7 +286,8 @@ heads cut from the mob pictures, end portal stars, copper chests); keeps everyth
 
 ## Backlog / ideas
 
-- Textured models for the last mobs (bat, frog, axolotl, goat, camel, armadillo, sniffer, warden, ravager, breeze,
-  tropical fish, ender dragon are still block figures); Faithful has their pictures in `entity/`. Models of
-  Minecraft 1.17+ (`parrot` ... `wither` in `skins.js`) may set `order: 'ZYX'` for parts turned around two axes
-- Sky light (caves are as bright as the sky outside, only block light is computed)
+- Model parts in `skins.js` may have a `parent` (placed in its coordinates, turned with it) and `order: 'ZYX'` for
+  parts turned around two axes (Minecraft's order). `leftTwin()` mirrors right-side parts (ender dragon).
+  Baby mobs use the adult picture and model (26.x babies have own pictures: `goat_baby`, `axolotl_*_baby` ...).
+- Warden glow layers (`warden_bioluminescent_layer`, heart, pulsating spots) are not drawn yet.
+- First-person arm with the player's own skin (needs the own skin hash from the server).

@@ -11,8 +11,8 @@ const result = await esbuild.build({
   target: 'es2020',
   write: false,
   legalComments: 'eof',
-  // The built-in texture pack (texturen.zip) goes into the page, so it looks right on any server
-  loader: { '.zip': 'base64' },
+  // The built-in texture pack (texturen.zip) and the pixel font go into the page, so it looks right on any server
+  loader: { '.zip': 'base64', '.ttf': 'base64' },
 });
 const js = result.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
 const html = readFileSync('src/index.html', 'utf8').replace('<!-- WC_SCRIPT -->', () => `<script>${js}</script>`);

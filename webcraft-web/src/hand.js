@@ -2,8 +2,21 @@
 import * as THREE from 'three';
 import { dimUnlit } from './sky.js';
 import { itemModel } from './models.js';
+import { firstPersonArm } from './skins.js';
 
 const SWING_TIME = 0.28;
+const ROOT_POS = [0.56, -0.52, -0.72], ROOT_YAW = 0.12;   // where the hand sits without swing or bob
+
+// Minecraft's empty hand (ItemInHandRenderer.renderPlayerArm, right arm, no swing): these steps, in this order,
+// put the arm of the player model (model space, pivot included) in front of the camera. Relative to our root.
+const deg = (x) => x * Math.PI / 180;
+const ARM_MATRIX = new THREE.Matrix4().makeRotationY(ROOT_YAW).setPosition(...ROOT_POS).invert();
+for (const step of [
+  new THREE.Matrix4().makeTranslation(0.64, -0.6, -0.72), new THREE.Matrix4().makeRotationY(deg(45)),
+  new THREE.Matrix4().makeTranslation(-1, 3.6, 3.5), new THREE.Matrix4().makeRotationZ(deg(120)),
+  new THREE.Matrix4().makeRotationX(deg(200)), new THREE.Matrix4().makeRotationY(deg(-135)),
+  new THREE.Matrix4().makeTranslation(5.6, 0, 0),
+]) ARM_MATRIX.multiply(step);
 const FOOD = /apple|bread|^cooked_|beef$|porkchop|mutton|^chicken$|^rabbit$|^cod$|^salmon$|tropical_fish|pufferfish|carrot$|potato$|beetroot$|cookie|melon_slice|pie$|stew$|soup$|berries|chorus_fruit|dried_kelp$|spider_eye|rotten_flesh|^cake$/;
 const DRINK = /potion$|milk_bucket|honey_bottle|ominous_bottle/;
 const BOW = /^bow$|crossbow|trident|spear$/;
@@ -70,9 +83,19 @@ export class Hand {
       this.itemModel = null;
     }
     this.arm.visible = !this.itemKey;
+    if (this.skinArm) this.skinArm.visible = false;
     if (!this.itemKey || !this.palette) {
-      // Empty hand: the arm comes up from the bottom right corner like in Minecraft
-      this.arm.visible = true;
+      // Empty hand: the arm of the skin where Minecraft puts it, else a plain arm from the bottom right corner
+      if (this.skinArm === undefined && this.palette) {
+        this.skinArm = firstPersonArm();
+        if (this.skinArm) {
+          this.skinArm.matrixAutoUpdate = false;
+          this.skinArm.matrix.copy(ARM_MATRIX).multiply(new THREE.Matrix4().makeScale(1 / 16, 1 / 16, 1 / 16));
+          this.root.add(this.skinArm);
+        }
+      }
+      this.arm.visible = !this.skinArm;
+      if (this.skinArm) this.skinArm.visible = true;
       this.arm.rotation.set(-1.0, 0.45, 0.15);
       this.arm.position.set(-0.02, -0.05, 0.1);
       return;
@@ -88,6 +111,12 @@ export class Hand {
     }
     this.itemModel = m;
     this.itemHolder.add(m);
+  }
+
+  /** New textures: the skin arm is built again with the next empty hand. */
+  dropSkinArm() {
+    if (this.skinArm) this.root.remove(this.skinArm);
+    this.skinArm = undefined;
   }
 
   /** Start/stop the eat/drink/bow animation. */
@@ -141,8 +170,8 @@ export class Hand {
     const p = this.swingT > 0 ? 1 - this.swingT / SWING_TIME : 0;
     const s = Math.sin(p * Math.PI);
     const s2 = Math.sin(Math.sqrt(p) * Math.PI);
-    this.root.position.set(0.56 + bx - s2 * 0.18, -0.52 + by + s2 * 0.12 - this.equipT * 1.2, -0.72 - s * 0.12);
-    this.root.rotation.set(-s * 0.9, 0.12 + s2 * 0.5, s * 0.25);
+    this.root.position.set(ROOT_POS[0] + bx - s2 * 0.18, ROOT_POS[1] + by + s2 * 0.12 - this.equipT * 1.2, ROOT_POS[2] - s * 0.12);
+    this.root.rotation.set(-s * 0.9, ROOT_YAW + s2 * 0.5, s * 0.25);
     if (this.using) {
       this.useT += dt;
       const k = Math.min(1, this.useT / 0.2);           // move the item to the mouth first

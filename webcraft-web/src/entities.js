@@ -72,7 +72,7 @@ const JOBS = {
 };
 
 /** What makes a mob look different (rebuild the model when it changes). */
-const lookKey = (d) => [d.var, d.col, d.sheared ? 1 : 0, d.hand, (d.arm || []).join(','), d.skin ? d.skin + (skinLoaded(d.skin) ? '+' : '') : ''].join('|');
+const lookKey = (d) => [d.var, d.col, d.col2, d.sheared ? 1 : 0, d.hand, (d.arm || []).join(','), d.skin ? d.skin + (skinLoaded(d.skin) ? '+' : '') : ''].join('|');
 
 // Extra parts for animals, so a cow, a pig and a horse don't all look the same
 const ANIMAL_EXTRAS = {
@@ -711,7 +711,19 @@ export class Entities {
     this.brightness = b;
     this.hemi.intensity = 2.6 * b;
     this.sun.intensity = 0.8 * b;
-    for (const e of this.map.values()) dimUnlit(e.group, b);
+    for (const e of this.map.values()) this.light(e);
+  }
+
+  /** Darkens one mob like the blocks where it stands (caves, under roofs; torches light it up). */
+  light(e) {
+    const b = this.brightness ?? 1;
+    const p = e.group.position;
+    const l = this.world ? this.world.brightnessAt(p.x, p.y + 0.5, p.z, b) : b;
+    const q = Math.round(l * 40) / 40;
+    if (e.shownLight !== q || e.shownDay !== b) {
+      e.shownLight = q; e.shownDay = b;
+      dimUnlit(e.group, q, Math.min(1, q / Math.max(b, 0.05)));
+    }
   }
 
   /** Server sends the full list of nearby entities a few times per second. */
@@ -728,7 +740,7 @@ export class Entities {
         e = new Entity(d, this.palette);
         this.map.set(d.i, e);
         this.scene.add(e.group);
-        if (this.brightness !== undefined && this.brightness < 1) dimUnlit(e.group, this.brightness);
+        e.lightT = 0;
       }
       e.target = d;
     }
@@ -738,7 +750,11 @@ export class Entities {
   }
 
   update(dt) {
-    for (const e of this.map.values()) e.update(dt);
+    for (const e of this.map.values()) {
+      e.update(dt);
+      e.lightT = (e.lightT ?? 0) - dt;
+      if (e.lightT <= 0) { e.lightT = 0.3 + Math.random() * 0.1; this.light(e); }
+    }
   }
 
   /** Animations from the server: [entity id, kind] (0 swing, 1 hurt, 3 offhand swing, 4/5 crit). */
