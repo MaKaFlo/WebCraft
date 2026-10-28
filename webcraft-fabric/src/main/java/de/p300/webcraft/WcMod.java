@@ -287,6 +287,15 @@ public final class WcMod implements ModInitializer, WcHost {
         if (!s.loggedIn()) {
             if ("hello".equals(type) && s.name == null && !s.helloSeen) {
                 s.helloSeen = true;
+                if ("single".equals(str(json, "mode"))) {
+                    // Own worlds at run time need a Paper server (vanilla has no API for new worlds)
+                    JsonObject err = new JsonObject();
+                    err.addProperty("t", "error");
+                    err.addProperty("msg", "Einzelspieler gibt es nur auf Paper-Servern, nicht mit dem Fabric-Mod");
+                    s.send(err);
+                    s.conn.close(1000, "No single player");
+                    return;
+                }
                 String name = str(json, "name"), skin = str(json, "skin");
                 // Skin of the chosen Minecraft account first (asks Mojang, so not on the server thread)
                 java.util.concurrent.CompletableFuture.runAsync(() -> {

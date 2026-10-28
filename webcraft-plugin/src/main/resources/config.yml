@@ -39,3 +39,9 @@ log-blocks: true
 # players don't need to. Without it WebCraft uses its built-in free sounds (or plugins/WebCraft/sounds.zip) and
 # English names.
 mojang-assets: false
+
+# Single player: in the browser's login form players can pick "Einzelspieler" and get an own world on this server
+# (own nether and end) that nobody else can enter. It is a separate player with its own inventory, named with this
+# prefix (sp_Max). Every single player world that is in use costs memory like a normal world.
+singleplayer: true
+singleplayer-prefix: "sp_"

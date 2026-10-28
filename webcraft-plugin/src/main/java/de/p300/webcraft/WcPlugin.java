@@ -62,6 +62,8 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
     private List<String> allowedOrigins;
     private boolean logBlocks;
     private boolean mojangAssets;
+    /** Own worlds for single player, null when switched off in the config. */
+    private WcSingle singlePlayer;
 
     private BlockPalette palette;
     private WcSkins skins;
@@ -92,6 +94,10 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         lang = new WcLang(assets, mojangAssets);
         sounds = new WcSounds(assets, mojangAssets, new File(getDataFolder(), "sounds.zip").toPath());
         getServer().getPluginManager().registerEvents(new WcListener(this), this);
+        if (getConfig().getBoolean("singleplayer", true)) {
+            singlePlayer = new WcSingle(this, getConfig().getString("singleplayer-prefix", "sp_"));
+            getServer().getPluginManager().registerEvents(singlePlayer, this);
+        }
         Bukkit.getScheduler().runTaskTimer(this, this::tick, 1L, 1L);
         startServer();
     }
@@ -155,7 +161,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         if (!s.loggedIn()) {
             if ("hello".equals(type) && s.name == null && !s.helloSeen) {
                 s.helloSeen = true;
-                login(s, str(json, "name"), str(json, "skin"));
+                login(s, str(json, "name"), str(json, "skin"), "single".equals(str(json, "mode")), bool(json, "creative"));
             }
             else if (s.name == null) s.conn.close(1008, "Login first");
             return;
@@ -263,12 +269,18 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         }
     }
 
-    private void login(WcSession s, String rawName, String skinName) {
+    private void login(WcSession s, String rawName, String skinName, boolean single, boolean creative) {
         if (rawName == null || !NAME_PATTERN.matcher(rawName).matches()) {
             fail(s, "Name must be 3-13 characters: letters, digits or _");
             return;
         }
-        String fullName = namePrefix + rawName;
+        if (single && singlePlayer == null) {
+            fail(s, "Einzelspieler ist auf diesem Server ausgeschaltet");
+            return;
+        }
+        // Single player is an own player (own inventory, own world): another name prefix
+        String fullName = (single ? singlePlayer.prefix : namePrefix) + rawName;
+        String accountName = namePrefix + rawName;   // bans and the whitelist count for both
         // Same WebCraft name logged in again (second tab, or the old connection died without closing, e.g. a
         // laptop going to sleep): like Minecraft, the new login wins and the old one is closed.
         WcSession old = findSession(fullName);
@@ -284,16 +296,16 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
             fail(s, "Name is already in use");
             return;
         }
-        OfflinePlayer offline = Bukkit.getOfflinePlayer(WcFakePlayer.uuidFor(fullName));
-        if (offline.isBanned()) {
+        OfflinePlayer account = Bukkit.getOfflinePlayer(WcFakePlayer.uuidFor(accountName));
+        if (account.isBanned()) {
             fail(s, "You are banned from this server");
             return;
         }
-        if (Bukkit.hasWhitelist() && !offline.isWhitelisted()) {
-            fail(s, "Not on the whitelist. Ask an admin: /whitelist add " + fullName);
+        if (Bukkit.hasWhitelist() && !account.isWhitelisted()) {
+            fail(s, "Not on the whitelist. Ask an admin: /webcraft whitelist " + rawName);
             return;
         }
-        boolean firstJoin = !offline.hasPlayedBefore();
+        boolean firstJoin = !Bukkit.getOfflinePlayer(WcFakePlayer.uuidFor(fullName)).hasPlayedBefore() && !single;
         if (!joining.add(fullName.toLowerCase())) {
             fail(s, "Name is already in use");
             return;
@@ -316,7 +328,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
             }
             Bukkit.getScheduler().runTask(this, () -> {
                 joining.remove(fullName.toLowerCase());
-                finishLogin(s, fullName, firstJoin, pre);
+                finishLogin(s, fullName, firstJoin, pre, single, creative);
             });
         });
     }
@@ -337,7 +349,8 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         Bukkit.getScheduler().runTaskAsynchronously(this, () -> s.send(skins.message(hash, skins.picture(hash))));
     }
 
-    private void finishLogin(WcSession s, String fullName, boolean firstJoin, org.bukkit.event.player.AsyncPlayerPreLoginEvent pre) {
+    private void finishLogin(WcSession s, String fullName, boolean firstJoin, org.bukkit.event.player.AsyncPlayerPreLoginEvent pre,
+                             boolean single, boolean creative) {
         if (s.closed) return;
         if (pre.getLoginResult() != org.bukkit.event.player.AsyncPlayerPreLoginEvent.Result.ALLOWED) {
             String msg = plain(pre.kickMessage());
@@ -349,7 +362,9 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
             return;
         }
         try {
-            s.fake = WcFakePlayer.join(this, s, fullName, joinWorld(), s.conn.getRemoteSocketAddress());
+            // Single player: the own world is loaded first, so a position saved there is found again
+            World start = single ? singlePlayer.world(fullName, World.Environment.NORMAL) : joinWorld();
+            s.fake = WcFakePlayer.join(this, s, fullName, start, s.conn.getRemoteSocketAddress());
         } catch (WcFakePlayer.LoginDenied e) {
             fail(s, e.getMessage());
             return;
@@ -361,6 +376,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         Player p = s.fake.bukkit();
         sessions.put(s.id, s);
         byPlayer.put(p.getUniqueId(), s);
+        if (single) singlePlayer.afterJoin(p, creative);
         boolean moved = firstJoin && migrateOldData(p);
         if (!moved && !validLocation(p.getLocation())) {
             // Broken saved position: back to the world spawn on solid ground
@@ -413,6 +429,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
             byPlayer.remove(s.fake.bukkit().getUniqueId());
             if (!s.fake.isRemoved()) s.fake.remove();
         }
+        if (singlePlayer != null && singlePlayer.isSingle(s.name)) singlePlayer.afterQuit(s.name);
         getLogger().info(s.name + " left WebCraft");
     }
 

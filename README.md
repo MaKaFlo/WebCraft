@@ -2,7 +2,7 @@
 
 Ein Block-Spiel im Browser, das sich mit einem **Minecraft-Server** verbindet: **Paper** (als Plugin) oder **Fabric** (als Mod, damit auch für Vanilla). WebCraft-Spieler sind auf dem Server **echte Spieler**: Sie stehen in der Tab-Liste, bekommen Schaden, sterben, benutzen Befehle und Menüs von Plugins und Mods. Für den Server gibt es keinen Unterschied zu einem Minecraft-Spieler. So können Leute ohne Minecraft-Account mit Freunden auf dem Server spielen.
 
-Version 0.23.2 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
+Version 0.24.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
 
 ## Aufbau
 
@@ -210,6 +210,7 @@ Das Bild wird auf 32×32 Pixel verkleinert (bei Items wird der Hintergrund entfe
 - ✅ Blöcke, Items und Mobs können auf Deutsch heißen wie in Minecraft (Optionen: "Namen: Deutsch / English"). Das braucht `mojang-assets: true` in der config.yml (siehe unten), sonst englische Namen
 - ✅ Sounds wie in Minecraft: Mobs, Schritte (auch von anderen Spielern), Abbauen, Bauen, Türen, Kisten, Schläge, Schaden, Essen, Regen, Donner, Lava, Feuer, Wasser, Level-Up, Aufheben ... mit Richtung und Entfernung, dazu Hintergrundmusik (eigener Regler "Musik" in den Optionen, 0 = aus). Es sind **freie Sounds** (aus Mineclonia und Minetest Game, Lizenzen in `LICENSE-sounds.md`), keine Dateien von Mojang. Der Server schickt sie bei Bedarf, der Browser merkt sie sich. Eigenes Sound-Paket: `plugins/WebCraft/sounds.zip` (Aufbau wie `webcraft-sounds.zip`: `sounds.json` wie in Minecraft, `sounds/*.ogg`)
 - ✅ Texturpakete von **Modrinth** direkt im Spiel: Esc → "Texturpakete ...", suchen, "Laden". Der Browser lädt das Paket selbst von modrinth.com und benutzt Block- und Item-Texturen daraus (nur für dich, bleibt gespeichert). "Standard-Texturen" setzt zurück. Geht auch schon auf der Anmeldeseite ("🎨 Texturpakete"), und eigene Pakete lassen sich als ZIP oder Ordner hochladen. Java-Mods (Programmcode) laufen im Browser nicht; CurseForge geht nur mit eigenem API-Schlüssel und ist noch nicht eingebaut
+- ✅ **Einzelspieler** (nur Paper): Auf der Anmeldeseite "🏠 Einzelspieler" wählen, dazu Überleben oder Kreativ. Der Server legt eine eigene Welt an (mit eigenem Nether und End), in die sonst niemand kommt. Eigenes Inventar (Name `sp_Name`), unsichtbar für die anderen, Chat bleibt privat. Die Welt bleibt gespeichert. Abschalten: `singleplayer: false` in der config.yml
 - ℹ️ Gyro und Controller brauchen im Browser **https://** (die Seite hinter HTTPS ausliefern)
 
 ### Noch offen
