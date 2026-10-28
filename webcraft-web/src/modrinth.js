@@ -4,6 +4,7 @@
 import { pack } from './pack.js';
 
 const API = 'https://api.modrinth.com/v2';
+const LOADED_KEY = 'wc.modrinthLoaded';   // project ids of the packs loaded in this browser
 const GAME_VERSION = '26.3';
 
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -51,6 +52,14 @@ async function download(url, size, onProgress) {
   return bytes;
 }
 
+function loadedIds() {
+  try { return new Set(JSON.parse(localStorage.getItem(LOADED_KEY) || '[]')); } catch (e) { return new Set(); }
+}
+
+function saveLoaded(ids) {
+  try { localStorage.setItem(LOADED_KEY, JSON.stringify([...ids])); } catch (e) { /* storage blocked */ }
+}
+
 export class ModrinthPacks {
   /** el: the menu page; toast(text) shows a short message. */
   constructor(el) {
@@ -70,6 +79,8 @@ export class ModrinthPacks {
       delete b.dataset.sure;
       b.textContent = 'Standard-Texturen';
       await pack.clearLocal();
+      saveLoaded(new Set());
+      for (const btn of this.list.querySelectorAll('.mr-item .mbtn')) btn.textContent = 'Laden';
       this.say('Zurück zu den Standard-Texturen');
     });
   }
@@ -102,6 +113,7 @@ export class ModrinthPacks {
     if (asked !== this.asked) return;   // an older search came back late
     this.say(res.total_hits ? `${res.total_hits} Texturpakete auf Modrinth` : 'Nichts gefunden');
     this.list.innerHTML = '';
+    const loaded = loadedIds();
     for (const h of res.hits) {
       const row = document.createElement('div');
       row.className = 'mr-item';
@@ -113,7 +125,7 @@ export class ModrinthPacks {
           <small>von ${esc(h.author)} · ${short(h.downloads)} Downloads · bis ${esc(newest)}</small>
           <span>${esc(h.description)}</span>
         </div>
-        <button type="button" class="mbtn">Laden</button>`;
+        <button type="button" class="mbtn">${loaded.has(h.project_id) ? 'Geladen ✓' : 'Laden'}</button>`;
       row.querySelector('button').addEventListener('click', (e) => this.load(h, e.currentTarget));
       this.list.appendChild(row);
     }
@@ -128,12 +140,23 @@ export class ModrinthPacks {
       const file = await bestFile(hit.project_id);
       if (!file) { this.say(`${hit.title}: keine Datei gefunden`); return; }
       const mb = (file.size / 1048576).toFixed(1).replace('.', ',');
-      const bytes = await download(file.url, file.size, (p) => this.say(`${hit.title}: lade ${Math.round(p * 100)} % von ${mb} MB ...`));
+      const bytes = await download(file.url, file.size, (p) => {
+        button.textContent = Math.round(p * 100) + ' %';
+        this.say(`${hit.title}: lade ${Math.round(p * 100)} % von ${mb} MB ...`);
+      });
+      button.textContent = 'Einbauen ...';
       this.say(`${hit.title}: Texturen werden eingebaut ...`);
       const n = await pack.importZip(bytes);
       const note = file.fits ? '' : ` (gemacht für eine andere Minecraft-Version als ${GAME_VERSION})`;
       this.say(n ? `${hit.title}: ${n} Texturen geladen${note}` : `${hit.title}: keine Block- oder Item-Texturen darin`);
+      button.textContent = n ? 'Geladen ✓' : 'Leer';
+      if (n) {
+        const ids = loadedIds();
+        ids.add(hit.project_id);
+        saveLoaded(ids);
+      }
     } catch (e) {
+      button.textContent = 'Fehler';
       this.say(`${hit.title}: Laden fehlgeschlagen (${e.message})`);
     } finally {
       this.busy = false;

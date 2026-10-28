@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-10-28, version 0.22.1 (main)._
+_Last update: 2026-10-28, version 0.22.2 (main)._
 
 ## Current state
 
@@ -10,6 +10,8 @@ _Last update: 2026-10-28, version 0.22.1 (main)._
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- 0.22.2: Modrinth button shows progress and "Geladen ✓" (remembered in localStorage `wc.modrinthLoaded`). Faithful 64x
+  tested: 2131 textures in 26 s, shrunk to 32 px like everything (atlas tiles are 32 px).
 - 0.22.1: game menu scrolls on phones (options were cut off in landscape). Tested with an emulated phone only.
 - 0.22.0: texture packs from Modrinth in the game menu ("Texturpakete ...", `modrinth.js`). The owner asked for
   mods from CurseForge and Modrinth: Java mods can't run in the browser; CurseForge needs an API key (could go via

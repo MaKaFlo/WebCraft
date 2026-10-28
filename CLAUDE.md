@@ -290,7 +290,7 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
 | `inventory.js` | Inventory/creative/menus (brewing, furnace, enchanting, merchant, anvil ...) |
 | `studio.js` | Texture studio (ChatGPT prompts, paste image, 32 px) |
 | `sounds.js` | Minecraft sounds (see Protocol `snd`), music |
-| `modrinth.js` | Menu page "Texturpakete": Modrinth API search (`project_type:resourcepack`, CORS allowed), newest version for 26.3 (else newest), download from cdn.modrinth.com with progress, `pack.importZip` (block/item pictures only, stacked over earlier ones; "Standard-Texturen" = `pack.clearLocal`). CurseForge's API needs a secret key (403 without), so not in the browser |
+| `modrinth.js` | Menu page "Texturpakete": Modrinth API search (`project_type:resourcepack`, CORS allowed), newest version for 26.3 (else newest), download from cdn.modrinth.com with progress, `pack.importZip` (block/item pictures only, stacked over earlier ones; "Standard-Texturen" = `pack.clearLocal`). Loaded project ids in localStorage `wc.modrinthLoaded` (button "Geladen ✓"). CurseForge's API needs a secret key (403 without), so not in the browser |
 | `hud.js sidebar.js tablist.js border.js` | HUD, scoreboard, tab list, border |
 | `index.html` | All markup and CSS; `<!-- WC_SCRIPT -->` is replaced by the bundle |
 

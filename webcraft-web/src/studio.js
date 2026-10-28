@@ -215,6 +215,7 @@ export class Studio {
       if (!pack.local.size) return;
       if (!confirmInline(q('.st-clear'), 'Wirklich alle eigenen löschen?')) return;
       await pack.clearLocal();
+      try { localStorage.removeItem('wc.modrinthLoaded'); } catch (e) { /* storage blocked */ }   // packs from the menu are gone too
       this.toast('Eigene Texturen gelöscht');
     });
     // Keys typed here must not reach the game
