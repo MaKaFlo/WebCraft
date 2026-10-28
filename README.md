@@ -2,7 +2,7 @@
 
 Ein Block-Spiel im Browser, das sich mit einem **Minecraft-Server** verbindet: **Paper** (als Plugin) oder **Fabric** (als Mod, damit auch für Vanilla). WebCraft-Spieler sind auf dem Server **echte Spieler**: Sie stehen in der Tab-Liste, bekommen Schaden, sterben, benutzen Befehle und Menüs von Plugins und Mods. Für den Server gibt es keinen Unterschied zu einem Minecraft-Spieler. So können Leute ohne Minecraft-Account mit Freunden auf dem Server spielen.
 
-Version 0.20.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
+Version 0.21.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
 
 ## Aufbau
 
@@ -207,8 +207,8 @@ Das Bild wird auf 32×32 Pixel verkleinert (bei Items wird der Hintergrund entfe
 - ✅ 3D-Brille (Handy in Cardboard-Halterung): zwei Bilder nebeneinander, Kopfbewegung über den Gyro, Hotbar und Herzen im Bild, Augenabstand und Linsenkorrektur (Ausgleich der Verzerrung durch die Linsen) einstellbar. Gedacht mit Controller (Back schaltet die Brille an und aus)
 - ✅ F5 wechselt die Ansicht wie in Minecraft (Ich, von hinten, von vorn; mit eigenem Skin). Oben links steht Tag oder Nacht
 - ✅ Optionen: Hitboxen und Chunk-Grenzen anzeigen (auch mit F3+B und F3+G)
-- ✅ Blöcke, Items und Mobs heißen auf Deutsch wie in Minecraft (Optionen: "Namen: Deutsch / English"). Der Server lädt dafür einmal Minecrafts Sprachdatei von Mojang (`plugins/WebCraft/assets/`)
-- ✅ Echte Minecraft-Sounds: Mobs, Schritte (auch von anderen Spielern), Abbauen, Bauen, Türen, Kisten, Schläge, Schaden, Essen, Regen, Donner, Lava, Feuer, Wasser, Level-Up, Aufheben ... mit Richtung und Entfernung. Dazu Minecrafts Musik (eigener Regler "Musik" in den Optionen, 0 = aus). Der Server lädt die Sounds bei Bedarf von Mojang (`plugins/WebCraft/assets/`), der Browser merkt sie sich
+- ✅ Blöcke, Items und Mobs können auf Deutsch heißen wie in Minecraft (Optionen: "Namen: Deutsch / English"). Das braucht `mojang-assets: true` in der config.yml (siehe unten), sonst englische Namen
+- ✅ Sounds wie in Minecraft: Mobs, Schritte (auch von anderen Spielern), Abbauen, Bauen, Türen, Kisten, Schläge, Schaden, Essen, Regen, Donner, Lava, Feuer, Wasser, Level-Up, Aufheben ... mit Richtung und Entfernung, dazu Hintergrundmusik (eigener Regler "Musik" in den Optionen, 0 = aus). Es sind **freie Sounds** (aus Mineclonia und Minetest Game, Lizenzen in `LICENSE-sounds.md`), keine Dateien von Mojang. Der Server schickt sie bei Bedarf, der Browser merkt sie sich. Eigenes Sound-Paket: `plugins/WebCraft/sounds.zip` (Aufbau wie `webcraft-sounds.zip`: `sounds.json` wie in Minecraft, `sounds/*.ogg`)
 - ℹ️ Gyro und Controller brauchen im Browser **https://** (die Seite hinter HTTPS ausliefern)
 
 ### Noch offen
@@ -221,6 +221,8 @@ Jeder Block, den ein WebCraft-Spieler abbaut oder setzt, steht in `plugins/WebCr
 
 ## Lizenzen
 
+- Eingebaute Sounds (`webcraft-common/src/main/resources/webcraft-sounds.zip`, im Plugin und im Mod): freie Sounds aus **[Mineclonia](https://codeberg.org/mineclonia/mineclonia)** und **[Minetest Game](https://github.com/luanti-org/minetest_game)** (CC0, CC BY, CC BY-SA, MIT, WTFPL; Urheber und Lizenz jeder Datei in `LICENSE-sounds.md`, auch in der ZIP). Neu bauen: `python3 tools/make_sounds.py <mineclonia-Ordner> <minetest_game-Ordner> webcraft-common/src/main/resources/webcraft-sounds.zip` (braucht ffmpeg).
+- `mojang-assets: true` (config.yml, beim Fabric-Mod `mojang-assets=true` in `webcraft.properties`) lädt stattdessen Minecrafts eigene Sounds und die Namen in anderen Sprachen von Mojang und gibt sie an die Browser weiter. Standard ist aus: Mojangs Dateien dürfen nur an Leute gehen, die Minecraft besitzen, und Browser-Spieler brauchen kein Minecraft. Einschalten auf eigene Verantwortung.
 - Eingebaute Texturen (`webcraft-web/src/texturen.zip`): **[Faithful 32x](https://faithfulpack.net)** (Copyright Faithful Resource Pack, Lizenz: [faithfulpack.net/license](https://faithfulpack.net/license), Kopie in `LICENSE-Faithful.txt` und in der ZIP). Blöcke, Items, Kisten, Rüstungen und die meisten Mobs sind aus Faithful; Dorfbewohner sind aus Haut, Kleidung und Beruf zusammengesetzt, die Kistenseiten aus dem Kistenmodell geschnitten, die Enderman-Augen aus seinem Bild gemacht. Mobs, deren Bild in Faithful ein neueres Layout hat (Kuh, Pilzkuh, Schwein, Hase, Magmawürfel), sind noch aus **Pixel Perfection Community Edition** (XSSheep und Community, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)). Keine Minecraft-Originalgrafik.
 - Neu bauen: `python3 tools/make_pack.py <Faithful-Ordner> tools/items.json webcraft-web/src/texturen.zip`, dann `python3 tools/make_pack.py --entities <Faithful-Ordner> <PixelPerfectionCE-Ordner> webcraft-web/src/texturen.zip` (Mobs: das erste Paket mit passendem Bild gewinnt). Pixelschrift: `python3 tools/make_font.py <Faithful-Ordner> webcraft-web/src/mcfont.ttf` (braucht `pip install fonttools`).
 - three.js: MIT. Java-WebSocket: MIT (im Plugin-Jar enthalten, verschoben nach `de.p300.webcraft.lib.websocket`).

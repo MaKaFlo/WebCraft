@@ -17,15 +17,18 @@ final class WcLang {
     private static final Pattern CODE = Pattern.compile("[a-z]{2,3}_[a-z]{2,3}");
 
     private final WcAssets assets;
+    private final boolean enabled;
     private final Map<String, JsonObject> messages = new ConcurrentHashMap<>();
 
-    WcLang(WcAssets assets) {
+    /** enabled: the server owner allows loading Mojang's files ({@code mojang-assets}), else there are no names. */
+    WcLang(WcAssets assets, boolean enabled) {
         this.assets = assets;
+        this.enabled = enabled;
     }
 
     /** The "lang" message ({t, l, names: key -> name}) for a language code, or null when it can't be had. */
     JsonObject message(String code) {
-        if (code == null || !CODE.matcher(code).matches()) return null;
+        if (!enabled || code == null || !CODE.matcher(code).matches()) return null;
         JsonObject cached = messages.get(code);
         if (cached != null) return cached;
         try {

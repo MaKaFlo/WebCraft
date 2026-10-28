@@ -112,8 +112,8 @@ cd webcraft-web && npm ci && npm run build   # web only -> webcraft-web/dist/ind
 | `WcScoreboard` | Sidebar scoreboard capture |
 | `WcBlockLog` | `blocklog.csv` against griefing |
 | `WcAssets` (common) | Minecraft's client assets of the server's version from Mojang (version manifest → asset index → resources.download.minecraft.net), cached by hash in `assets/` (`<version>-index.json`, `objects/xx/hash`). Used by `WcLang` and `WcSounds` |
-| `WcSounds` (common) | Sounds: captured `ClientboundSoundPacket`/`SoundEntityPacket`/`TakeItemEntityPacket` and level events with a sound (`EVENTS`) → `snd` per tick. `sound` {e} → files of the event from `sounds.json` (`type: event` resolved), `sfile` {h} → binary message 2 (only hashes under `minecraft/sounds/`). Own thread pool |
-| `WcLang` (common) | Client `lang` {l: "de_de"} → loads Minecraft's language file once from Mojang (via `WcAssets`), answers `lang` {l, names: key → name} with `entity.`/`block.`/`item.minecraft.*` names (items win). Not in the repo: Mojang's texts |
+| `WcSounds` (common) | Sound source: by default the free pack `webcraft-sounds.zip` (resource in `webcraft-common/src/main/resources`, added to the plugin jar by the pom and to the mod by build.gradle; the owner's `sounds.zip` in the data folder wins; also a resource pack with `assets/minecraft/sounds.json`), with `fallbacks.json` ([regex, event], first match, `$1`) for events it has no entry for. Mojang's sounds only with `mojang-assets: true`. Captured `ClientboundSoundPacket`/`SoundEntityPacket`/`TakeItemEntityPacket` and level events with a sound (`EVENTS`) → `snd` per tick. `sound` {e} → files of the event from `sounds.json` (`type: event` resolved), `sfile` {h} → binary message 2 (only hashes under `minecraft/sounds/`). Own thread pool |
+| `WcLang` (common) | Only with `mojang-assets: true`. Client `lang` {l: "de_de"} → loads Minecraft's language file once from Mojang (via `WcAssets`), answers `lang` {l, names: key → name} with `entity.`/`block.`/`item.minecraft.*` names (items win). Not in the repo: Mojang's texts |
 
 Important details learned the hard way:
 
@@ -289,6 +289,17 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
 | `sounds.js` | Minecraft sounds (see Protocol `snd`), music |
 | `hud.js sidebar.js tablist.js border.js` | HUD, scoreboard, tab list, border |
 | `index.html` | All markup and CSS; `<!-- WC_SCRIPT -->` is replaced by the bundle |
+
+**Legal line (owner's wish): nothing of Mojang goes to the browsers by default.** Mojang's files (sounds,
+language files) may only reach people who own Minecraft; browser players don't need to. So `mojang-assets`
+(config.yml / webcraft.properties) is off by default and the built-in sounds are free ones:
+`tools/make_sounds.py <mineclonia> <minetest_game> webcraft-common/src/main/resources/webcraft-sounds.zip`
+(clones of codeberg.org/mineclonia/mineclonia and github.com/luanti-org/minetest_game, needs ffmpeg). The script only
+takes files listed in `CREDITS` (license stated in those projects' README/LICENSE files: CC0, CC BY, CC BY-SA, MIT,
+WTFPL; LGPL/GPL and files without a clear license are left out), maps them to Minecraft events with volume/pitch
+that undo the client's Minecraft multipliers (steps x0.15, dig hits x0.25 at half pitch, break/place 0.8 pitch),
+cuts short pieces from long loops (rain, lava pop) and writes `LICENSE-sounds.md` (also into the repo root).
+Music = free jukebox tracks of Mineclonia (`stream`, fetched only when played).
 
 The built-in textures are **Faithful 32x** (faithfulpack.net, license in `LICENSE-Faithful.txt`: credit + link
 required, the license file goes into the zip) with Pixel Perfection CE (PPCE) for the mobs whose Faithful picture

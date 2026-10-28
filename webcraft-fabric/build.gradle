@@ -14,6 +14,8 @@ sourceSets {
 	main {
 		// Code shared with the Paper plugin (chunk encoding, palette, textures, WebSocket server ...)
 		java.srcDir '../webcraft-common/src/main/java'
+		// The free sound pack (webcraft-sounds.zip)
+		resources.srcDir '../webcraft-common/src/main/resources'
 	}
 }
 

@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-10-28, version 0.20.0 (main)._
+_Last update: 2026-10-28, version 0.21.0 (main)._
 
 ## Current state
 
@@ -10,6 +10,10 @@ _Last update: 2026-10-28, version 0.20.0 (main)._
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- 0.21.0: the owner wants everything legal: built-in **free sounds** (Mineclonia + Minetest Game, `tools/make_sounds.py`,
+  `LICENSE-sounds.md`) instead of Mojang's; Mojang sounds and the German names only with `mojang-assets: true`
+  (default off). Tested on the Paper test server headless (events, fallbacks, files decode). Not heard by a human yet:
+  volumes of the free files may need tuning (`make_sounds.py`). Sources were cloned to `/home/user/free/`.
 - 0.20.0: real Minecraft sounds and music (`WcAssets` loads Mojang's assets once, `WcSounds`, browser `sounds.js`,
   setting "Musik"). Tested on the Paper test server headless (mobs, attack, level up, pickup, door, chest, steps,
   fall, hurt arrive and decode). Fabric side compiled, not run. Not yet heard by a human: check volumes and feel.

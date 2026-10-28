@@ -104,6 +104,7 @@ public final class WcMod implements ModInitializer, WcHost {
     private double entityRange;
     private List<String> allowedOrigins;
     private boolean logBlocks;
+    private boolean mojangAssets;
 
     private final Logger logger = julBridge();
     private final File dataFolder = FabricLoader.getInstance().getConfigDir().resolve("webcraft").toFile();
@@ -151,8 +152,8 @@ public final class WcMod implements ModInitializer, WcHost {
         blockLog = new WcBlockLog(new File(dataFolder, "blocklog.csv"), logger);
         skins = new WcSkins(new File(dataFolder, "skins").toPath(), logger);
         WcAssets assets = new WcAssets(new File(dataFolder, "assets").toPath(), logger);
-        lang = new WcLang(assets);
-        sounds = new WcSounds(assets);
+        lang = new WcLang(assets, mojangAssets);
+        sounds = new WcSounds(assets, mojangAssets, new File(dataFolder, "sounds.zip").toPath());
         encoder = Executors.newFixedThreadPool(2, r -> {
             Thread t = new Thread(r, "WebCraft chunk encoder");
             t.setDaemon(true);
@@ -200,6 +201,7 @@ public final class WcMod implements ModInitializer, WcHost {
         allowedOrigins = Arrays.stream(p.getProperty("allowed-origins", "").split(","))
                 .map(String::trim).filter(o -> !o.isEmpty()).toList();
         logBlocks = Boolean.parseBoolean(p.getProperty("log-blocks", "true").trim());
+        mojangAssets = Boolean.parseBoolean(p.getProperty("mojang-assets", "false").trim());
     }
 
     private static int intProp(Properties p, String key, int fallback) {

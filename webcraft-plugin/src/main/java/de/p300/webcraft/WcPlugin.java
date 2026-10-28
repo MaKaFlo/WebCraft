@@ -61,6 +61,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
     private double entityRange;
     private List<String> allowedOrigins;
     private boolean logBlocks;
+    private boolean mojangAssets;
 
     private BlockPalette palette;
     private WcSkins skins;
@@ -88,8 +89,8 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         blockLog = new WcBlockLog(new File(getDataFolder(), "blocklog.csv"), getLogger());
         skins = new WcSkins(new File(getDataFolder(), "skins").toPath(), getLogger());
         WcAssets assets = new WcAssets(new File(getDataFolder(), "assets").toPath(), getLogger());
-        lang = new WcLang(assets);
-        sounds = new WcSounds(assets);
+        lang = new WcLang(assets, mojangAssets);
+        sounds = new WcSounds(assets, mojangAssets, new File(getDataFolder(), "sounds.zip").toPath());
         getServer().getPluginManager().registerEvents(new WcListener(this), this);
         Bukkit.getScheduler().runTaskTimer(this, this::tick, 1L, 1L);
         startServer();
@@ -118,6 +119,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         entityRange = getConfig().getDouble("entity-range", 64);
         allowedOrigins = getConfig().getStringList("allowed-origins");
         logBlocks = getConfig().getBoolean("log-blocks", true);
+        mojangAssets = getConfig().getBoolean("mojang-assets", false);
     }
 
     private void startServer() {

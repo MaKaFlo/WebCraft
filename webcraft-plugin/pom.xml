@@ -7,7 +7,7 @@
   <parent>
     <groupId>de.p300.webcraft</groupId>
     <artifactId>webcraft-parent</artifactId>
-    <version>0.20.0</version>
+    <version>0.21.0</version>
   </parent>
 
   <artifactId>webcraft-plugin</artifactId>
@@ -53,6 +53,11 @@
       <resource>
         <directory>src/main/resources</directory>
         <filtering>true</filtering>
+      </resource>
+      <!-- Shared with the Fabric mod: the free sound pack (binary, not filtered) -->
+      <resource>
+        <directory>../webcraft-common/src/main/resources</directory>
+        <filtering>false</filtering>
       </resource>
     </resources>
     <plugins>

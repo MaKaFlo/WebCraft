@@ -34,3 +34,8 @@ allowed-origins: []
 # Write every block a WebCraft player breaks or places to plugins/WebCraft/blocklog.csv (handy against griefing).
 log-blocks: true
 
+# Load Minecraft's own sounds and the German/other names of blocks, items and mobs from Mojang's servers and pass
+# them on to the browsers. Off by default: Mojang's files may only go to people who own Minecraft, and browser
+# players don't need to. Without it WebCraft uses its built-in free sounds (or plugins/WebCraft/sounds.zip) and
+# English names.
+mojang-assets: false

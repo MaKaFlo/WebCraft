@@ -28,7 +28,10 @@ import java.util.concurrent.ConcurrentHashMap;
  *     volume, pitch, stream, attenuation]]}.</li>
  * <li>`sfile` {h}: one .ogg as a binary message: byte 2, 40 bytes hash, the file.</li>
  * </ul>
- * The files come from Mojang ({@link WcAssets}), they are not in the repo.
+ * The files come from a free sound pack ({@code webcraft-sounds.zip} in the jar, built by tools/make_sounds.py, or the
+ * server's own {@code sounds.zip}), or, only when the server owner turns on {@code mojang-assets}, from Mojang
+ * ({@link WcAssets}). Pack layout like Minecraft's: sounds.json, sounds/name.ogg, optional fallbacks.json
+ * ([regex, event] for events the pack has no entry for).
  */
 final class WcSounds {
     private static final int MAX_PER_TICK = 60;
@@ -80,8 +83,14 @@ final class WcSounds {
             Map.entry(2007, new Object[] {"entity.splash_potion.break", 1f, 1f}));
 
     private final WcAssets assets;
+    private final boolean mojang;
+    private final java.nio.file.Path ownPack;
     private final Map<String, JsonObject> messages = new ConcurrentHashMap<>();
     private volatile JsonObject defs;
+    /** Free pack: file name -> hash, hash -> data, fallback rules. */
+    private volatile Map<String, String> packNames;
+    private final Map<String, byte[]> packFiles = new ConcurrentHashMap<>();
+    private final java.util.List<Object[]> fallbacks = new java.util.ArrayList<>();
 
     private final java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(3, r -> {
         Thread t = new Thread(r, "WebCraft sounds");
@@ -89,8 +98,11 @@ final class WcSounds {
         return t;
     });
 
-    WcSounds(WcAssets assets) {
+    /** mojang: sounds from Mojang's servers (only if the owner allows it); ownPack: a sounds.zip of the server owner. */
+    WcSounds(WcAssets assets, boolean mojang, java.nio.file.Path ownPack) {
         this.assets = assets;
+        this.mojang = mojang;
+        this.ownPack = ownPack;
     }
 
     /** Browser asks which files an event has (`sound` {e}); answered from a background thread. */
@@ -192,6 +204,16 @@ final class WcSounds {
         JsonArray list = new JsonArray();
         try {
             collect(defs(), event, 1f, 1f, list, 0);
+            if (list.isEmpty() && !mojang) {
+                String name = event.startsWith("minecraft:") ? event.substring(10) : event;
+                for (Object[] f : fallbacks) {
+                    var m = ((java.util.regex.Pattern) f[0]).matcher(name);
+                    if (m.matches()) {
+                        collect(defs(), m.replaceFirst((String) f[1]), 1f, 1f, list, 0);
+                        break;
+                    }
+                }
+            }
         } catch (Exception e) {
             assets.log().warning("WebCraft: sounds not available: " + e.getMessage());
             return null;   // not cached: try again later
@@ -208,7 +230,7 @@ final class WcSounds {
     byte[] file(String hash) {
         try {
             if (hash == null || !soundHashes().contains(hash)) return null;
-            byte[] data = assets.file(hash);
+            byte[] data = mojang ? assets.file(hash) : packFiles.get(hash);
             ByteBuffer b = ByteBuffer.allocate(41 + data.length);
             b.put((byte) 2);
             b.put(hash.getBytes(StandardCharsets.US_ASCII));
@@ -225,6 +247,10 @@ final class WcSounds {
     private Set<String> soundHashes() throws Exception {
         Set<String> h = hashes;
         if (h != null) return h;
+        if (!mojang) {
+            defs();
+            return packFiles.keySet();
+        }
         Set<String> all = ConcurrentHashMap.newKeySet();
         for (var e : assets.objects().entrySet()) {
             if (e.getKey().startsWith("minecraft/sounds/")) all.add(e.getValue().getAsJsonObject().get("hash").getAsString());
@@ -236,6 +262,7 @@ final class WcSounds {
     private JsonObject defs() throws Exception {
         JsonObject d = defs;
         if (d != null) return d;
+        if (!mojang) return loadPack();
         String hash = assets.hash("minecraft/sounds.json");
         if (hash == null) throw new IllegalStateException("no sounds.json in the asset index");
         d = JsonParser.parseString(new String(assets.file(hash), StandardCharsets.UTF_8)).getAsJsonObject();
@@ -274,7 +301,7 @@ final class WcSounds {
                 continue;
             }
             if (file.startsWith("minecraft:")) file = file.substring(10);
-            String hash = assets.hash("minecraft/sounds/" + file + ".ogg");
+            String hash = mojang ? assets.hash("minecraft/sounds/" + file + ".ogg") : packNames.get(file);
             if (hash == null) continue;
             JsonArray a = new JsonArray();
             a.add(hash);
@@ -285,5 +312,45 @@ final class WcSounds {
             a.add(attenuation);
             out.add(a);
         }
+    }
+
+    /** Reads the free sound pack (the server's own sounds.zip, else the one in the jar) into memory, once. */
+    private synchronized JsonObject loadPack() throws Exception {
+        if (defs != null) return defs;
+        Map<String, byte[]> entries = new java.util.HashMap<>();
+        boolean own = ownPack != null && java.nio.file.Files.isRegularFile(ownPack);
+        try (java.io.InputStream in = own ? java.nio.file.Files.newInputStream(ownPack) : WcSounds.class.getResourceAsStream("/webcraft-sounds.zip")) {
+            if (in == null) throw new IllegalStateException("webcraft-sounds.zip missing in the jar");
+            var zip = new java.util.zip.ZipInputStream(in);
+            for (var e = zip.getNextEntry(); e != null; e = zip.getNextEntry()) {
+                if (!e.isDirectory()) entries.put(e.getName(), zip.readAllBytes());
+            }
+        }
+        // Also a Minecraft resource pack: assets/minecraft/sounds.json and assets/minecraft/sounds/...
+        String root = entries.containsKey("sounds.json") ? "" : "assets/minecraft/";
+        byte[] json = entries.get(root + "sounds.json");
+        if (json == null) throw new IllegalStateException("no sounds.json in the sound pack");
+        Map<String, String> names = new java.util.HashMap<>();
+        var sha1 = java.security.MessageDigest.getInstance("SHA-1");
+        for (var e : entries.entrySet()) {
+            String k = e.getKey();
+            if (!k.startsWith(root + "sounds/") || !k.endsWith(".ogg")) continue;
+            String hash = java.util.HexFormat.of().formatHex(sha1.digest(e.getValue()));
+            names.put(k.substring(root.length() + 7, k.length() - 4), hash);
+            packFiles.put(hash, e.getValue());
+        }
+        byte[] fb = entries.get(root + "fallbacks.json");
+        if (fb == null) fb = entries.get("fallbacks.json");
+        if (fb != null) {
+            for (JsonElement r : JsonParser.parseString(new String(fb, StandardCharsets.UTF_8)).getAsJsonArray()) {
+                var a = r.getAsJsonArray();
+                // Python-style $1 works in Java's replaceFirst as well
+                fallbacks.add(new Object[] {java.util.regex.Pattern.compile(a.get(0).getAsString()), a.get(1).getAsString()});
+            }
+        }
+        packNames = names;
+        defs = JsonParser.parseString(new String(json, StandardCharsets.UTF_8)).getAsJsonObject();
+        assets.log().info("WebCraft: " + (own ? "own" : "built-in") + " sound pack with " + defs.size() + " sounds, " + names.size() + " files");
+        return defs;
     }
 }
