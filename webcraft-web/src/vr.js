@@ -5,6 +5,28 @@ import * as THREE from 'three';
 import { iconCanvas } from './items.js';
 
 const size = new THREE.Vector2();
+const buffer = new THREE.Vector2();
+
+// Lens correction: the lenses of the holder bend the picture outwards (pincushion), so each eye's picture is bent
+// inwards (barrel) by the same amount: a screen point at distance r from the eye's center shows the rendered point
+// at r * (1 + K1 r^2 + K2 r^4) (r = 1 at the top/bottom edge). K1/K2 like a typical Cardboard viewer at strength 1.
+const K1 = 0.34, K2 = 0.55;
+const DISTORT_VERTEX = `varying vec2 vUv;
+void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
+const DISTORT_FRAGMENT = `uniform sampler2D map;
+uniform float k1, k2, eyeAspect;
+varying vec2 vUv;
+void main() {
+  float eye = step(0.5, vUv.x);
+  vec2 local = vec2(vUv.x * 2.0 - eye, vUv.y);           // 0..1 inside this eye's half
+  vec2 p = (local - 0.5) * 2.0 * vec2(eyeAspect, 1.0);    // centered, 1 = top/bottom edge
+  float r2 = dot(p, p);
+  vec2 q = p * (1.0 + k1 * r2 + k2 * r2 * r2);
+  vec2 src = q / vec2(eyeAspect, 1.0) * 0.5 + 0.5;
+  bool outside = src.x < 0.0 || src.x > 1.0 || src.y < 0.0 || src.y > 1.0;
+  gl_FragColor = outside ? vec4(0.0, 0.0, 0.0, 1.0) : texture2D(map, vec2((src.x + eye) * 0.5, src.y));
+  #include <colorspace_fragment>
+}`;
 
 export class StereoView {
   constructor(handScene) {
@@ -26,6 +48,24 @@ export class StereoView {
     this.cross = this.plane(cross, 0.04, 0.04, [0, 0, -1]);
     this.cross.material.map.minFilter = THREE.LinearFilter;   // thin lines must not vanish when shrunk
     this.hudTimer = 0;
+
+    // Lens correction: both eyes are drawn into this picture first, then bent onto the screen
+    this.strength = 0;
+    this.target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: true });
+    this.distortMat = new THREE.ShaderMaterial({
+      uniforms: { map: { value: this.target.texture }, k1: { value: 0 }, k2: { value: 0 }, eyeAspect: { value: 1 } },
+      vertexShader: DISTORT_VERTEX, fragmentShader: DISTORT_FRAGMENT, depthTest: false, depthWrite: false,
+    });
+    this.distortScene = new THREE.Scene();
+    const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.distortMat);
+    quad.frustumCulled = false;
+    this.distortScene.add(quad);
+    this.distortCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  }
+
+  /** Lens correction 0 (off) .. 1 (typical Cardboard lenses). */
+  setLensStrength(s) {
+    this.strength = s;
   }
 
   plane(canvas, w, h, pos) {
@@ -86,17 +126,43 @@ export class StereoView {
     hand.camera.updateMatrixWorld();
     this.handEyes.update(hand.camera);
     this.group.visible = true;
-    renderer.setScissorTest(true);
+    const lens = this.strength > 0;
+    const t = this.target;
+    if (lens) {
+      renderer.getDrawingBufferSize(buffer);
+      if (t.width !== buffer.x || t.height !== buffer.y) t.setSize(buffer.x, buffer.y);
+      renderer.setRenderTarget(t);
+    } else {
+      renderer.setScissorTest(true);
+    }
     [[this.eyes.cameraL, this.handEyes.cameraL], [this.eyes.cameraR, this.handEyes.cameraR]].forEach(([eye, handEye], i) => {
-      renderer.setViewport(i * w, 0, w, h);
-      renderer.setScissor(i * w, 0, w, h);
+      if (lens) {
+        // A render target has its own viewport in buffer pixels
+        t.viewport.set(i * t.width / 2, 0, t.width / 2, t.height);
+        t.scissor.copy(t.viewport);
+        t.scissorTest = true;
+        renderer.setRenderTarget(t);
+      } else {
+        renderer.setViewport(i * w, 0, w, h);
+        renderer.setScissor(i * w, 0, w, h);
+      }
       renderer.render(scene, eye);
       renderer.autoClear = false;
       hand.renderWith(renderer, handEye, light, showHand);
       renderer.autoClear = true;
     });
-    renderer.setScissorTest(false);
-    renderer.setViewport(0, 0, size.x, size.y);
+    if (lens) {
+      t.scissorTest = false;
+      renderer.setRenderTarget(null);
+      const u = this.distortMat.uniforms;
+      u.k1.value = K1 * this.strength;
+      u.k2.value = K2 * this.strength;
+      u.eyeAspect.value = w / h;
+      renderer.render(this.distortScene, this.distortCam);
+    } else {
+      renderer.setScissorTest(false);
+      renderer.setViewport(0, 0, size.x, size.y);
+    }
     this.group.visible = false;
   }
 }

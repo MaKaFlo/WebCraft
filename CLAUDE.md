@@ -256,7 +256,7 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
 | `hand.js` | First-person arm/item, swing, eat/drink/bow animations, crumbs |
 | `touch.js` | Phones/tablets (`isTouch`): joystick (8 directions as WASD keys, sprint at the edge), buttons, drag anywhere to look (pointer events on `document`, not on controls), gyro look (`setGyro`, deltas of heading/elevation from `deviceorientation`, `roll` for the 3D glasses), close button for inventory/chat |
 | `gamepad.js` | Gamepad API, console layout, polled per frame; `recent` = used within a minute (then `lockPointer` is skipped like on touch); d-pad/A/B navigate the game menu (`.pad-focus`) |
-| `vr.js` | 3D glasses: `StereoCamera` for world and hand scene, half-screen viewports, own HUD canvas (hotbar, hearts, food) and crosshair in the hand scene. Only while playing (`stereoOn`); screens (inventory, menu, chat) show normally |
+| `vr.js` | 3D glasses: `StereoCamera` for world and hand scene, half-screen viewports, own HUD canvas (hotbar, hearts, food) and crosshair in the hand scene. Lens correction (setting 0-150 %, Cardboard K1 0.34 / K2 0.55 at 100 %): both eyes go into a render target (its own `viewport`/`scissor`), then a full-screen shader bends each half like a barrel. Only while playing (`stereoOn`); screens (inventory, menu, chat) show normally |
 | `textures.js` | Atlas: 64×64 tiles of 32 px + 8×8 animation atlas; pack tiles; gray detection for tinting |
 | `palette.js` | Palette from server: tiles per block (`texnames.js` candidates), tints, boxes |
 | `pack.js` | Texture sources: builtin (`texturen.zip` in the html) < server pack < local (IndexedDB). Import of MC packs incl. `.mcmeta`. `entity/` and `armor/` pictures stay out of the block atlas (`pack.image(path)`) |

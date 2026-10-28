@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-10-28, version 0.17.0 (main, CI green)._
+_Last update: 2026-10-28, version 0.17.1 (main; check CI after the push)._
 
 ## Current state
 
@@ -15,6 +15,7 @@ _Last update: 2026-10-28, version 0.17.0 (main, CI green)._
   - Optional gyro look (setting "Gyro-Steuerung", off by default; needs https, the owner's server has it).
   - Game controllers (`gamepad.js`, console layout, also menu navigation), 3D glasses mode (`vr.js`, side by side,
     gyro head tracking with tilt, own HUD, eye distance setting; Back on the pad toggles it).
+  - 0.17.1: lens correction for the 3D glasses (setting "Linsenkorrektur", default 60 %).
   - Tested headless only (emulated touch, fake gamepad, synthetic orientation events). Needs a real phone test.
 - Done in session 2026-10-28 (0.15.1 → 0.16.0):
   - Sky light (`world.js heights()/floodSky()`, mobs and hand via `brightnessAt()`), caves/rooms are dark.
@@ -28,8 +29,8 @@ _Last update: 2026-10-28, version 0.17.0 (main, CI green)._
 
 ## Untested / to check
 
-- 0.17.0 on a real phone: touch layout size, gyro direction/feel, controller over Bluetooth, 3D glasses (lens
-  distortion is not corrected; check comfort, eye distance, frame rate). Inventory with a controller: only B/Y close
+- 0.17.0 on a real phone: touch layout size, gyro direction/feel, controller over Bluetooth, 3D glasses (check comfort,
+  eye distance, lens correction strength, frame rate). Inventory with a controller: only B/Y close
   it, slots can't be picked with the pad yet (touch works).
 
 - 0.15.1: Esc in a chest should only close it (mouse is caught again after the key-up). Needs a real browser (owner).
@@ -39,8 +40,7 @@ _Last update: 2026-10-28, version 0.17.0 (main, CI green)._
 
 ## Open wishes / next steps
 
-- Ideas offered to the owner: real sounds, own skin upload. Possible: inventory navigation with the controller,
-  lens distortion for the 3D glasses.
+- Ideas offered to the owner: real sounds, own skin upload. Possible: inventory navigation with the controller.
 - First-person arm with the player's own skin (server would need to send the own skin hash).
 - Warden glow layers, baby pictures of the new mobs (`goat_baby`, `axolotl_*_baby`, `camel_baby`, `snifflet` ...).
 - Cow, pig, rabbit, magma cube could use new models for the Faithful pictures.

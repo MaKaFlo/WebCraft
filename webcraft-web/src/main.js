@@ -31,7 +31,7 @@ const SKIES = {
   THE_END: 0x150f22,
 };
 // Settings (kept in the browser)
-const settings = { sens: 15, fov: 75, autoJump: true, vol: 60, gyro: false, vr: false, eye: 64 };
+const settings = { sens: 15, fov: 75, autoJump: true, vol: 60, gyro: false, vr: false, eye: 64, lens: 60 };
 // Settings saved under the old name (gg.*) move over once
 try {
   for (const k of ['settings', 'server', 'name']) {
@@ -589,6 +589,7 @@ function syncSettingsUi() {
   $('s-gyro').checked = !!touch?.gyroOn;
   $('s-vr').checked = settings.vr;
   $('s-eye').value = settings.eye; $('s-eye-v').textContent = settings.eye + ' mm';
+  $('s-lens').value = settings.lens; $('s-lens-v').textContent = settings.lens ? settings.lens + '%' : 'aus';
   $('s-vol').value = settings.vol; $('s-vol-v').textContent = settings.vol + '%';
 }
 $('s-vol').addEventListener('input', (e) => {
@@ -612,6 +613,12 @@ $('s-vr').addEventListener('change', (e) => setVr(e.target.checked));
 $('s-eye').addEventListener('input', (e) => {
   settings.eye = +e.target.value;
   stereo.setEyeDistance(settings.eye);
+  syncSettingsUi();
+  saveSettings();
+});
+$('s-lens').addEventListener('input', (e) => {
+  settings.lens = +e.target.value;
+  stereo.setLensStrength(settings.lens / 100);
   syncSettingsUi();
   saveSettings();
 });
@@ -686,6 +693,7 @@ const pad = new GamepadControls({
 // 3D glasses: two pictures side by side; on phones the gyro turns the head (also tilting)
 const stereo = new StereoView(hand.scene);
 stereo.setEyeDistance(settings.eye);
+stereo.setLensStrength(settings.lens / 100);
 function setVr(on) {
   settings.vr = on;
   saveSettings();
