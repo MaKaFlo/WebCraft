@@ -22,6 +22,8 @@ import { Weather } from './weather.js';
 import { addPlayerSkin, setSkinRequester } from './skins.js';
 import pixelFont from './mcfont.ttf';
 import { TouchControls, isTouch } from './touch.js';
+import { GamepadControls } from './gamepad.js';
+import { StereoView } from './vr.js';
 
 const SKIES = {
   NORMAL: 0x9fc9ff,
@@ -29,7 +31,7 @@ const SKIES = {
   THE_END: 0x150f22,
 };
 // Settings (kept in the browser)
-const settings = { sens: 15, fov: 75, autoJump: true, vol: 60, gyro: false };
+const settings = { sens: 15, fov: 75, autoJump: true, vol: 60, gyro: false, vr: false, eye: 64 };
 // Settings saved under the old name (gg.*) move over once
 try {
   for (const k of ['settings', 'server', 'name']) {
@@ -546,7 +548,7 @@ document.addEventListener('keyup', (e) => {
 
 function lockPointer() {
   if (dead || inventory.open || chatOpen || !ui.pause.hidden || studio.isOpen) return;
-  if (touch) { ui.resume.hidden = true; return; }   // phones play without a mouse
+  if (touch || pad.recent) { ui.resume.hidden = true; return; }   // phones and controllers play without a mouse
   if (escDown) { lockAfterEsc = true; return; }
   // After Esc the browser only allows this on the next click; then we ask for that click
   const p = renderer.domElement.requestPointerLock?.();
@@ -585,6 +587,8 @@ function syncSettingsUi() {
   $('s-fov').value = settings.fov; $('s-fov-v').textContent = settings.fov + '°';
   $('s-autojump').checked = player.autoJump;
   $('s-gyro').checked = !!touch?.gyroOn;
+  $('s-vr').checked = settings.vr;
+  $('s-eye').value = settings.eye; $('s-eye-v').textContent = settings.eye + ' mm';
   $('s-vol').value = settings.vol; $('s-vol-v').textContent = settings.vol + '%';
 }
 $('s-vol').addEventListener('input', (e) => {
@@ -604,6 +608,13 @@ $('s-fov').addEventListener('input', (e) => {
   saveSettings();
 });
 $('s-autojump').addEventListener('change', (e) => { player.autoJump = settings.autoJump = e.target.checked; saveSettings(); });
+$('s-vr').addEventListener('change', (e) => setVr(e.target.checked));
+$('s-eye').addEventListener('input', (e) => {
+  settings.eye = +e.target.value;
+  stereo.setEyeDistance(settings.eye);
+  syncSettingsUi();
+  saveSettings();
+});
 $('s-gyro').addEventListener('change', async (e) => {
   const ok = await touch?.setGyro(e.target.checked);
   settings.gyro = !!(e.target.checked && ok);
@@ -651,7 +662,7 @@ renderer.domElement.addEventListener('click', () => { if (connected) { ui.resume
 
 // Phones and tablets: joystick, buttons, look by dragging (and the gyro when switched on)
 const touch = isTouch ? new TouchControls({
-  player, interaction, inventory, settings, sendInput, lookEl: renderer.domElement,
+  player, interaction, inventory, settings, sendInput, lookEl: document,
   notice: (text) => showNotice(text),
   openInventory: () => inventory.setOpen(true),
   closeOverlay: () => { if (chatOpen) closeChat(); else if (inventory.open) inventory.setOpen(false); },
@@ -659,6 +670,33 @@ const touch = isTouch ? new TouchControls({
   openMenu: () => showMenu(),
   drop: () => send({ t: 'drop', all: false }),
 }) : null;
+
+// Game controllers (also on phones over Bluetooth)
+const pad = new GamepadControls({
+  player, interaction, inventory, settings, sendInput, menuEl: ui.pause,
+  notice: (text) => showNotice(text),
+  openInventory: () => inventory.setOpen(true),
+  closeOverlay: () => { if (chatOpen) closeChat(); else if (inventory.open) inventory.setOpen(false); },
+  toggleMenu: () => { if (ui.pause.hidden) showMenu(); else hideMenu(); },
+  drop: () => send({ t: 'drop', all: false }),
+  toggleVr: () => setVr(!settings.vr),
+  clickDefault: () => { if (!ui.death.hidden) ui.respawn.click(); },
+});
+
+// 3D glasses: two pictures side by side; on phones the gyro turns the head (also tilting)
+const stereo = new StereoView(hand.scene);
+stereo.setEyeDistance(settings.eye);
+function setVr(on) {
+  settings.vr = on;
+  saveSettings();
+  if (touch) {
+    if (on) touch.setGyro(true);
+    else if (!settings.gyro) touch.setGyro(false);
+    if (on) document.documentElement.requestFullscreen?.().then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
+  }
+  showNotice(on ? '🥽 3D-Brille an' : '3D-Brille aus');
+  syncSettingsUi();
+}
 
 const isLocked = () => document.pointerLockElement === renderer.domElement;
 
@@ -760,6 +798,7 @@ let last = performance.now();
 let fps = 0, fpsFrames = 0, fpsTime = 0;
 let hudTime = 0;
 let shownLight = 1, handLight = 1, handLightT = 0;
+let stereoOn = false;
 
 function frame(now) {
   requestAnimationFrame(frame);
@@ -774,7 +813,11 @@ function frame(now) {
     entities.update(dt);
     const playing = connected && !dead && !inventory.open && !chatOpen && ui.pause.hidden && !studio.isOpen;
     touch?.update(playing, connected && (inventory.open || chatOpen));
-    interaction.update(dt, (isLocked() || (touch && playing)) && !dead);
+    pad.poll(dt, { playing, overlay: inventory.open || chatOpen, menu: !ui.pause.hidden, dead });
+    interaction.update(dt, (isLocked() || ((touch || pad.recent) && playing)) && !dead);
+    stereoOn = settings.vr && playing;
+    document.body.classList.toggle('vr-on', stereoOn);
+    if (stereoOn) stereo.updateHud(dt, inventory, world.palette, hud.stats);
     hud.tick(dt);
 
     sendTimer += dt;
@@ -784,7 +827,7 @@ function frame(now) {
     camera.rotation.y = Math.PI - player.yaw * Math.PI / 180;
     camera.rotation.x = -player.pitch * Math.PI / 180;
     hurtTilt = Math.max(0, hurtTilt - dt);
-    camera.rotation.z = dead ? 0.4 : Math.sin(hurtTilt / 0.35 * Math.PI) * 0.06;
+    camera.rotation.z = (dead ? 0.4 : Math.sin(hurtTilt / 0.35 * Math.PI) * 0.06) + (stereoOn && touch?.gyroOn ? touch.roll : 0);
 
     hand.setItem(world.palette, inventory.selectedItem()?.k ?? null);
     const moving = player.onGround && (player.keys.has('KeyW') || player.keys.has('KeyA') || player.keys.has('KeyS') || player.keys.has('KeyD'));
@@ -814,8 +857,12 @@ function frame(now) {
     checkMissingChunks(dt);
   }
 
-  renderer.render(scene, camera);
-  if (connected && world.palette && !dead && hand.visibleMode !== false) {
+  if (stereoOn) {
+    stereo.render(renderer, scene, camera, hand, handLight, hand.visibleMode !== false);
+  } else {
+    renderer.render(scene, camera);
+  }
+  if (!stereoOn && connected && world.palette && !dead && hand.visibleMode !== false) {
     renderer.autoClear = false;
     hand.render(renderer, handLight);
     renderer.autoClear = true;

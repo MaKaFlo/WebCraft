@@ -188,6 +188,15 @@ export class Hand {
     }
   }
 
+  /** One eye of the 3D glasses: the hand scene from that eye's camera (showHand false: only the HUD in it). */
+  renderWith(renderer, camera, brightness, showHand) {
+    this.root.visible = showHand;
+    dimUnlit(this.scene, brightness);
+    renderer.clearDepth();
+    renderer.render(this.scene, camera);
+    this.root.visible = true;
+  }
+
   render(renderer, brightness = 1) {
     dimUnlit(this.scene, brightness);
     renderer.clearDepth();

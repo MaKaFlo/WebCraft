@@ -22,6 +22,7 @@ export class TouchControls {
     this.lookLast = null;
     this.gyroOn = false;
     this.gyroLast = null;   // { heading, elev } of the last reading
+    this.roll = 0;          // sideways tilt of the phone (radians)
     this.lastJump = 0;
     document.body.classList.add('touch');
 
@@ -145,13 +146,14 @@ export class TouchControls {
     this.resetJoystick = () => { id = null; set(0, 0); };
   }
 
-  /** Dragging a finger over the game turns the view. */
+  /** Dragging a finger over the game (anywhere but the controls, also over the chat) turns the view. */
   setupLook(target) {
     target.addEventListener('pointerdown', (e) => {
       if (e.pointerType === 'mouse' || !this.active || this.lookId !== null) return;
+      if (e.target.closest?.('button, input, #hotbar, .t-joy')) return;
       this.lookId = e.pointerId;
       this.lookLast = [e.clientX, e.clientY];
-      target.setPointerCapture(e.pointerId);
+      e.target.setPointerCapture?.(e.pointerId);
     });
     target.addEventListener('pointermove', (e) => {
       if (e.pointerId !== this.lookId || !this.active) return;
@@ -179,10 +181,18 @@ export class TouchControls {
     if (!window.isSecureContext) { this.notice('Gyro geht nur über https://'); return false; }
     if (typeof DeviceOrientationEvent === 'undefined') { this.notice('Kein Gyro-Sensor gefunden'); return false; }
     if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+      let answer;
       try {
-        if (await DeviceOrientationEvent.requestPermission() !== 'granted') { this.notice('Gyro nicht erlaubt'); return false; }
-      } catch (e) { this.notice('Gyro nicht erlaubt'); return false; }
+        answer = await DeviceOrientationEvent.requestPermission();
+      } catch (e) {
+        // Only allowed right after a tap (not after a controller button): ask again on the next tap
+        this.notice('Einmal auf den Bildschirm tippen, um den Gyro zu erlauben');
+        document.addEventListener('pointerdown', () => this.setGyro(true), { once: true });
+        return true;
+      }
+      if (answer !== 'granted') { this.notice('Gyro nicht erlaubt'); return false; }
     }
+    window.removeEventListener('deviceorientation', this.onOrientation);
     this.gyroLast = null;
     window.addEventListener('deviceorientation', this.onOrientation);
     this.gyroOn = true;
@@ -200,6 +210,8 @@ export class TouchControls {
     euler.set(e.beta * deg, e.alpha * deg, -e.gamma * deg, 'YXZ');
     quat.setFromEuler(euler).multiply(BACK).multiply(screenTurn.setFromAxisAngle(Z_AXIS, -orient));
     fwd.set(0, 0, -1).applyQuaternion(quat);
+    // Head tilted to the side (3D glasses turn the camera with it)
+    this.roll = Math.asin(Math.max(-1, Math.min(1, side.set(1, 0, 0).applyQuaternion(quat).y)));
     const reading = { heading: Math.atan2(fwd.x, -fwd.z) / deg, elev: Math.asin(Math.max(-1, Math.min(1, fwd.y))) / deg };
     const last = this.gyroLast;
     this.gyroLast = reading;
@@ -235,5 +247,6 @@ const euler = new THREE.Euler();
 const quat = new THREE.Quaternion();
 const screenTurn = new THREE.Quaternion();
 const fwd = new THREE.Vector3();
+const side = new THREE.Vector3();
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
 const BACK = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5));   // look out of the back, not the top

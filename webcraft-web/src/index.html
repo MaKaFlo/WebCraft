@@ -108,8 +108,9 @@
   }
   #pause .mbtn { white-space: nowrap; overflow: hidden; }
   #pause.mc-gui .mbtn { border-style: solid; border-width: 8px 12px; border-image: var(--mc-button) 8 40 fill / 8px 20px; background: none; box-shadow: none; padding: 0; }
-  #pause .mbtn:hover, #pause .mbtn:focus-visible { color: #ffffa0; outline: none; }
-  #pause.mc-gui .mbtn:hover, #pause.mc-gui .mbtn:focus-visible { border-image: var(--mc-button-hl) 8 40 fill / 8px 20px; }
+  #pause .mbtn:hover, #pause .mbtn:focus-visible, #pause .mbtn.pad-focus:focus { color: #ffffa0; outline: none; }
+  #pause input.pad-focus:focus { outline: 2px solid #ffffa0; }
+  #pause.mc-gui .mbtn:hover, #pause.mc-gui .mbtn:focus-visible, #pause.mc-gui .mbtn.pad-focus:focus { border-image: var(--mc-button-hl) 8 40 fill / 8px 20px; }
   #pause:not(.mc-gui) .mbtn:hover { background: #8a8aa8; border-color: #fff; }
   #pause .mbtn:active { transform: none; }
   #pause .mbtn.primary, #pause .mbtn.danger { background-color: #6f6f6f; color: #fff; }
@@ -364,6 +365,30 @@
     padding: 4px 8px; font-size: 14px; line-height: 1.35; text-shadow: 1px 1px 0 #3f3f3f; }
   .item-tip[hidden] { display: none; }
   .cursor-count { position: fixed; color: #fff; font-weight: 700; text-shadow: 2px 2px 0 #000; pointer-events: none; display: none; z-index: 21; }
+  /* Touch controls (phones, tablets): joystick left, action buttons right, small buttons top right */
+  body.touch { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  body.touch #resume { display: none; }
+  body.touch #hotbar { pointer-events: auto; }
+  body:not(.touch) .touch-only { display: none; }
+  #touch { position: fixed; inset: 0; pointer-events: none; z-index: 6; }
+  #touch[hidden] { display: none; }
+  #touch button { pointer-events: auto; touch-action: none; color: #fff; padding: 0; line-height: 1; -webkit-tap-highlight-color: transparent; }
+  #touch .t-joy { position: absolute; left: 28px; bottom: 28px; width: 128px; height: 128px; border-radius: 50%; pointer-events: auto;
+    touch-action: none; background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.35); }
+  #touch .t-knob { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.45); pointer-events: none; }
+  #touch .t-right { position: absolute; right: 20px; bottom: 20px; display: grid; grid-template-columns: 64px 64px; gap: 12px; }
+  #touch .t-btn { width: 64px; height: 64px; border-radius: 50%; font-size: 26px; background: rgba(0, 0, 0, 0.35);
+    border: 2px solid rgba(255, 255, 255, 0.4); }
+  #touch .t-btn.down, #touch .t-btn.on { background: rgba(255, 255, 255, 0.4); }
+  #touch .t-top { position: absolute; right: 12px; top: 12px; display: flex; gap: 8px; }
+  #touch .t-small { width: 44px; height: 44px; border-radius: 10px; font-size: 20px; background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.3); }
+  #touch-close { position: fixed; top: 12px; right: 12px; z-index: 1000; width: 48px; height: 48px; font-size: 24px; border-radius: 10px;
+    background: rgba(0, 0, 0, 0.6); color: #fff; border: 2px solid #fff; }
+  #touch-close[hidden] { display: none; }
+  /* 3D glasses: the game draws its own HUD into both pictures */
+  body.vr-on #hud, body.vr-on #touch { display: none; }
 </style>
 </head>
 <body>
@@ -451,6 +476,9 @@
         <input type="range" id="s-vol" min="0" max="100" step="5"></label>
       <label class="setting check"><input type="checkbox" id="s-autojump"> Auto-Jump</label>
       <label class="setting check touch-only"><input type="checkbox" id="s-gyro"> Gyro-Steuerung (Handy drehen zum Umsehen)</label>
+      <label class="setting check"><input type="checkbox" id="s-vr"> 3D-Brille (Handy in Halterung, mit Controller)</label>
+      <label class="setting">Augenabstand <output id="s-eye-v"></output>
+        <input type="range" id="s-eye" min="50" max="76" step="1"></label>
       <button type="button" class="mbtn" data-back>Fertig</button>
     </div>
     <div class="menu-page" id="menu-keys" hidden>
@@ -469,6 +497,14 @@
         <kbd>T oder /</kbd><span>Chat und Befehle</span>
         <kbd>Tab</kbd><span>Alle Spieler (gedrückt halten)</span>
         <kbd>Esc</kbd><span>Spielmenü / Fenster schließen</span>
+        <kbd>🎮 Linker Stick</kbd><span>Laufen (reindrücken: Rennen)</span>
+        <kbd>🎮 Rechter Stick</kbd><span>Umsehen</span>
+        <kbd>🎮 RT / LT</kbd><span>Abbauen, Angreifen / Bauen, Benutzen</span>
+        <kbd>🎮 A / B</kbd><span>Springen (2x: Fliegen) / Schleichen, Fenster schließen</span>
+        <kbd>🎮 X / Y</kbd><span>Wegwerfen / Inventar</span>
+        <kbd>🎮 LB / RB</kbd><span>Hotbar</span>
+        <kbd>🎮 Start / Back</kbd><span>Spielmenü / 3D-Brille an/aus</span>
+        <kbd class="touch-only">📱 Touch</kbd><span class="touch-only">Links Joystick (ganz nach vorn: Rennen), rechts Knöpfe, Wischen zum Umsehen, Hotbar antippen</span>
       </div>
       <button type="button" class="mbtn" data-back>Fertig</button>
     </div>

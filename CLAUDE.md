@@ -192,6 +192,14 @@ Game menu font: `tools/make_font.py` turns the pack's `font/ascii.png` into `web
 First-person empty hand: `skins.js firstPersonArm()` (right arm + sleeve of `entity/steve`) placed with the matrix
 steps of Minecraft's `ItemInHandRenderer.renderPlayerArm` (`hand.js ARM_MATRIX`). Not the player's own skin yet.
 
+Touch, controllers, 3D glasses: no pointer lock there, so "playing" = connected, alive, no screen open (`main.js
+frame`), and `interaction.update` runs when locked OR (touch/pad and playing). Gyro and Gamepad API need a secure
+context (https or localhost/file). Chrome's `DeviceOrientationEvent.requestPermission` only works after a tap: a
+controller button can't grant it, so `setGyro` asks again on the next tap. Headless tests: Playwright context with
+`hasTouch/isMobile`, touches via CDP `Input.dispatchTouchEvent`, a fake `navigator.getGamepads`, synthetic
+`DeviceOrientationEvent`s and `grantPermissions(['accelerometer','gyroscope','magnetometer'])` (scripts in
+`/home/user/srv`: `touch.cjs`, `padvr.cjs`).
+
 Weather: the `time` message also carries `rain`, `thunder` (0..1) and `snow`/`dry` for the player's biome
 (`WcWeather`). Lightning bolts are sent as entities.
 
@@ -246,6 +254,9 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
 | `entities.js` | Mob/player models (humanoid, quadruped, part specs from `mobs.js`), variants/colors (`VARIANTS`, `JOBS`), held item in right arm, armor, swing/hurt anims, projectiles, items, holograms. Rebuild when `lookKey(d)` changes |
 | `models.js` | `blockMesh`, `itemExtruded` (pixel-extruded 3D item, front/back one-sided), `itemModel` |
 | `hand.js` | First-person arm/item, swing, eat/drink/bow animations, crumbs |
+| `touch.js` | Phones/tablets (`isTouch`): joystick (8 directions as WASD keys, sprint at the edge), buttons, drag anywhere to look (pointer events on `document`, not on controls), gyro look (`setGyro`, deltas of heading/elevation from `deviceorientation`, `roll` for the 3D glasses), close button for inventory/chat |
+| `gamepad.js` | Gamepad API, console layout, polled per frame; `recent` = used within a minute (then `lockPointer` is skipped like on touch); d-pad/A/B navigate the game menu (`.pad-focus`) |
+| `vr.js` | 3D glasses: `StereoCamera` for world and hand scene, half-screen viewports, own HUD canvas (hotbar, hearts, food) and crosshair in the hand scene. Only while playing (`stereoOn`); screens (inventory, menu, chat) show normally |
 | `textures.js` | Atlas: 64×64 tiles of 32 px + 8×8 animation atlas; pack tiles; gray detection for tinting |
 | `palette.js` | Palette from server: tiles per block (`texnames.js` candidates), tints, boxes |
 | `pack.js` | Texture sources: builtin (`texturen.zip` in the html) < server pack < local (IndexedDB). Import of MC packs incl. `.mcmeta`. `entity/` and `armor/` pictures stay out of the block atlas (`pack.image(path)`) |
