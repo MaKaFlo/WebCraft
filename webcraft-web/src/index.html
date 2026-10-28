@@ -116,6 +116,19 @@
   #pause .mbtn.primary, #pause .mbtn.danger { background-color: #6f6f6f; color: #fff; }
   #pause.mc-gui .mbtn.primary, #pause.mc-gui .mbtn.danger { background: none; }
   #pause .mbtn.primary:hover, #pause .mbtn.danger:hover { color: #ffffa0; }
+  /* Texture packs from Modrinth */
+  #menu-packs { width: min(560px, 92vw); margin-left: 50%; transform: translateX(-50%); }
+  .mr-search { font: 400 16px var(--pixel); padding: 8px; background: #000; color: #fff; border: 2px solid #a0a0a0; }
+  .mr-status, .mr-hint { color: #ddd; font: 400 14px var(--pixel); text-shadow: 2px 2px 0 #3f3f3f; min-height: 1.2em; }
+  .mr-list { max-height: min(46vh, 420px); overflow-y: auto; display: flex; flex-direction: column; gap: 4px; background: rgba(0, 0, 0, 0.5); padding: 4px; }
+  .mr-item { display: grid; grid-template-columns: 40px 1fr auto; gap: 8px; align-items: center; text-align: left; padding: 4px; color: #fff; }
+  .mr-item:hover { background: rgba(255, 255, 255, 0.08); }
+  .mr-item img, .mr-noicon { width: 40px; height: 40px; image-rendering: pixelated; font-size: 28px; text-align: center; }
+  .mr-text { display: flex; flex-direction: column; min-width: 0; font: 400 13px var(--mono); }
+  .mr-text b { font: 400 16px var(--pixel); text-shadow: 2px 2px 0 #3f3f3f; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mr-text small { color: #aaa; }
+  .mr-text span { color: #ccc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #pause .mr-item .mbtn { width: 90px; }
   #pause .setting { color: #fff; text-shadow: 2px 2px 0 #3f3f3f; font: 400 16px var(--pixel); }
   /* Pixel font: Minecraft's GUI scale 2 (one font pixel = 2 screen pixels), crisp edges */
   #pause { --pixel: 'WebCraft Pixel', var(--mono); -webkit-font-smoothing: none; font-smooth: never; }
@@ -464,7 +477,10 @@
         <button type="button" class="mbtn" id="m-settings">Optionen ...</button>
         <button type="button" class="mbtn" id="m-keys">Steuerung</button>
       </div>
-      <button type="button" class="mbtn" id="m-textures">Textur-Studio</button>
+      <div class="mc-row">
+        <button type="button" class="mbtn" id="m-textures">Textur-Studio</button>
+        <button type="button" class="mbtn" id="m-packs">Texturpakete ...</button>
+      </div>
       <button type="button" class="mbtn danger" id="m-leave">Verbindung trennen</button>
     </div>
     <div class="menu-page" id="menu-settings" hidden>
@@ -487,6 +503,16 @@
       <label class="setting">Linsenkorrektur <output id="s-lens-v"></output>
         <input type="range" id="s-lens" min="0" max="150" step="10"></label>
       <button type="button" class="mbtn" data-back>Fertig</button>
+    </div>
+    <div class="menu-page" id="menu-packs" hidden>
+      <input type="search" class="mr-search" placeholder="Texturpaket suchen (Modrinth)" autocomplete="off">
+      <div class="mr-status"></div>
+      <div class="mr-list"></div>
+      <small class="mr-hint">Pakete von modrinth.com, nur für dich in diesem Browser. Mehrere Pakete liegen übereinander.</small>
+      <div class="mc-row">
+        <button type="button" class="mbtn mr-reset">Standard-Texturen</button>
+        <button type="button" class="mbtn" data-back>Fertig</button>
+      </div>
     </div>
     <div class="menu-page" id="menu-keys" hidden>
       <div class="keys">

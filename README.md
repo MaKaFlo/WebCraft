@@ -2,7 +2,7 @@
 
 Ein Block-Spiel im Browser, das sich mit einem **Minecraft-Server** verbindet: **Paper** (als Plugin) oder **Fabric** (als Mod, damit auch für Vanilla). WebCraft-Spieler sind auf dem Server **echte Spieler**: Sie stehen in der Tab-Liste, bekommen Schaden, sterben, benutzen Befehle und Menüs von Plugins und Mods. Für den Server gibt es keinen Unterschied zu einem Minecraft-Spieler. So können Leute ohne Minecraft-Account mit Freunden auf dem Server spielen.
 
-Version 0.21.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
+Version 0.22.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
 
 ## Aufbau
 
@@ -209,6 +209,7 @@ Das Bild wird auf 32×32 Pixel verkleinert (bei Items wird der Hintergrund entfe
 - ✅ Optionen: Hitboxen und Chunk-Grenzen anzeigen (auch mit F3+B und F3+G)
 - ✅ Blöcke, Items und Mobs können auf Deutsch heißen wie in Minecraft (Optionen: "Namen: Deutsch / English"). Das braucht `mojang-assets: true` in der config.yml (siehe unten), sonst englische Namen
 - ✅ Sounds wie in Minecraft: Mobs, Schritte (auch von anderen Spielern), Abbauen, Bauen, Türen, Kisten, Schläge, Schaden, Essen, Regen, Donner, Lava, Feuer, Wasser, Level-Up, Aufheben ... mit Richtung und Entfernung, dazu Hintergrundmusik (eigener Regler "Musik" in den Optionen, 0 = aus). Es sind **freie Sounds** (aus Mineclonia und Minetest Game, Lizenzen in `LICENSE-sounds.md`), keine Dateien von Mojang. Der Server schickt sie bei Bedarf, der Browser merkt sie sich. Eigenes Sound-Paket: `plugins/WebCraft/sounds.zip` (Aufbau wie `webcraft-sounds.zip`: `sounds.json` wie in Minecraft, `sounds/*.ogg`)
+- ✅ Texturpakete von **Modrinth** direkt im Spiel: Esc → "Texturpakete ...", suchen, "Laden". Der Browser lädt das Paket selbst von modrinth.com und benutzt Block- und Item-Texturen daraus (nur für dich, bleibt gespeichert). "Standard-Texturen" setzt zurück. Java-Mods (Programmcode) laufen im Browser nicht; CurseForge geht nur mit eigenem API-Schlüssel und ist noch nicht eingebaut
 - ℹ️ Gyro und Controller brauchen im Browser **https://** (die Seite hinter HTTPS ausliefern)
 
 ### Noch offen

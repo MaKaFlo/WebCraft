@@ -25,6 +25,7 @@ import pixelFont from './mcfont.ttf';
 import { TouchControls, isTouch } from './touch.js';
 import { GamepadControls } from './gamepad.js';
 import { StereoView } from './vr.js';
+import { ModrinthPacks } from './modrinth.js';
 
 const SKIES = {
   NORMAL: 0x9fc9ff,
@@ -618,6 +619,8 @@ function hideMenu() {
 $('m-resume').addEventListener('click', hideMenu);
 $('m-settings').addEventListener('click', () => { syncSettingsUi(); showMenu('menu-settings'); });
 $('m-keys').addEventListener('click', () => showMenu('menu-keys'));
+const modrinth = new ModrinthPacks($('menu-packs'));
+$('m-packs').addEventListener('click', () => { showMenu('menu-packs'); modrinth.open(); });
 for (const b of ui.pause.querySelectorAll('[data-back]')) b.addEventListener('click', () => showMenu());
 $('m-leave').addEventListener('click', () => {
   leaving = true;
