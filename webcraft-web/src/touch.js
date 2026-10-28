@@ -152,7 +152,7 @@ export class TouchControls {
   setupLook(target) {
     target.addEventListener('pointerdown', (e) => {
       if (e.pointerType === 'mouse' || !this.active || this.lookId !== null) return;
-      if (e.target.closest?.('button, input, #hotbar, .t-joy')) return;
+      if (e.target.closest?.('button, input, #hotbar, .t-joy, #pause')) return;
       this.lookId = e.pointerId;
       this.lookLast = [e.clientX, e.clientY];
       e.target.setPointerCapture?.(e.pointerId);

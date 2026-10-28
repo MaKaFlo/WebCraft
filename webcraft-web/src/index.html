@@ -82,6 +82,11 @@
     position: fixed; inset: 0; display: grid; place-items: center; background: rgba(20, 18, 34, 0.45);
   }
   #pause .card { text-align: center; }
+  /* Small screens (phones sideways): the menu scrolls. Flex + auto margins keep it centered when it fits and let
+     the top stay reachable when it doesn't (grid centering would cut off the top). Fingers scroll it in main.js. */
+  #pause { display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; padding: 12px 0; box-sizing: border-box; }
+  #pause > .card { margin: auto; flex-shrink: 0; }
+  body.touch #pause .mr-list { touch-action: pan-y; }
   #pause h2 { margin: 0 0 8px; font-size: 28px; }
   #pause .card.menu { width: min(420px, 100%); }
   .menu-page { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }

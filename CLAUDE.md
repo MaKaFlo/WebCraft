@@ -207,7 +207,10 @@ ones); players, drowned and piglins have them.
 Touch, controllers, 3D glasses: no pointer lock there, so "playing" = connected, alive, no screen open (`main.js
 frame`), and `interaction.update` runs when locked OR (touch/pad and playing). Gyro and Gamepad API need a secure
 context (https or localhost/file). Chrome's `DeviceOrientationEvent.requestPermission` only works after a tap: a
-controller button can't grant it, so `setGyro` asks again on the next tap. Headless tests: Playwright context with
+controller button can't grant it, so `setGyro` asks again on the next tap. The game menu (`#pause`) is a scroll container (flex + `margin: auto` on the card, so a tall page keeps its top
+reachable); on phones a finger drag scrolls it (native, plus a pointer fallback in `main.js` that swallows the click
+after a drag). Headless Chromium does not scroll for CDP touch drags while `touch-action: pan-y` is set, real phones do.
+Headless tests: Playwright context with
 `hasTouch/isMobile`, touches via CDP `Input.dispatchTouchEvent`, a fake `navigator.getGamepads`, synthetic
 `DeviceOrientationEvent`s and `grantPermissions(['accelerometer','gyroscope','magnetometer'])` (scripts in
 `/home/user/srv`: `touch.cjs`, `padvr.cjs`).

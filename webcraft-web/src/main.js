@@ -616,6 +616,23 @@ function hideMenu() {
   ui.pause.hidden = true;
   lockPointer();
 }
+// Phones: a finger moves the menu up and down (the page has touch-action: none, so the browser doesn't). A drag of
+// more than a few pixels is a scroll, not a tap: the click that follows is swallowed.
+{
+  let id = null, lastY = 0, moved = 0;
+  ui.pause.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'touch' || e.target.closest('input[type=range], .mr-list')) return;
+    id = e.pointerId; lastY = e.clientY; moved = 0;
+  });
+  ui.pause.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== id) return;
+    ui.pause.scrollTop -= e.clientY - lastY;
+    moved += Math.abs(e.clientY - lastY);
+    lastY = e.clientY;
+  });
+  for (const t of ['pointerup', 'pointercancel']) ui.pause.addEventListener(t, (e) => { if (e.pointerId === id) id = null; });
+  ui.pause.addEventListener('click', (e) => { if (moved > 8) { e.stopPropagation(); e.preventDefault(); moved = 0; } }, true);
+}
 $('m-resume').addEventListener('click', hideMenu);
 $('m-settings').addEventListener('click', () => { syncSettingsUi(); showMenu('menu-settings'); });
 $('m-keys').addEventListener('click', () => showMenu('menu-keys'));
