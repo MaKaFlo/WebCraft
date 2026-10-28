@@ -30,6 +30,10 @@ _Last update: 2026-10-28, version 0.15.1 (main, CI green)._
 - Ideas offered to the owner: real sounds, touch controls for phones, own skin upload.
 - The owner cares about cost: keep sessions lean (few screenshots, batch changes, one build per batch).
 
+## Repository
+
+- GitHub: `https://github.com/MaKaFlo/WebCraft` (old URL `https://github.com/MaKaFlo/webcraft` still redirects).
+
 ## Local paths (session container, may be gone)
 
 - Test servers: `/home/user/srv` (Paper, scripts `*.cjs`), `/home/user/fsrv` (Fabric). JDK 25: `/home/user/tools/jdk-25.0.5+8`.
