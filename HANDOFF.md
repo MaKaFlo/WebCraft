@@ -33,5 +33,7 @@ _Last update: 2026-10-28, version 0.15.1 (main, CI green)._
 ## Local paths (session container, may be gone)
 
 - Test servers: `/home/user/srv` (Paper, scripts `*.cjs`), `/home/user/fsrv` (Fabric). JDK 25: `/home/user/tools/jdk-25.0.5+8`.
-- Texture sources: Faithful upload unpacked in the scratchpad (`userpack/x`), PPCE in `/tmp/ppce`. If gone, ask the
-  owner for the Faithful zip again; PPCE: github.com/Athemis/PixelPerfectionCE.
+- Texture sources: Faithful unpacked in `/home/user/faithful/x`, PPCE in `/tmp/ppce`. If gone, download again
+  (works from the session container):
+  `curl -sSfL -o faithful.zip "https://database.faithfulpack.net/packs/32x-Java/September%202026/Faithful%2032x%20-%2026.3.zip"`
+  (Faithful 32x for 26.3, ~13 MB, 5300 files); PPCE: github.com/Athemis/PixelPerfectionCE.
