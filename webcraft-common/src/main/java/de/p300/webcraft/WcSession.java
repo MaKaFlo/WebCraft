@@ -50,6 +50,9 @@ public final class WcSession {
     public final java.util.Queue<Object[]> blockChanges = new java.util.concurrent.ConcurrentLinkedQueue<>();
     /** Particle and level event packets since the last tick (see WcParticles). */
     public final java.util.Queue<Object> fx = new java.util.concurrent.ConcurrentLinkedQueue<>();
+    /** Captured sound packets of this tick (see WcSounds). */
+    public final java.util.Queue<Object> sounds = new java.util.concurrent.ConcurrentLinkedQueue<>();
+    public final java.util.Set<String> soundsAsked = java.util.concurrent.ConcurrentHashMap.newKeySet();
     public volatile boolean invDirty = true;
     public volatile boolean statsDirty = true;
     public boolean screenOpen;       // browser shows the inventory or a container

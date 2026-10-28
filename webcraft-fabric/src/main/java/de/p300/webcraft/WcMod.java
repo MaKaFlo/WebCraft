@@ -111,6 +111,7 @@ public final class WcMod implements ModInitializer, WcHost {
     private BlockPalette palette;
     private WcSkins skins;
     private WcLang lang;
+    private WcSounds sounds;
     private WcServer socket;
     private WcTextures textures;
     private WcBlockLog blockLog;
@@ -149,7 +150,9 @@ public final class WcMod implements ModInitializer, WcHost {
         textures.load();
         blockLog = new WcBlockLog(new File(dataFolder, "blocklog.csv"), logger);
         skins = new WcSkins(new File(dataFolder, "skins").toPath(), logger);
-        lang = new WcLang(new File(dataFolder, "lang").toPath(), logger);
+        WcAssets assets = new WcAssets(new File(dataFolder, "assets").toPath(), logger);
+        lang = new WcLang(assets);
+        sounds = new WcSounds(assets);
         encoder = Executors.newFixedThreadPool(2, r -> {
             Thread t = new Thread(r, "WebCraft chunk encoder");
             t.setDaemon(true);
@@ -344,6 +347,8 @@ public final class WcMod implements ModInitializer, WcHost {
                 case "trade" -> { f.selectTrade(integer(json, "i")); s.invDirty = true; }
                 case "skin" -> sendSkin(s, str(json, "h"));
                 case "lang" -> sendLang(s, str(json, "l"));
+                case "sound" -> sounds.ask(s, str(json, "e"));
+                case "sfile" -> sounds.askFile(s, str(json, "h"));
                 case "beacon" -> { f.beacon(str(json, "p"), str(json, "s")); s.invDirty = true; }
                 case "rename" -> { f.rename(str(json, "name")); s.invDirty = true; }
                 case "swing" -> f.swing();   // only the animation (digging), no click
@@ -617,6 +622,8 @@ public final class WcMod implements ModInitializer, WcHost {
             }
             JsonObject fx = WcParticles.take(s.fx, palette);
             if (fx != null) s.sendWithPalette(palette, fx);
+            JsonObject snd = WcSounds.take(s.sounds);
+            if (snd != null) s.send(snd);
             JsonObject board = s.scoreboard.takeUpdate();
             if (board != null) s.send(board);
             if (s.statsDirty || tickCounter % 10 == 0) {

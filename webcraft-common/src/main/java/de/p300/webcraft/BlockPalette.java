@@ -68,6 +68,54 @@ public final class BlockPalette {
         return id;
     }
 
+    /**
+     * The sound a door, trapdoor, fence gate, button or lever makes when it gets into this state: [sound, volume, pitch].
+     * The server leaves the player who clicked out of it (his client makes it), so the browser plays it itself.
+     */
+    private static JsonArray useSound(BlockState state) {
+        var block = state.getBlock();
+        String key = null;
+        float volume = 1f, pitch = 1f;
+        try {
+            if (block instanceof net.minecraft.world.level.block.LeverBlock) {
+                boolean on = state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.POWERED);
+                key = "block.lever.click";
+                volume = 0.3f;
+                pitch = on ? 0.6f : 0.5f;
+            } else if (block instanceof net.minecraft.world.level.block.DoorBlock door) {
+                boolean open = state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.OPEN);
+                key = WcSounds.key(open ? door.type().doorOpen() : door.type().doorClose());
+            } else if (block instanceof net.minecraft.world.level.block.TrapDoorBlock) {
+                boolean open = state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.OPEN);
+                var type = (net.minecraft.world.level.block.state.properties.BlockSetType) field(block, net.minecraft.world.level.block.TrapDoorBlock.class);
+                key = WcSounds.key(open ? type.trapdoorOpen() : type.trapdoorClose());
+            } else if (block instanceof net.minecraft.world.level.block.FenceGateBlock) {
+                boolean open = state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.OPEN);
+                var type = (net.minecraft.world.level.block.state.properties.WoodType) field(block, net.minecraft.world.level.block.FenceGateBlock.class);
+                key = WcSounds.key(open ? type.fenceGateOpen() : type.fenceGateClose());
+            } else if (block instanceof net.minecraft.world.level.block.ButtonBlock) {
+                boolean on = state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.POWERED);
+                var type = (net.minecraft.world.level.block.state.properties.BlockSetType) field(block, net.minecraft.world.level.block.ButtonBlock.class);
+                key = WcSounds.key(on ? type.buttonClickOn() : type.buttonClickOff());
+            }
+        } catch (Throwable ignored) {
+            return null;
+        }
+        if (key == null) return null;
+        JsonArray a = new JsonArray();
+        a.add(key);
+        a.add(volume);
+        a.add(pitch);
+        return a;
+    }
+
+    /** The private "type" field of a block class (fence gates and buttons have no public getter). */
+    private static Object field(Object block, Class<?> owner) throws ReflectiveOperationException {
+        var f = owner.getDeclaredField("type");
+        f.setAccessible(true);
+        return f.get(block);
+    }
+
     private static JsonObject describe(BlockState state) {
         JsonObject e = new JsonObject();
         e.addProperty("n", BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath());
@@ -103,6 +151,27 @@ public final class BlockPalette {
                 && state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT)) {
             e.addProperty("li", 1);
         }
+
+        // Sounds for steps, digging, placing (the browser plays them for its own player like the vanilla client)
+        try {
+            var st = state.getSoundType();
+            String[] keys = {WcSounds.key(st.getBreakSound()), WcSounds.key(st.getStepSound()), WcSounds.key(st.getPlaceSound()),
+                    WcSounds.key(st.getHitSound()), WcSounds.key(st.getFallSound())};
+            String[] ends = {".break", ".step", ".place", ".hit", ".fall"};
+            String group = keys[0].startsWith("block.") && keys[0].endsWith(".break") ? keys[0].substring(6, keys[0].length() - 6) : null;
+            for (int i = 0; group != null && i < 5; i++) if (!keys[i].equals("block." + group + ends[i])) group = null;
+            if (group != null) e.addProperty("so", group);
+            else {
+                JsonArray a = new JsonArray();
+                for (String k : keys) a.add(k);
+                e.add("so", a);
+            }
+            if (st.getVolume() != 1f) e.addProperty("sv", st.getVolume());
+            if (st.getPitch() != 1f) e.addProperty("sp", st.getPitch());
+        } catch (Throwable ignored) {
+        }
+        JsonArray use = useSound(state);
+        if (use != null) e.add("us", use);
 
         // Water and lava: how full the block is (flowing water gets lower, falling water is a full column)
         if (liquid) {

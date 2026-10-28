@@ -736,7 +736,7 @@ export class Entities {
       if (e && (e.type !== d.type || (d.txt !== undefined && e.target.txt !== d.txt) ||
         (e.lookKey !== undefined && e.lookKey !== lookKey(d)))) { this.disposeOne(e); e = null; }
       if (!e) {
-        if (d.type === 'lightning_bolt') this.onLightning?.();
+        if (d.type === 'lightning_bolt') this.onLightning?.(d);
         e = new Entity(d, this.palette);
         this.map.set(d.i, e);
         this.scene.add(e.group);

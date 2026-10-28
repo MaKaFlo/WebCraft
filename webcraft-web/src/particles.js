@@ -361,7 +361,12 @@ const wallTorch = (flame) => (p, x, y, z, id, P) => {
   p.sprite('smoke', ox, y + 0.95, oz, 0, 0.3, 0);
   p.sprite(flame, ox, y + 0.92, oz, 0, 0, 0);
 };
+// Sounds of Minecraft's animateTick with Minecraft's chances. We look at about 2.5x as many blocks per tick near the
+// player as Minecraft does, so only 40 % of the calls count.
+const snd = (p, e, x, y, z, v, pitch) => Math.random() < 0.4 && p.sound?.(e, x + 0.5, y + 0.5, z + 0.5, v, pitch);
+const FURNACE_SOUND = { furnace: 'block.furnace.fire_crackle', smoker: 'block.smoker.smoke', blast_furnace: 'block.blast_furnace.fire_crackle' };
 const furnace = (p, x, y, z, id, P) => {
+  if (P.lit?.[id] && Math.random() < 0.1) snd(p, FURNACE_SOUND[P.names[id]], x, y, z, 1, 1);
   if (!P.lit?.[id] || Math.random() > 0.5) return;
   const [fx, fz] = FACE_DIR[P.facing[id]] ?? [0, 1];
   const side = rnd(-0.3, 0.3);
@@ -380,18 +385,30 @@ const AMBIENT = new Map([
   ['furnace', furnace], ['smoker', furnace], ['blast_furnace', furnace],
   ['campfire', (p, x, y, z, id, P) => {
     if (!P.lit?.[id]) return;
+    if (Math.random() < 0.1) snd(p, 'block.campfire.crackle', x, y, z, 0.5 + Math.random(), Math.random() * 0.7 + 0.6);
     p.sprite('campfire_cosy_smoke', x + 0.5 + rnd(-0.3, 0.3), y + 0.6, z + 0.5 + rnd(-0.3, 0.3), 0, 0.6, 0);
     if (Math.random() < 0.2) p.sprite('lava', x + 0.5, y + 0.5, z + 0.5, rnd(-0.6, 0.6), 2, rnd(-0.6, 0.6));
   }],
   ['soul_campfire', (p, x, y, z, id, P) => {
     if (P.lit?.[id]) p.sprite('campfire_cosy_smoke', x + 0.5 + rnd(-0.3, 0.3), y + 0.6, z + 0.5 + rnd(-0.3, 0.3), 0, 0.6, 0);
   }],
-  ['fire', (p, x, y, z) => { for (let i = 0; i < 2; i++) p.sprite('large_smoke', x + Math.random(), y + rnd(0.5, 1), z + Math.random(), 0, 0.2, 0); }],
-  ['soul_fire', (p, x, y, z) => p.sprite('large_smoke', x + Math.random(), y + rnd(0.5, 1), z + Math.random(), 0, 0.2, 0)],
+  ['fire', (p, x, y, z) => {
+    if (Math.random() < 1 / 24) snd(p, 'block.fire.ambient', x, y, z, 1 + Math.random(), Math.random() * 0.7 + 0.3);
+    for (let i = 0; i < 2; i++) p.sprite('large_smoke', x + Math.random(), y + rnd(0.5, 1), z + Math.random(), 0, 0.2, 0); }],
+  ['soul_fire', (p, x, y, z) => (Math.random() < 1 / 24 && snd(p, 'block.fire.ambient', x, y, z, 1 + Math.random(), Math.random() * 0.7 + 0.3), p.sprite('large_smoke', x + Math.random(), y + rnd(0.5, 1), z + Math.random(), 0, 0.2, 0))],
   ['lava', (p, x, y, z) => {
+    if (!p.world.getId(x, y + 1, z)) {
+      if (Math.random() < 0.01) snd(p, 'block.lava.pop', x, y, z, 0.2 + Math.random() * 0.2, 0.9 + Math.random() * 0.15);
+      if (Math.random() < 0.005) snd(p, 'block.lava.ambient', x, y, z, 0.2 + Math.random() * 0.2, 0.9 + Math.random() * 0.15);
+    }
     if (Math.random() < 0.02 && !p.world.getId(x, y + 1, z)) p.sprite('lava', x + Math.random(), y + 1, z + Math.random(), rnd(-0.6, 0.6), 2, rnd(-0.6, 0.6));
   }],
+  ['water', (p, x, y, z, id, P) => {
+    // Flowing water murmurs
+    if (!P.liquidFall[id] && P.liquidH[id] < 0.85 && Math.random() < 1 / 64) snd(p, 'block.water.ambient', x, y, z, Math.random() * 0.25 + 0.75, Math.random() + 0.5);
+  }],
   ['nether_portal', (p, x, y, z) => {
+    if (Math.random() < 0.01) snd(p, 'block.portal.ambient', x, y, z, 0.5, Math.random() * 0.4 + 0.8);
     for (let i = 0; i < 2; i++) p.sprite('portal', x + Math.random(), y + Math.random(), z + Math.random(), rnd(-0.5, 0.5), rnd(-0.5, 0.5), rnd(-0.5, 0.5));
   }],
   ['end_rod', (p, x, y, z) => { if (Math.random() < 0.2) p.sprite('end_rod', x + 0.5 + rnd(-0.2, 0.2), y + rnd(0.2, 0.8), z + 0.5 + rnd(-0.2, 0.2), rnd(-0.05, 0.05), rnd(-0.05, 0.05), rnd(-0.05, 0.05)); }],
@@ -406,5 +423,9 @@ const AMBIENT = new Map([
 ]);
 for (const n of ['candle', 'white_candle', 'orange_candle', 'magenta_candle', 'light_blue_candle', 'yellow_candle', 'lime_candle', 'pink_candle',
   'gray_candle', 'light_gray_candle', 'cyan_candle', 'purple_candle', 'blue_candle', 'brown_candle', 'green_candle', 'red_candle', 'black_candle']) {
-  AMBIENT.set(n, (p, x, y, z, id, P) => { if (P.lit?.[id]) p.sprite('small_flame', x + 0.5, y + 0.55, z + 0.5, 0, 0, 0); });
+  AMBIENT.set(n, (p, x, y, z, id, P) => {
+    if (!P.lit?.[id]) return;
+    p.sprite('small_flame', x + 0.5, y + 0.55, z + 0.5, 0, 0, 0);
+    if (Math.random() < 0.17) snd(p, 'block.candle.ambient', x, y, z, 1 + Math.random(), Math.random() * 0.7 + 0.3);
+  });
 }

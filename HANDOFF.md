@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-10-28, version 0.19.0 (main, CI green)._
+_Last update: 2026-10-28, version 0.20.0 (main)._
 
 ## Current state
 
@@ -10,6 +10,9 @@ _Last update: 2026-10-28, version 0.19.0 (main, CI green)._
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- 0.20.0: real Minecraft sounds and music (`WcAssets` loads Mojang's assets once, `WcSounds`, browser `sounds.js`,
+  setting "Musik"). Tested on the Paper test server headless (mobs, attack, level up, pickup, door, chest, steps,
+  fall, hurt arrive and decode). Fabric side compiled, not run. Not yet heard by a human: check volumes and feel.
 - 0.19.0: German names of blocks, items and mobs (`WcLang`: server loads de_de.json from Mojang once; option
   "Namen: Deutsch / English", default German). The menu texts were German already. Fabric side compiled, not run.
 - Done in session 2026-10-28, part 3 (0.17.1 → 0.18.0): options for hitboxes and chunk borders (also F3+B/G),
@@ -45,7 +48,9 @@ _Last update: 2026-10-28, version 0.19.0 (main, CI green)._
 
 ## Open wishes / next steps
 
-- Ideas offered to the owner: real sounds, own skin upload. Possible: inventory navigation with the controller.
+- Sounds: maybe cave ambience (`ambient.cave` mood), under-water music, biome music (`music.overworld.*`), jukebox
+  discs, item use sounds the server leaves to the client (bucket fill, flint and steel, hoe till ...).
+- Ideas offered to the owner: own skin upload. Possible: inventory navigation with the controller.
 - Warden glow layers, baby pictures of the new mobs (`goat_baby`, `axolotl_*_baby`, `camel_baby`, `snifflet` ...).
 - Cow, pig, rabbit, magma cube could use new models for the Faithful pictures.
 - The owner cares about cost: keep sessions lean (few screenshots, batch changes, one build per batch).

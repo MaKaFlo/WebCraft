@@ -65,6 +65,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
     private BlockPalette palette;
     private WcSkins skins;
     private WcLang lang;
+    private WcSounds sounds;
     private WcServer server;
     private final Map<Integer, WcSession> sessions = new ConcurrentHashMap<>(); // logged-in sessions
     private final Map<UUID, WcSession> byPlayer = new ConcurrentHashMap<>();
@@ -86,7 +87,9 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         textures.load();
         blockLog = new WcBlockLog(new File(getDataFolder(), "blocklog.csv"), getLogger());
         skins = new WcSkins(new File(getDataFolder(), "skins").toPath(), getLogger());
-        lang = new WcLang(new File(getDataFolder(), "lang").toPath(), getLogger());
+        WcAssets assets = new WcAssets(new File(getDataFolder(), "assets").toPath(), getLogger());
+        lang = new WcLang(assets);
+        sounds = new WcSounds(assets);
         getServer().getPluginManager().registerEvents(new WcListener(this), this);
         Bukkit.getScheduler().runTaskTimer(this, this::tick, 1L, 1L);
         startServer();
@@ -199,6 +202,8 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                 case "trade" -> { f.selectTrade(integer(json, "i")); s.invDirty = true; }
                 case "skin" -> sendSkin(s, str(json, "h"));
                 case "lang" -> sendLang(s, str(json, "l"));
+                case "sound" -> sounds.ask(s, str(json, "e"));
+                case "sfile" -> sounds.askFile(s, str(json, "h"));
                 case "beacon" -> { f.beacon(str(json, "p"), str(json, "s")); s.invDirty = true; }
                 case "rename" -> { f.rename(str(json, "name")); s.invDirty = true; }
                 case "swing" -> p.swingMainHand();   // only the animation (digging), no click event
@@ -602,6 +607,8 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
             }
             JsonObject fx = WcParticles.take(s.fx, palette);
             if (fx != null) s.sendWithPalette(palette, fx);
+            JsonObject snd = WcSounds.take(s.sounds);
+            if (snd != null) s.send(snd);
             JsonObject board = s.scoreboard.takeUpdate();
             if (board != null) s.send(board);
             if (s.statsDirty || tickCounter % 10 == 0) {

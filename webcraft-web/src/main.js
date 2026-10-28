@@ -1,6 +1,6 @@
 // WebCraft - browser client. Joins a Minecraft server as a real player through the WebCraft bridge plugin.
 import * as THREE from 'three';
-import { Palette } from './palette.js';
+import { Palette, KIND_CROSS, KIND_LIQUID } from './palette.js';
 import { World } from './world.js';
 import { Player } from './player.js';
 import { Entities } from './entities.js';
@@ -10,7 +10,7 @@ import { Hud } from './hud.js';
 import { TabList } from './tablist.js';
 import { Sidebar } from './sidebar.js';
 import { Hand, useKind } from './hand.js';
-import { sfx, setVolume, unlockAudio } from './sfx.js';
+import { sounds, Music, setVolume, setMusicVolume, unlockAudio } from './sounds.js';
 import { pack } from './pack.js';
 import { clearIconCache, setNames } from './items.js';
 import { Studio } from './studio.js';
@@ -32,7 +32,7 @@ const SKIES = {
   THE_END: 0x150f22,
 };
 // Settings (kept in the browser)
-const settings = { sens: 15, fov: 75, autoJump: true, vol: 60, gyro: false, vr: false, eye: 64, lens: 60, hitboxes: false, chunks: false, lang: 'de' };
+const settings = { sens: 15, fov: 75, autoJump: true, vol: 60, music: 50, gyro: false, vr: false, eye: 64, lens: 60, hitboxes: false, chunks: false, lang: 'de' };
 // Settings saved under the old name (gg.*) move over once
 try {
   for (const k of ['settings', 'server', 'name']) {
@@ -87,6 +87,9 @@ const tablist = new TabList($('tablist'));
 const hand = new Hand();
 const border = new Border(scene);
 setVolume(settings.vol / 100);
+setMusicVolume(settings.music / 100);
+const music = new Music();
+let worldEnv = 'NORMAL', gameMode = 'SURVIVAL';
 let myEntityId = -1;
 let eatTimer = 0;
 let hurtTilt = 0;
@@ -121,12 +124,22 @@ const inventory = new Inventory({
 const interaction = new Interaction(scene, world, player, entities, inventory, send);
 interaction.onSwing = () => { hand.swing(); if (entities.self) entities.self.swingT = SELF_SWING; };
 setSkinRequester((h) => send({ t: 'skin', h }));
-entities.onLightning = () => {
+entities.onLightning = (d) => {
   weather.strike();
-  setTimeout(() => sfx.thunder(), 300 + Math.random() * 900);
+  // Like Minecraft: the thunder is heard everywhere, the impact only near the bolt
+  sounds.play('entity.lightning_bolt.thunder', d.x, d.y, d.z, 10000, 0.8 + Math.random() * 0.2);
+  sounds.play('entity.lightning_bolt.impact', d.x, d.y, d.z, 2, 0.5 + Math.random() * 0.2);
 };
-interaction.onBreak = (x, y, z, id) => particles.breakBlock(x, y, z, id);
-interaction.onDigHit = (x, y, z, n, id) => particles.digHit(x, y, z, n, id);
+interaction.onBreak = (x, y, z, id) => { particles.breakBlock(x, y, z, id); sounds.block(world.palette, id, 0, x, y, z); };
+interaction.onDigHit = (x, y, z, n, id) => { particles.digHit(x, y, z, n, id); sounds.block(world.palette, id, 3, x, y, z); };
+interaction.onPlace = (x, y, z, id) => sounds.block(world.palette, id, 2, x, y, z);
+sounds.entityPos = (id) => (id === myEntityId ? { x: player.x, y: player.y, z: player.z } : entities.map.get(id) ?? null);
+sounds.entityType = (id) => entities.map.get(id)?.type;
+particles.sound = (e, x, y, z, v, p) => sounds.play(e, x, y, z, v, p);
+// Buttons in the game menus click like Minecraft's
+document.addEventListener('click', (e) => {
+  if (connected && e.target.closest?.('button, .mbtn')) sounds.play('ui.button.click', null, null, null, 0.25, 1);
+});
 
 const studio = new Studio({
   el: $('studio'),
@@ -187,11 +200,14 @@ function connect(url, name) {
     return;
   }
   ws.binaryType = 'arraybuffer';
+  sounds.connect(send);
   let welcomed = false;
 
   ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', name, skin: ui.skin.value.trim() || undefined }));
   ws.onmessage = (ev) => {
     // Chunks are decompressed in parallel, but applied strictly in arrival order
+    // Sound files (type 2) don't need the order of the other messages
+    if (typeof ev.data !== 'string' && new Uint8Array(ev.data, 0, 1)[0] === 2) { sounds.onFile(ev.data); return; }
     const ready = typeof ev.data === 'string' ? ev.data : decodeChunk(ev.data);
     messageChain = messageChain.then(() => ready).then(handleMessage).catch((e) => console.error(e));
   };
@@ -248,7 +264,16 @@ function connect(url, name) {
         for (const [cx, cz] of msg.list) world.removeChunk(cx, cz);
         break;
       case 'blocks':
-        for (const [x, y, z, id] of msg.list) world.setBlock(x, y, z, id);
+        for (const [x, y, z, id] of msg.list) {
+          blockSound(x, y, z, world.getId(x, y, z), id);
+          world.setBlock(x, y, z, id);
+        }
+        break;
+      case 'snd':
+        sounds.serverList(msg.l);
+        break;
+      case 'sound':
+        sounds.onDef(msg);
         break;
       case 'ents':
         entities.sync(msg.list);
@@ -274,6 +299,8 @@ function connect(url, name) {
         break;
       case 'fx':
         particles.serverList(msg.l);
+        // Blocks other players break: the sound comes with the pieces (Minecraft's level event 2001)
+        for (const f of msg.l) if (f[0] === 'break') sounds.block(world.palette, f[9], 0, f[1], f[2], f[3]);
         break;
       case 'time':
         sky.setTime(msg.v, performance.now());
@@ -285,6 +312,7 @@ function connect(url, name) {
       case 'stats':
         hud.update(msg);
         inventory.setCreative(msg.gm === 'CREATIVE');
+        gameMode = msg.gm;
         interaction.attackSpeed = msg.as ?? 4;
         if (msg.border) setBorder(msg.border);
         hand.visibleMode = msg.gm !== 'SPECTATOR';
@@ -346,13 +374,14 @@ function onAnim(list) {
   const atk = interaction.lastAttack;
   for (const [id, kind] of list) {
     if (id === myEntityId) {
-      if (kind === 1) { sfx.hurt(); hurtTilt = 0.35; }
+      if (kind === 1) {
+        hurtTilt = 0.35;
+        // The server leaves our own hurt sound to the client (like for every player)
+        if (!dead) sounds.play('entity.player.hurt', player.x, player.eyeY, player.z, 1, (Math.random() - Math.random()) * 0.2 + 1);
+      }
       continue;
     }
-    if (atk && id === atk.id && now - atk.at < 700) {
-      if (kind === 1) { sfx.hit(atk.charge); interaction.lastAttack = null; }
-      if (kind === 4 || kind === 5) sfx.crit();
-    }
+    if (atk && id === atk.id && now - atk.at < 700 && kind === 1) interaction.lastAttack = null;
   }
 }
 
@@ -369,6 +398,7 @@ function setWorld(msg) {
   scene.fog.color.setHex(color);
   sky.setEnv(msg.env);
   world.setEnv(msg.env);
+  worldEnv = msg.env;
   const far = (world.viewDistance + 1) * 16;
   scene.fog.near = msg.env === 'NETHER' ? 8 : far * 0.55;
   scene.fog.far = msg.env === 'NETHER' ? far * 0.6 : far;
@@ -504,6 +534,7 @@ function resetGame() {
   sidebar.update({ show: false });
   studio.close();
   myEntityId = -1;
+  music.stop();
   interaction.reset();
   hud.reset();
   dead = false;
@@ -512,6 +543,7 @@ function resetGame() {
 }
 
 function showDeath(message) {
+  if (!dead && connected) sounds.play('entity.player.death', player.x, player.eyeY, player.z, 1, (Math.random() - Math.random()) * 0.2 + 1);
   dead = true;
   player.frozen = true;
   player.keys.clear();
@@ -606,13 +638,20 @@ function syncSettingsUi() {
   $('s-eye').value = settings.eye; $('s-eye-v').textContent = settings.eye + ' mm';
   $('s-lens').value = settings.lens; $('s-lens-v').textContent = settings.lens ? settings.lens + '%' : 'aus';
   $('s-vol').value = settings.vol; $('s-vol-v').textContent = settings.vol + '%';
+  $('s-music').value = settings.music; $('s-music-v').textContent = settings.music ? settings.music + '%' : 'aus';
 }
 $('s-vol').addEventListener('input', (e) => {
   settings.vol = +e.target.value;
   setVolume(settings.vol / 100);
   syncSettingsUi();
   saveSettings();
-  sfx.hit(1);
+  sounds.play('ui.button.click', null, null, null, 0.25, 1);
+});
+$('s-music').addEventListener('input', (e) => {
+  settings.music = +e.target.value;
+  setMusicVolume(settings.music / 100);
+  syncSettingsUi();
+  saveSettings();
 });
 $('m-textures').addEventListener('click', () => studio.open(inventory.selectedItem()?.k));
 $('s-sens').addEventListener('input', (e) => { settings.sens = +e.target.value; syncSettingsUi(); saveSettings(); });
@@ -938,7 +977,12 @@ function frame(now) {
       eatTimer -= dt;
       if (eatTimer <= 0 && hand.useT > 0.25) {
         eatTimer = 0.22;
-        if (kind === 'eat') { hand.spawnCrumbs(); sfx.munch(); } else sfx.gulp();
+        if (kind === 'eat') {
+          hand.spawnCrumbs();
+          sounds.play('entity.generic.eat', player.x, player.eyeY, player.z, 0.5 + 0.5 * (Math.random() < 0.5 ? 0 : 1), (Math.random() - Math.random()) * 0.2 + 1);
+        } else {
+          sounds.play('entity.generic.drink', player.x, player.eyeY, player.z, 0.5, Math.random() * 0.1 + 0.9);
+        }
       }
     }
     hand.update(dt, moving);
@@ -953,6 +997,11 @@ function frame(now) {
     handLightT -= dt;
     if (handLightT <= 0 && world.palette) { handLightT = 0.25; handLight = world.brightnessAt(player.x, player.eyeY, player.z, light); }
     particles.update(dt, player.x, player.eyeY, player.z);
+    sounds.setListener(camera);
+    ownSteps(dt);
+    otherSteps();
+    rainSound(dt);
+    music.update(dt, musicKind());
 
     if (!ui.loading.hidden && player.groundLoaded() && world.dirty.size < 20) ui.loading.hidden = true;
     checkMissingChunks(dt);
@@ -977,6 +1026,104 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // Watchdog: if chunks around you stay missing, ask the server to send them again
+// ---------------------------------------------------------------- sounds the vanilla client makes itself
+
+/** Steps: like Minecraft's Entity.move, one every 1/0.6 blocks walked on the ground (not when sneaking). */
+function stepAt(e, x, y, z, dist, onGround, sneaking) {
+  e.moveDist = (e.moveDist ?? 0) + dist * 0.6;
+  if (e.nextStep === undefined) e.nextStep = e.moveDist + 1;
+  if (e.moveDist <= e.nextStep) return;
+  e.nextStep = Math.floor(e.moveDist) + 1;
+  const P = world.palette;
+  const bx = Math.floor(x), bz = Math.floor(z);
+  if (world.isLiquid(bx, Math.floor(y + 0.5), bz)) {
+    sounds.play('entity.player.swim', x, y, z, 0.15, 1 + (Math.random() - Math.random()) * 0.4);
+    return;
+  }
+  if (!onGround || sneaking) return;
+  // Snow layers, carpets ... on top of the block sound instead of it
+  let id = world.getId(bx, Math.floor(y + 0.01), bz);
+  if (!id || !/snow|carpet/.test(P.names[id])) id = world.getId(bx, Math.floor(y - 0.2), bz);
+  if (id) sounds.block(P, id, 1, x, y, z);
+}
+
+const ownStep = {};
+let fallTop = null;
+function ownSteps() {
+  const last = ownStep.pos;
+  ownStep.pos = { x: player.x, y: player.y, z: player.z };
+  if (!last || player.flying || dead) { fallTop = null; return; }
+  const dist = Math.hypot(player.x - last.x, player.z - last.z);
+  if (dist > 2) return;   // teleport
+  stepAt(ownStep, player.x, player.y, player.z, dist, player.onGround, player.keys.has('ShiftLeft'));
+  // Landing after a fall of more than 3 blocks: the block's fall sound and the damage sound (both left to the client)
+  if (!player.onGround && !player.inLiquid) fallTop = Math.max(fallTop ?? player.y, player.y);
+  else {
+    const damage = fallTop !== null ? fallTop - player.y - 3 : 0;
+    if (player.onGround && damage > 0) {
+      const id = world.getId(Math.floor(player.x), Math.floor(player.y - 0.2), Math.floor(player.z));
+      if (id) sounds.block(world.palette, id, 4, player.x, player.y, player.z);
+      if (gameMode === 'SURVIVAL' || gameMode === 'ADVENTURE') {
+        sounds.play(damage > 4 ? 'entity.player.big_fall' : 'entity.player.small_fall', player.x, player.y, player.z, 1, 1);
+      }
+    }
+    fallTop = null;
+  }
+}
+
+/** Other players' steps (mobs' steps come from the server). */
+function otherSteps() {
+  for (const e of entities.map.values()) {
+    if (e.type !== 'player') continue;
+    const last = e.stepPos;
+    e.stepPos = { x: e.x, y: e.y, z: e.z };
+    if (!last) continue;
+    const dist = Math.hypot(e.x - last.x, e.z - last.z);
+    if (dist > 2) continue;
+    const below = world.getId(Math.floor(e.x), Math.floor(e.y - 0.2), Math.floor(e.z));
+    const onGround = Math.abs(e.y - last.y) < 0.02 && below && world.palette.solid[below];
+    stepAt(e, e.x, e.y, e.z, dist, onGround, e.target.sn);
+  }
+}
+
+/** Rain on the ground around us now and then (Minecraft's weather.rain, muffled above a roof). */
+let rainT = 0;
+function rainSound(dt) {
+  rainT -= dt;
+  if (rainT > 0 || weather.rain < 0.05 || weather.target.snow || weather.target.dry || !world.hasSky) return;
+  rainT = 0.1 + Math.random() * 0.15;
+  const x = Math.floor(player.x + (Math.random() - 0.5) * 20), z = Math.floor(player.z + (Math.random() - 0.5) * 20);
+  const top = weather.top(x, z, player.y);
+  if (top === undefined || top === null || !Number.isFinite(top)) return;
+  const roof = weather.top(Math.floor(player.x), Math.floor(player.z), player.y);
+  if (top > player.y + 1 && top > roof) sounds.play('weather.rain.above', x + 0.5, top, z + 0.5, 0.1 * weather.rain, 0.5);
+  else sounds.play('weather.rain', x + 0.5, top, z + 0.5, 0.2 * weather.rain, 1);
+}
+
+function musicKind() {
+  if (worldEnv === 'NETHER') return 'music.nether.nether_wastes';
+  if (worldEnv === 'THE_END') return 'music.end';
+  return gameMode === 'CREATIVE' ? 'music.creative' : 'music.game';
+}
+
+/** Block changes the server sends: placing (blocks that were not predicted) and doors, levers ... we clicked. */
+function blockSound(x, y, z, old, id) {
+  const u = interaction.lastUseOn;
+  if (!u || old === id || performance.now() - u.at > 1500) return;
+  const P = world.palette;
+  if (x === u.x && y === u.y && z === u.z && P.useSound[id] && P.names[old] === P.names[id]) {
+    const [e, v, p] = P.useSound[id];
+    sounds.play(e, x + 0.5, y + 0.5, z + 0.5, v, p * (0.9 + Math.random() * 0.1));
+    return;
+  }
+  // Placed next to the clicked face, or in place of grass, snow ... that was clicked
+  const replaced = x === u.x && y === u.y && z === u.z && (P.kind[old] === KIND_CROSS || P.names[old] === 'snow');
+  const placed = replaced || (x === u.x + u.face[0] && y === u.y + u.face[1] && z === u.z + u.face[2]);
+  if (placed && id && P.names[old] !== P.names[id] && P.kind[id] !== KIND_LIQUID) {
+    sounds.block(P, id, 2, x, y, z);
+  }
+}
+
 let missingTime = 0;
 function checkMissingChunks(dt) {
   const cx = Math.floor(player.x) >> 4, cz = Math.floor(player.z) >> 4;
@@ -1028,4 +1175,4 @@ function updateHud() {
 }
 
 // Handy for debugging in the browser console: wc.player, wc.world
-window.wc = { player, world, entities, renderer, scene, camera, inventory, interaction, send, hud, sidebar, studio, pack, hand, sky, particles, weather };
+window.wc = { player, world, entities, renderer, scene, camera, inventory, interaction, send, hud, sidebar, studio, pack, hand, sky, particles, weather, sounds };

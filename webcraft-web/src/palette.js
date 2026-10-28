@@ -52,6 +52,10 @@ export class Palette {
     this.fire = [];        // fire: drawn as burning walls
     this.facing = [];      // face index (world.js FACES) the block looks to, or -1
     this.lit = [];         // lit furnace, campfire, candle, redstone torch ... (particles)
+    this.sound = [];       // sound group ("stone": block.stone.break ...) or [break, step, place, hit, fall]
+    this.soundVol = [];
+    this.soundPitch = [];
+    this.useSound = [];    // door/trapdoor/gate/button/lever: [sound, volume, pitch] when it gets into this state
     this.emit = [];        // block light 0..15 (torch 14, lava 15 ...)
     this.skyStop = [];     // sky light can't pass (full cubes, slabs, stairs: a floor over the whole cell)
     this.skyDim = [];      // sky light goes through but no longer counts as open sky (water, leaves, ice ...)
@@ -101,6 +105,10 @@ export class Palette {
     this.fire[i] = name === 'fire' || name === 'soul_fire' ? 1 : 0;
     this.facing[i] = FACING[e.fa] ?? -1;
     this.lit[i] = e.li ? 1 : 0;
+    this.sound[i] = e.so || null;
+    this.soundVol[i] = e.sv ?? 1;
+    this.soundPitch[i] = e.sp ?? 1;
+    this.useSound[i] = e.us || null;
     this.emit[i] = e.le | 0;
     const floor = kind === KIND_CUBE && solid && (e.rs || [e.r || FULL]).some((b) => b[0] <= 0 && b[2] <= 0 && b[3] >= 1 && b[5] >= 1);
     this.skyStop[i] = this.occluding[i] || (floor && !/leaves/.test(name)) ? 1 : 0;

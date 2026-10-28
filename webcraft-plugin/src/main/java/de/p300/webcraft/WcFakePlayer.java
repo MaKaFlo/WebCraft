@@ -628,7 +628,13 @@ public final class WcFakePlayer {
             case ClientboundDisconnectPacket d -> session.kicked(d.reason().getString());
             case ClientboundAnimatePacket a -> session.anims.add(new int[] {a.getId(), a.getAction()});
             case ClientboundLevelParticlesPacket fx -> session.fx.add(fx);
-            case ClientboundLevelEventPacket fx -> session.fx.add(fx);
+            case ClientboundLevelEventPacket fx -> {
+                session.fx.add(fx);
+                if (WcSounds.wanted(fx)) session.sounds.add(fx);
+            }
+            case ClientboundSoundPacket snd -> session.sounds.add(snd);
+            case ClientboundSoundEntityPacket snd -> session.sounds.add(snd);
+            case ClientboundTakeItemEntityPacket snd -> session.sounds.add(snd);
             // Every block change the server tells a normal client about (also /setblock, WorldEdit, pistons ...)
             case ClientboundBlockUpdatePacket b -> session.blockChanges.add(new Object[] {b.getPos(), b.getBlockState()});
             case ClientboundSectionBlocksUpdatePacket b -> b.runUpdates((pos, state) -> session.blockChanges.add(new Object[] {pos.immutable(), state}));

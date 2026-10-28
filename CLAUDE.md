@@ -111,7 +111,9 @@ cd webcraft-web && npm ci && npm run build   # web only -> webcraft-web/dist/ind
 | `WcItems` | ItemStack → `{k, c, d, e}` JSON |
 | `WcScoreboard` | Sidebar scoreboard capture |
 | `WcBlockLog` | `blocklog.csv` against griefing |
-| `WcLang` (common) | Client `lang` {l: "de_de"} → loads Minecraft's language file once from Mojang (version manifest → asset index → resources.download.minecraft.net, version from `SharedConstants`), caches it in `lang/<version>-<code>.json`, answers `lang` {l, names: key → name} with `entity.`/`block.`/`item.minecraft.*` names (items win). Not in the repo: Mojang's texts |
+| `WcAssets` (common) | Minecraft's client assets of the server's version from Mojang (version manifest → asset index → resources.download.minecraft.net), cached by hash in `assets/` (`<version>-index.json`, `objects/xx/hash`). Used by `WcLang` and `WcSounds` |
+| `WcSounds` (common) | Sounds: captured `ClientboundSoundPacket`/`SoundEntityPacket`/`TakeItemEntityPacket` and level events with a sound (`EVENTS`) → `snd` per tick. `sound` {e} → files of the event from `sounds.json` (`type: event` resolved), `sfile` {h} → binary message 2 (only hashes under `minecraft/sounds/`). Own thread pool |
+| `WcLang` (common) | Client `lang` {l: "de_de"} → loads Minecraft's language file once from Mojang (via `WcAssets`), answers `lang` {l, names: key → name} with `entity.`/`block.`/`item.minecraft.*` names (items win). Not in the repo: Mojang's texts |
 
 Important details learned the hard way:
 
@@ -229,20 +231,28 @@ results, button id = index) and `sel`, `patterns` (loom pattern keys, button id 
 
 WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
 
+- Binary type 2 (server → client): sound file, 40 bytes ASCII hash, then the .ogg.
 - Binary: byte 0 = type (1 = chunk), rest zlib: int32 cx, int32 cz, uint8 sections, per section
   int8 sectionY + 4096 × uint16 LE palette ids, index = (y*16+z)*16+x.
 - Server → client `t`: `welcome world pal tp vel stats inv items menu ents anim blocks unload chat notice
-  dead dig_info board tab pack error time fx skin lang`. Names: `items.js setNames()` (setting `lang`, default
+  dead dig_info board tab pack error time fx skin lang snd sound`. Names: `items.js setNames()` (setting `lang`, default
   `de`, cached in localStorage `wc.lang.de_de`), used by `prettyName()` everywhere.
 - `time` (every second): `rain`, `thunder`, `snow`, `dry` (weather) and `v` = full world clock ticks (`World.getFullTime()` / `Level.getDefaultClockTime()`);
   the browser runs it on and stops when two values are equal (`doDaylightCycle` off).
 - `fx` (per tick, `WcParticles`): list of `[kind, x, y, z, dx, dy, dz, speed, count, extra]` from
   `ClientboundLevelParticlesPacket` (kind = particle key, extra = palette id for block particles or RGB for
   dust/effects) and level events (`break` = 2001 block break of another player, spawner, bone meal, potions).
+- `snd` (per tick): `[event, x, y, z, vol, pitch]`, `[event, "e", entityId, vol, pitch]` or `["take", itemId]`.
+  The server leaves out what the acting player's own client plays itself (vanilla `playSound(player, ...)`), so
+  `main.js` plays those: steps (`stepAt`, every 1/0.6 blocks, also for other players), dig hits/break/place
+  (palette `so` = sound group or 5 keys, `sv`/`sp`), landing + fall damage, own hurt/death, eating, doors/trapdoors/
+  gates/buttons/levers (palette `us` = sound of the state, played when the clicked block changes), rain, thunder,
+  music (`Music`, 10-20 min pauses), `animateTick` sounds in `particles.js` (40 % of Minecraft's chances, we sample
+  denser). `sounds.js`: Web Audio, PannerNode linear over 16 x volume, IndexedDB `wc-sounds` (hash → ogg).
 - `skin` (answer to client `skin` {h}): `h` texture hash, `png` base64 (missing when not available).
 - Client → server `t`: `hello move input tp_ok slot click close inv_open drop swap_hands use use_on
   dig_start dig_stop dig_abort attack punch swing interact release button trade rename creative
-  respawn resync items chat pack_upload status kick reload beacon skin lang` (`beacon`: `p`/`s` effect keys; `hello` has
+  respawn resync items chat pack_upload status kick reload beacon skin lang sound sfile` (`beacon`: `p`/`s` effect keys; `hello` has
   `name` and optional `skin` = Minecraft account name).
 - Skins (`WcSkins`): the login looks the account up at Mojang (api.mojang.com + sessionserver `?unsigned=false`,
   async, cached in `skins/profiles/`), the fake player's `GameProfile` gets the signed `textures` property, so
@@ -276,7 +286,8 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
 | `items.js` | Inventory icons (pack picture, isometric block, emoji fallback), names |
 | `inventory.js` | Inventory/creative/menus (brewing, furnace, enchanting, merchant, anvil ...) |
 | `studio.js` | Texture studio (ChatGPT prompts, paste image, 32 px) |
-| `hud.js sidebar.js tablist.js border.js sfx.js` | HUD, scoreboard, tab list, border, synthesized sounds |
+| `sounds.js` | Minecraft sounds (see Protocol `snd`), music |
+| `hud.js sidebar.js tablist.js border.js` | HUD, scoreboard, tab list, border |
 | `index.html` | All markup and CSS; `<!-- WC_SCRIPT -->` is replaced by the bundle |
 
 The built-in textures are **Faithful 32x** (faithfulpack.net, license in `LICENSE-Faithful.txt`: credit + link

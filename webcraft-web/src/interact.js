@@ -292,6 +292,7 @@ export class Interaction {
         if (this.intersectsPlayer(px, py, pz) && !this.isInteractive(P.names[t.id])) return;
       }
       this.send({ t: 'use_on', x: t.x, y: t.y, z: t.z, face: faceIndex(t.face), hx: t.hit[0], hy: t.hit[1], hz: t.hit[2] });
+      this.lastUseOn = { x: t.x, y: t.y, z: t.z, face: t.face, at: performance.now() };   // sounds of what the server changes
       // Like Minecraft: food, potions, bows ... still get used when you look at a block
       if (item && !this.using && !isPlaceable(P, item.k) && !this.isInteractive(P.names[t.id])) {
         this.using = true;
@@ -321,6 +322,7 @@ export class Interaction {
     if (cur !== 0 && P.kind[cur] !== KIND_LIQUID && P.kind[cur] !== KIND_CROSS) return;
     if (this.intersectsPlayer(px, py, pz)) return;
     this.world.setBlock(px, py, pz, id);
+    this.onPlace?.(px, py, pz, id);
   }
 
   isInteractive(name) {
