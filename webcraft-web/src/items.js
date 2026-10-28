@@ -51,8 +51,14 @@ const EMOJI = [
 
 const cache = new Map();
 
-/** Readable name: "stone_pickaxe" -> "Stone Pickaxe" */
+// Names in the chosen language (key -> name, from the server's "lang" message), or null: English from the key
+let localNames = null;
+export function setNames(names) { localNames = names; }
+
+/** Readable name: Minecraft's name in the chosen language, else "stone_pickaxe" -> "Stone Pickaxe" */
 export function prettyName(key) {
+  const local = localNames?.[key];
+  if (local) return local;
   return key.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 

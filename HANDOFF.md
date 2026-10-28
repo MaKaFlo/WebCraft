@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-10-28, version 0.18.0 (main, CI green)._
+_Last update: 2026-10-28, version 0.19.0 (main; check CI after the push)._
 
 ## Current state
 
@@ -10,6 +10,8 @@ _Last update: 2026-10-28, version 0.18.0 (main, CI green)._
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- 0.19.0: German names of blocks, items and mobs (`WcLang`: server loads de_de.json from Mojang once; option
+  "Namen: Deutsch / English", default German). The menu texts were German already. Fabric side compiled, not run.
 - Done in session 2026-10-28, part 3 (0.17.1 → 0.18.0): options for hitboxes and chunk borders (also F3+B/G),
   F5 third person (behind/front, own skin; server sends the own skin in `welcome`, also used for the first-person arm),
   Tag/Nacht top left, zombie/husk had only one leg and one arm (fixed: mirrored left limbs).

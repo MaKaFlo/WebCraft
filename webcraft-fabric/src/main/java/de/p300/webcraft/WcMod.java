@@ -110,6 +110,7 @@ public final class WcMod implements ModInitializer, WcHost {
     private volatile MinecraftServer server;
     private BlockPalette palette;
     private WcSkins skins;
+    private WcLang lang;
     private WcServer socket;
     private WcTextures textures;
     private WcBlockLog blockLog;
@@ -148,6 +149,7 @@ public final class WcMod implements ModInitializer, WcHost {
         textures.load();
         blockLog = new WcBlockLog(new File(dataFolder, "blocklog.csv"), logger);
         skins = new WcSkins(new File(dataFolder, "skins").toPath(), logger);
+        lang = new WcLang(new File(dataFolder, "lang").toPath(), logger);
         encoder = Executors.newFixedThreadPool(2, r -> {
             Thread t = new Thread(r, "WebCraft chunk encoder");
             t.setDaemon(true);
@@ -341,6 +343,7 @@ public final class WcMod implements ModInitializer, WcHost {
                 case "button" -> { f.menuButton(integer(json, "id")); s.invDirty = true; }
                 case "trade" -> { f.selectTrade(integer(json, "i")); s.invDirty = true; }
                 case "skin" -> sendSkin(s, str(json, "h"));
+                case "lang" -> sendLang(s, str(json, "l"));
                 case "beacon" -> { f.beacon(str(json, "p"), str(json, "s")); s.invDirty = true; }
                 case "rename" -> { f.rename(str(json, "name")); s.invDirty = true; }
                 case "swing" -> f.swing();   // only the animation (digging), no click
@@ -411,6 +414,14 @@ public final class WcMod implements ModInitializer, WcHost {
     }
 
     /** A skin picture for the browser (downloaded once, then from config/webcraft/skins/). */
+    /** Names of blocks, items and mobs in the browser's language (loaded from Mojang once). */
+    private void sendLang(WcSession s, String code) {
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            JsonObject m = lang.message(code);
+            if (m != null) s.send(m);
+        });
+    }
+
     private void sendSkin(WcSession s, String hash) {
         if (hash == null || s.skinsAsked.size() > 200 || !s.skinsAsked.add(hash)) return;
         java.util.concurrent.CompletableFuture.runAsync(() -> s.send(skins.message(hash, skins.picture(hash))));

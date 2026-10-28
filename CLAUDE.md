@@ -111,6 +111,7 @@ cd webcraft-web && npm ci && npm run build   # web only -> webcraft-web/dist/ind
 | `WcItems` | ItemStack → `{k, c, d, e}` JSON |
 | `WcScoreboard` | Sidebar scoreboard capture |
 | `WcBlockLog` | `blocklog.csv` against griefing |
+| `WcLang` (common) | Client `lang` {l: "de_de"} → loads Minecraft's language file once from Mojang (version manifest → asset index → resources.download.minecraft.net, version from `SharedConstants`), caches it in `lang/<version>-<code>.json`, answers `lang` {l, names: key → name} with `entity.`/`block.`/`item.minecraft.*` names (items win). Not in the repo: Mojang's texts |
 
 Important details learned the hard way:
 
@@ -231,7 +232,8 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
 - Binary: byte 0 = type (1 = chunk), rest zlib: int32 cx, int32 cz, uint8 sections, per section
   int8 sectionY + 4096 × uint16 LE palette ids, index = (y*16+z)*16+x.
 - Server → client `t`: `welcome world pal tp vel stats inv items menu ents anim blocks unload chat notice
-  dead dig_info board tab pack error time fx skin`.
+  dead dig_info board tab pack error time fx skin lang`. Names: `items.js setNames()` (setting `lang`, default
+  `de`, cached in localStorage `wc.lang.de_de`), used by `prettyName()` everywhere.
 - `time` (every second): `rain`, `thunder`, `snow`, `dry` (weather) and `v` = full world clock ticks (`World.getFullTime()` / `Level.getDefaultClockTime()`);
   the browser runs it on and stops when two values are equal (`doDaylightCycle` off).
 - `fx` (per tick, `WcParticles`): list of `[kind, x, y, z, dx, dy, dz, speed, count, extra]` from
@@ -240,7 +242,7 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
 - `skin` (answer to client `skin` {h}): `h` texture hash, `png` base64 (missing when not available).
 - Client → server `t`: `hello move input tp_ok slot click close inv_open drop swap_hands use use_on
   dig_start dig_stop dig_abort attack punch swing interact release button trade rename creative
-  respawn resync items chat pack_upload status kick reload beacon skin` (`beacon`: `p`/`s` effect keys; `hello` has
+  respawn resync items chat pack_upload status kick reload beacon skin lang` (`beacon`: `p`/`s` effect keys; `hello` has
   `name` and optional `skin` = Minecraft account name).
 - Skins (`WcSkins`): the login looks the account up at Mojang (api.mojang.com + sessionserver `?unsigned=false`,
   async, cached in `skins/profiles/`), the fake player's `GameProfile` gets the signed `textures` property, so

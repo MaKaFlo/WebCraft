@@ -64,6 +64,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
 
     private BlockPalette palette;
     private WcSkins skins;
+    private WcLang lang;
     private WcServer server;
     private final Map<Integer, WcSession> sessions = new ConcurrentHashMap<>(); // logged-in sessions
     private final Map<UUID, WcSession> byPlayer = new ConcurrentHashMap<>();
@@ -85,6 +86,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         textures.load();
         blockLog = new WcBlockLog(new File(getDataFolder(), "blocklog.csv"), getLogger());
         skins = new WcSkins(new File(getDataFolder(), "skins").toPath(), getLogger());
+        lang = new WcLang(new File(getDataFolder(), "lang").toPath(), getLogger());
         getServer().getPluginManager().registerEvents(new WcListener(this), this);
         Bukkit.getScheduler().runTaskTimer(this, this::tick, 1L, 1L);
         startServer();
@@ -196,6 +198,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                 case "button" -> { f.menuButton(integer(json, "id")); s.invDirty = true; }
                 case "trade" -> { f.selectTrade(integer(json, "i")); s.invDirty = true; }
                 case "skin" -> sendSkin(s, str(json, "h"));
+                case "lang" -> sendLang(s, str(json, "l"));
                 case "beacon" -> { f.beacon(str(json, "p"), str(json, "s")); s.invDirty = true; }
                 case "rename" -> { f.rename(str(json, "name")); s.invDirty = true; }
                 case "swing" -> p.swingMainHand();   // only the animation (digging), no click event
@@ -314,6 +317,14 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
     private final Set<String> joining = new HashSet<>();
 
     /** A skin picture for the browser (downloaded once, then from plugins/WebCraft/skins/). */
+    /** Names of blocks, items and mobs in the browser's language (loaded from Mojang once). */
+    private void sendLang(WcSession s, String code) {
+        Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+            JsonObject m = lang.message(code);
+            if (m != null) s.send(m);
+        });
+    }
+
     private void sendSkin(WcSession s, String hash) {
         if (hash == null || s.skinsAsked.size() > 200 || !s.skinsAsked.add(hash)) return;
         Bukkit.getScheduler().runTaskAsynchronously(this, () -> s.send(skins.message(hash, skins.picture(hash))));

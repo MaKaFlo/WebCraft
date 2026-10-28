@@ -12,7 +12,7 @@ import { Sidebar } from './sidebar.js';
 import { Hand, useKind } from './hand.js';
 import { sfx, setVolume, unlockAudio } from './sfx.js';
 import { pack } from './pack.js';
-import { clearIconCache } from './items.js';
+import { clearIconCache, setNames } from './items.js';
 import { Studio } from './studio.js';
 import { Border } from './border.js';
 import { atlas } from './textures.js';
@@ -32,7 +32,7 @@ const SKIES = {
   THE_END: 0x150f22,
 };
 // Settings (kept in the browser)
-const settings = { sens: 15, fov: 75, autoJump: true, vol: 60, gyro: false, vr: false, eye: 64, lens: 60, hitboxes: false, chunks: false };
+const settings = { sens: 15, fov: 75, autoJump: true, vol: 60, gyro: false, vr: false, eye: 64, lens: 60, hitboxes: false, chunks: false, lang: 'de' };
 // Settings saved under the old name (gg.*) move over once
 try {
   for (const k of ['settings', 'server', 'name']) {
@@ -228,6 +228,7 @@ function connect(url, name) {
         mySlim = !!msg.slim;
         hand.setSkin(mySkin, mySlim);
         skinArmReady = !mySkin;
+        applyLanguage();
         world.viewDistance = msg.viewDistance;
         setWorld(msg);
         enterGame();
@@ -261,6 +262,12 @@ function connect(url, name) {
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ t: 'tp_ok', id: msg.id, x: msg.x, y: msg.y, z: msg.z, yaw: msg.yaw, pitch: msg.pitch }));
         }
+        break;
+      case 'lang':
+        if (msg.l !== LANG_CODES[settings.lang]) break;
+        try { localStorage.setItem('wc.lang.' + msg.l, JSON.stringify(msg.names)); } catch (e) { /* full */ }
+        setNames(msg.names);
+        inventory.refreshIcons();
         break;
       case 'skin':
         addPlayerSkin(msg.h, msg.png);
@@ -594,6 +601,7 @@ function syncSettingsUi() {
   $('s-gyro').checked = !!touch?.gyroOn;
   $('s-vr').checked = settings.vr;
   $('s-hitboxes').checked = settings.hitboxes;
+  $('s-lang').textContent = 'Namen: ' + (settings.lang === 'de' ? 'Deutsch' : 'English');
   $('s-chunks').checked = settings.chunks;
   $('s-eye').value = settings.eye; $('s-eye-v').textContent = settings.eye + ' mm';
   $('s-lens').value = settings.lens; $('s-lens-v').textContent = settings.lens ? settings.lens + '%' : 'aus';
@@ -617,6 +625,12 @@ $('s-fov').addEventListener('input', (e) => {
 });
 $('s-autojump').addEventListener('change', (e) => { player.autoJump = settings.autoJump = e.target.checked; saveSettings(); });
 $('s-vr').addEventListener('change', (e) => setVr(e.target.checked));
+$('s-lang').addEventListener('click', () => {
+  settings.lang = settings.lang === 'de' ? 'en' : 'de';
+  saveSettings();
+  applyLanguage();
+  syncSettingsUi();
+});
 $('s-hitboxes').addEventListener('change', (e) => { settings.hitboxes = e.target.checked; saveSettings(); });
 $('s-chunks').addEventListener('change', (e) => { settings.chunks = e.target.checked; saveSettings(); });
 $('s-eye').addEventListener('input', (e) => {
@@ -837,6 +851,20 @@ let f3Down = false;
 let mySkin = null, mySlim = false, skinArmReady = true;
 const SELF_SWING = 0.3;
 const chunkGrid = new ChunkGrid(scene);
+
+// Names of blocks, items and mobs: German from Minecraft's language file (the server loads it from Mojang once,
+// the browser keeps it), or English from the keys
+const LANG_CODES = { de: 'de_de' };
+function applyLanguage() {
+  const code = LANG_CODES[settings.lang];
+  let names = null;
+  if (code) {
+    try { names = JSON.parse(localStorage.getItem('wc.lang.' + code) || 'null'); } catch (e) { /* ignore */ }
+    if (!names && connected) send({ t: 'lang', l: code });
+  }
+  setNames(names);
+  inventory.refreshIcons();
+}
 
 function cycleView() {
   view = (view + 1) % 3;
