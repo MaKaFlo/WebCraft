@@ -189,7 +189,8 @@ export class TouchControls {
       } catch (e) {
         // Only allowed right after a tap (not after a controller button): ask again on the next tap
         this.notice('Einmal auf den Bildschirm tippen, um den Gyro zu erlauben');
-        document.addEventListener('pointerdown', () => this.setGyro(true), { once: true });
+        this.permissionTap = true;   // this tap is for the permission, not for the game (main.js: VR menu tap)
+        document.addEventListener('pointerdown', () => { this.permissionTap = false; this.setGyro(true); }, { once: true });
         return true;
       }
       if (answer !== 'granted') { this.notice('Gyro nicht erlaubt'); return false; }

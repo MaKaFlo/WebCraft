@@ -787,8 +787,21 @@ function setVr(on) {
     if (on) document.documentElement.requestFullscreen?.().then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
   }
   showNotice(on ? '🥽 3D-Brille an' : '3D-Brille aus');
+  if (on && touch) stereo.showHint('Bildschirm antippen = Spielmenü', 10);
   syncSettingsUi();
 }
+
+// With the 3D glasses the touch buttons are hidden: a tap anywhere opens the game menu (there the glasses can be
+// switched off). Capture phase, so a tap that only grants the gyro permission (touch.js) is still recognised.
+document.addEventListener('pointerdown', (e) => {
+  if (!stereoOn || e.pointerType === 'mouse' || touch?.permissionTap) return;
+  e.preventDefault();
+  showMenu();
+  vrTapAt = performance.now();
+}, true);
+// The click of that same tap must not press the menu button that now lies under the finger
+let vrTapAt = -1e9;
+ui.pause.addEventListener('click', (e) => { if (performance.now() - vrTapAt < 700) { e.stopPropagation(); e.preventDefault(); } }, true);
 
 const isLocked = () => document.pointerLockElement === renderer.domElement;
 

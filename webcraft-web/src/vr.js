@@ -88,6 +88,7 @@ export class StereoView {
 
   /** Hotbar with the item pictures, hearts and food (a few times per second). */
   updateHud(dt, inventory, palette, stats) {
+    this.hintT = (this.hintT ?? 0) - dt;
     this.hudTimer -= dt;
     if (this.hudTimer > 0) return;
     this.hudTimer = 0.25;
@@ -114,7 +115,18 @@ export class StereoView {
       g.textAlign = 'right';
       g.fillText(`🍗 ${Math.ceil(stats.food / 2)}`, x0 + 9 * slot - 4, 56);
     }
+    if (this.hintT > 0) {
+      g.font = 'bold 20px sans-serif'; g.textAlign = 'center'; g.fillStyle = '#ffffa0';
+      g.fillText(this.hint, 256, 22);
+    }
     this.hud.material.map.needsUpdate = true;
+  }
+
+  /** A short line above the hotbar for a few seconds. */
+  showHint(text, seconds) {
+    this.hint = text;
+    this.hintT = seconds;
+    this.hudTimer = 0;
   }
 
   /** Draws world, hand and HUD for both eyes. */
