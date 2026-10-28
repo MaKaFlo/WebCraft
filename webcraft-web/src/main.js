@@ -93,6 +93,7 @@ const music = new Music();
 let worldEnv = 'NORMAL', gameMode = 'SURVIVAL';
 let myEntityId = -1;
 let eatTimer = 0;
+let useStart = null;   // hotbar slot/item/count when eating started
 let hurtTilt = 0;
 const sidebar = new Sidebar($('sidebar'));
 
@@ -1006,6 +1007,15 @@ function frame(now) {
 
     hand.setItem(world.palette, inventory.selectedItem()?.k ?? null);
     const moving = player.onGround && (player.keys.has('KeyW') || player.keys.has('KeyA') || player.keys.has('KeyS') || player.keys.has('KeyD'));
+    // One bite at a time: when the food or drink in hand was used up (count or item changed), eating stops
+    if (interaction.using) {
+      const it = inventory.selectedItem();
+      const sig = `${inventory.selected}:${it?.k}:${it?.c}`;
+      if (!useStart) useStart = { sig, kind: useKind(it?.k) };
+      else if (sig !== useStart.sig && (useStart.kind === 'eat' || useStart.kind === 'drink')) interaction.stopUse();
+    } else {
+      useStart = null;
+    }
     const kind = interaction.using ? useKind(inventory.selectedItem()?.k) : null;
     hand.setUsing(kind);
     if (kind === 'eat' || kind === 'drink') {

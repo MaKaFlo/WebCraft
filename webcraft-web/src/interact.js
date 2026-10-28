@@ -111,7 +111,8 @@ export class Interaction {
     this.updateDigging(dt, active);
 
     this.useTimer = Math.max(0, this.useTimer - dt);
-    if (active && this.rightDown && this.useTimer === 0) {
+    if (!this.rightDown) this.useLocked = false;
+    if (active && this.rightDown && this.useTimer === 0 && !this.useLocked) {
       this.useTimer = USE_REPEAT;
       this.rightClick();
     }
@@ -119,6 +120,14 @@ export class Interaction {
       this.using = false;
       this.send({ t: 'release' });
     }
+  }
+
+  /** Eating/drinking is done: stop, and don't start the next bite until right click is let go and pressed again. */
+  stopUse() {
+    if (!this.using) return;
+    this.using = false;
+    this.useLocked = true;
+    this.send({ t: 'release' });
   }
 
   /** Distance along the ray to the block's surface (for comparing with entities). */
