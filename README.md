@@ -2,7 +2,7 @@
 
 Ein Block-Spiel im Browser, das sich mit einem **Minecraft-Server** verbindet: **Paper** (als Plugin) oder **Fabric** (als Mod, damit auch für Vanilla). WebCraft-Spieler sind auf dem Server **echte Spieler**: Sie stehen in der Tab-Liste, bekommen Schaden, sterben, benutzen Befehle und Menüs von Plugins und Mods. Für den Server gibt es keinen Unterschied zu einem Minecraft-Spieler. So können Leute ohne Minecraft-Account mit Freunden auf dem Server spielen.
 
-Version 0.33.1 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
+Version 0.33.2 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
 
 ## Aufbau
 
@@ -143,7 +143,7 @@ Jedes WebCraft-Konto hat ein Passwort. Beim ersten Anmelden (auch bei Konten, di
 
 ## Admin-Seite (Spieler anlegen)
 
-Nur OPs (Recht `webcraft.admin`): `/webcraft admin` gibt einen Link zur Admin-Seite (30 Minuten gültig, nicht weitergeben). Dafür die Adresse deiner WebCraft-Seite als `web-url` in die config.yml eintragen (Fabric: `web-url=` in webcraft.properties). Ohne `web-url` zeigt der Befehl den Schlüssel, den man als `?admin=...` an die Adresse der Seite hängt.
+Nur OPs (Recht `webcraft.admin`): `/webcraft admin` zeigt einen Admin-Code (8 Zeichen, 30 Minuten gültig, nicht weitergeben). Auf der WebCraft-Anmeldeseite unten auf **🔑 Admin** klicken und den Code eintippen. In WebCraft selbst öffnet `/webcraft admin` die Admin-Seite direkt. Mit `web-url` in der config.yml (Adresse deiner WebCraft-Seite) gibt es zusätzlich einen Klick-Link. 10 falsche Codes sperren die Admin-Seite für 10 Minuten.
 
 Auf der Seite:
 - **Neuer Spieler:** Name und Passwort festlegen. Der Spieler meldet sich dann auf der WebCraft-Seite mit diesem Namen und Passwort an (steht der Server auf Whitelist, kommt er automatisch drauf).

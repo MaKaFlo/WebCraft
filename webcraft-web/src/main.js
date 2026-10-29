@@ -199,7 +199,9 @@ let messageChain = Promise.resolve();
 let lastSent = null;
 let sendTimer = 0;
 
+let currentUrl = '';   // address of the server we play on (the admin page connects there too)
 function connect(url, name) {
+  currentUrl = url;
   ui.error.textContent = '';
   ui.play.disabled = true;
   ui.play.textContent = 'Verbinde...';
@@ -288,6 +290,12 @@ function connect(url, name) {
         serverGliding = !!msg.on;
         if (!msg.on) player.gliding = false;
         else if (!player.gliding) player.startGlide();
+        break;
+      case 'admin_open':
+        // An admin typed /webcraft admin in WebCraft: the admin page over the game
+        unlockPointer();
+        chatOpen = true;
+        startAdmin(currentUrl, msg.token, () => { chatOpen = false; lockPointer(); });
         break;
       case 'signs':
         signs.message(msg);
@@ -531,14 +539,24 @@ const namePrefix = (window.WC_CONFIG && window.WC_CONFIG.namePrefix) || 'wc_';
 document.getElementById('name-prefix').textContent = namePrefix;
 document.getElementById('name-prefix-hint').textContent = namePrefix;
 
-// Admin page (link from /webcraft admin): accounts instead of the game
-const adminToken = params.get('admin');
-if (adminToken) {
-  ui.login.hidden = true;
+// Admin page (code from /webcraft admin, typed with the "Admin" button or in the address as ?admin=):
+// accounts instead of the game
+function serverUrl() {
   let url = ui.server.value.trim();
   if (url && !/^wss?:\/\//.test(url)) url = 'ws://' + url;
-  startAdmin(url, adminToken);
+  return url;
 }
+function openAdmin(code) {
+  ui.login.hidden = true;
+  startAdmin(serverUrl(), code, () => { ui.login.hidden = false; });
+}
+const adminToken = params.get('admin');
+if (adminToken) openAdmin(adminToken);
+$('login-admin').addEventListener('click', () => {
+  if (!serverUrl()) { showLoginError('Bitte zuerst die Server-Adresse eingeben.'); return; }
+  const code = prompt('Admin-Code (im Spiel /webcraft admin eintippen):');
+  if (code && code.trim()) openAdmin(code.trim());
+});
 
 // Passwords: the first login of an account sets one (the server says so), later name + password
 let registering = false;

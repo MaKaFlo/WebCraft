@@ -6,7 +6,7 @@
 
   <groupId>de.p300.webcraft</groupId>
   <artifactId>webcraft-parent</artifactId>
-  <version>0.33.1</version>
+  <version>0.33.2</version>
   <packaging>pom</packaging>
   <name>WebCraft</name>
   <description>Browser block game that joins a Paper Minecraft server as real players.</description>

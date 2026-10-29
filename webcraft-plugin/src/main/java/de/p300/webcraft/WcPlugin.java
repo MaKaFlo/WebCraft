@@ -1441,19 +1441,22 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
             }
             case "admin" -> {
                 String token = admin.newToken();
+                // Typed in WebCraft: the page opens right there
+                WcSession own = sender instanceof Player pl ? sessionOf(pl) : null;
+                if (own != null) {
+                    admin.openFor(own, token);
+                    sender.sendMessage(Component.text("Die Admin-Seite öffnet sich.", NamedTextColor.GOLD));
+                    return true;
+                }
+                sender.sendMessage(Component.text("WebCraft-Admin-Code: ", NamedTextColor.GOLD)
+                        .append(Component.text(token, NamedTextColor.AQUA, net.kyori.adventure.text.format.TextDecoration.BOLD))
+                        .append(Component.text(" (30 Minuten gültig, nicht weitergeben)", NamedTextColor.GRAY)));
+                sender.sendMessage(Component.text("Auf der WebCraft-Anmeldeseite unten auf \"🔑 Admin\" klicken und den Code eintippen.", NamedTextColor.GRAY));
                 String link = WcAdmin.link(webUrl, token);
                 if (link != null) {
-                    sender.sendMessage(Component.text("WebCraft-Admin: ", NamedTextColor.GOLD)
-                            .append(Component.text("hier klicken", NamedTextColor.AQUA, net.kyori.adventure.text.format.TextDecoration.UNDERLINED)
-                                    .clickEvent(net.kyori.adventure.text.event.ClickEvent.openUrl(link))
-                                    .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(Component.text(link))))
-                            .append(Component.text(" (30 Minuten gültig, nicht weitergeben)", NamedTextColor.GRAY)));
-                } else {
-                    sender.sendMessage(Component.text("WebCraft-Admin: öffne deine WebCraft-Seite mit ?admin=" + token
-                            + " hinten an der Adresse (30 Minuten gültig, nicht weitergeben).", NamedTextColor.GOLD)
-                            .clickEvent(net.kyori.adventure.text.event.ClickEvent.copyToClipboard("?admin=" + token)));
-                    sender.sendMessage(Component.text("Tipp: trage die Adresse der Seite als web-url in die config.yml ein, dann gibt es hier einen Link.",
-                            NamedTextColor.GRAY));
+                    sender.sendMessage(Component.text("Oder direkt: ", NamedTextColor.GRAY)
+                            .append(Component.text("Admin-Seite öffnen", NamedTextColor.AQUA, net.kyori.adventure.text.format.TextDecoration.UNDERLINED)
+                                    .clickEvent(net.kyori.adventure.text.event.ClickEvent.openUrl(link))));
                 }
             }
             case "password" -> {

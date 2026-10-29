@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-10-29, version 0.33.1 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
+_Last update: 2026-10-29, version 0.33.2 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
 
 ## Current state
 
@@ -10,6 +10,8 @@ _Last update: 2026-10-29, version 0.33.1 (main). Tag pushes are refused by this 
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- 0.33.2: admin code instead of the long token (owner could not copy it in game): 8 characters, "🔑 Admin" button on the
+  login page, `/webcraft admin` in WebCraft opens the page directly. Tested headless.
 - 0.33.1: elytra felt slow: movement now runs on real time (slow frames were slow motion; measured 31-35 b/s with
   rockets at 5-8 fps, like Minecraft's formula), spectators fly through blocks, water/section seams closed (faces reach
   0.002 over the section edge; checked with a red background).

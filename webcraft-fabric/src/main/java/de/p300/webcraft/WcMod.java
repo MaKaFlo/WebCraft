@@ -1543,20 +1543,24 @@ public final class WcMod implements ModInitializer, WcHost {
     /** Link to the admin page (accounts with name and password). */
     private int adminPage(CommandContext<CommandSourceStack> ctx) {
         String token = admin.newToken();
-        String link = WcAdmin.link(webUrl, token);
         var src = ctx.getSource();
+        // Typed in WebCraft: the page opens right there
+        ServerPlayer pl = src.getPlayer();
+        WcSession own = pl == null ? null : byPlayer.get(pl.getUUID());
+        if (own != null) {
+            admin.openFor(own, token);
+            src.sendSystemMessage(Component.literal("Die Admin-Seite öffnet sich.").withStyle(ChatFormatting.GOLD));
+            return 1;
+        }
+        src.sendSystemMessage(Component.literal("WebCraft-Admin-Code: ").withStyle(ChatFormatting.GOLD)
+                .append(Component.literal(token).withStyle(st -> st.withColor(ChatFormatting.AQUA).withBold(true)))
+                .append(Component.literal(" (30 Minuten gültig, nicht weitergeben)").withStyle(ChatFormatting.GRAY)));
+        src.sendSystemMessage(Component.literal("Auf der WebCraft-Anmeldeseite unten auf \"🔑 Admin\" klicken und den Code eintippen.").withStyle(ChatFormatting.GRAY));
+        String link = WcAdmin.link(webUrl, token);
         if (link != null) {
-            src.sendSystemMessage(Component.literal("WebCraft-Admin: ").withStyle(ChatFormatting.GOLD)
-                    .append(Component.literal("hier klicken").withStyle(st -> st.withColor(ChatFormatting.AQUA).withUnderlined(true)
-                            .withClickEvent(new net.minecraft.network.chat.ClickEvent.OpenUrl(java.net.URI.create(link)))
-                            .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(Component.literal(link)))))
-                    .append(Component.literal(" (30 Minuten gültig, nicht weitergeben)").withStyle(ChatFormatting.GRAY)));
-        } else {
-            src.sendSystemMessage(Component.literal("WebCraft-Admin: öffne deine WebCraft-Seite mit ?admin=" + token
-                    + " hinten an der Adresse (30 Minuten gültig, nicht weitergeben).").withStyle(st -> st.withColor(ChatFormatting.GOLD)
-                    .withClickEvent(new net.minecraft.network.chat.ClickEvent.CopyToClipboard("?admin=" + token))));
-            src.sendSystemMessage(Component.literal("Tipp: trage die Adresse der Seite als web-url in webcraft.properties ein, dann gibt es hier einen Link.")
-                    .withStyle(ChatFormatting.GRAY));
+            src.sendSystemMessage(Component.literal("Oder direkt: ").withStyle(ChatFormatting.GRAY)
+                    .append(Component.literal("Admin-Seite öffnen").withStyle(st -> st.withColor(ChatFormatting.AQUA).withUnderlined(true)
+                            .withClickEvent(new net.minecraft.network.chat.ClickEvent.OpenUrl(java.net.URI.create(link))))));
         }
         return 1;
     }

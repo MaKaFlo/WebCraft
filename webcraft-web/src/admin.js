@@ -3,11 +3,12 @@
 
 const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-export function startAdmin(url, token) {
+export function startAdmin(url, token, onClose = null) {
   const box = document.createElement('div');
   box.id = 'admin';
   box.innerHTML = `
     <div class="admin-card">
+      <button type="button" class="admin-close" title="Schließen">✕</button>
       <h1>WebCraft Admin</h1>
       <p class="admin-status">Verbinde ...</p>
       <form class="admin-new" autocomplete="off">
@@ -82,6 +83,14 @@ export function startAdmin(url, token) {
     pwEl.value = '';
   });
 
+  let closed = false;
+  box.querySelector('.admin-close').addEventListener('click', () => {
+    closed = true;
+    ws?.close();
+    box.remove();
+    onClose?.();
+  });
+
   try {
     ws = new WebSocket(url);
   } catch (e) {
@@ -89,7 +98,7 @@ export function startAdmin(url, token) {
     return;
   }
   ws.onopen = () => send({ t: 'admin', token });
-  ws.onclose = () => { if (!status.classList.contains('bad')) show('Verbindung getrennt. Seite neu laden.', true); };
+  ws.onclose = () => { if (!closed && !status.classList.contains('bad')) show('Verbindung getrennt. Seite neu laden.', true); };
   ws.onmessage = (ev) => {
     if (typeof ev.data !== 'string') return;
     const msg = JSON.parse(ev.data);

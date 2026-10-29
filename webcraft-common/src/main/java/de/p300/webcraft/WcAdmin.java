@@ -57,20 +57,42 @@ public final class WcAdmin {
         this.platform = platform;
     }
 
-    /** A new token for the admin page. */
+    private static final String CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    private int fails;
+    private long lockedUntil;
+
+    /** A new code for the admin page: 8 letters/digits, easy to type (also on a phone). */
     public synchronized String newToken() {
         long now = System.currentTimeMillis();
         tokens.values().removeIf(until -> until < now);
-        byte[] b = new byte[18];
-        random.nextBytes(b);
-        String t = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(b);
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < 8; i++) b.append(CODE_CHARS.charAt(random.nextInt(CODE_CHARS.length())));
+        String t = b.toString();
         tokens.put(t, now + TOKEN_MS);
         return t;
     }
 
+    /** Checks a code; 10 wrong ones lock the admin page for 10 minutes (no guessing). */
     private synchronized boolean valid(String token) {
-        Long until = token == null ? null : tokens.get(token);
-        return until != null && until > System.currentTimeMillis();
+        long now = System.currentTimeMillis();
+        if (now < lockedUntil) return false;
+        String t = token == null ? "" : token.replaceAll("[\\s-]", "").toUpperCase(java.util.Locale.ROOT);
+        Long until = tokens.get(t);
+        if (until != null && until > now) return true;
+        if (++fails >= 10) {
+            fails = 0;
+            lockedUntil = now + 10 * 60 * 1000L;
+            host.logger().warning("WebCraft admin page: too many wrong codes, locked for 10 minutes");
+        }
+        return false;
+    }
+
+    /** The browser of a WebCraft player who typed /webcraft admin opens the admin page by itself. */
+    public void openFor(WcSession s, String token) {
+        JsonObject m = new JsonObject();
+        m.addProperty("t", "admin_open");
+        m.addProperty("token", token);
+        s.send(m);
     }
 
     /** The admin page link, or null when the server does not know the page's address. */
@@ -87,7 +109,7 @@ public final class WcAdmin {
                 JsonObject err = new JsonObject();
                 err.addProperty("t", "admin");
                 err.addProperty("ok", false);
-                err.addProperty("err", "Der Admin-Link ist ungültig oder abgelaufen. Tippe im Spiel neu /webcraft admin.");
+                err.addProperty("err", "Der Admin-Code ist falsch oder abgelaufen. Tippe im Spiel neu /webcraft admin.");
                 s.send(err);
                 s.conn.close(1000, "Bad admin token");
                 return true;
