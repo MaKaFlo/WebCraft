@@ -1,6 +1,7 @@
 // Block palette: the server sends one entry per block look/shape (it grows while you play).
 import { tileFor, crossTile, atlas } from './textures.js';
 import { textureCandidates, TINTED } from './texnames.js';
+import { blockModel, bakeModel, texTurn } from './blockmodels.js';
 
 export const KIND_AIR = 0;
 export const KIND_CUBE = 1;        // block drawn as a (possibly smaller) box
@@ -63,6 +64,12 @@ export class Palette {
     this.fluid = [];       // 1 water, 2 lava, 0 no liquid (several ids per fluid: one per water level)
     this.liquidH = [];     // surface height of a liquid block (source 0.89, flowing lower)
     this.liquidFall = [];  // falling water (a waterfall column)
+    this.props = [];      // block state properties for blocks drawn by state (redstone, pistons, rails, signs ...)
+    this.model = [];      // blockmodels.js result, or null
+    this.quads = [];      // baked model quads with atlas tiles, or null
+    this.faceTile = [];   // per world side (world.js FACES order) own picture, or null
+    this.faceRot = [];    // quarter turns of those pictures
+    this.tint = [];       // model color (redstone power), or null
     this.tileTop = [];
     this.tileSide = [];
     this.tileBottom = [];
@@ -116,6 +123,8 @@ export class Palette {
     this.fluid[i] = kind === KIND_LIQUID ? (name === 'lava' ? 2 : 1) : 0;
     this.liquidH[i] = e.lh ?? 0.875;
     this.liquidFall[i] = e.lf ? 1 : 0;
+    this.props[i] = e.p || null;
+    this.model[i] = blockModel(name, e.p);
     this.applyTiles(i);
 
     let color = COLOR_OVERRIDES[name] ?? e.c;
@@ -160,6 +169,34 @@ export class Palette {
       if (this.tileBottom[i] >= 0 && atlas.isGray(this.tileBottom[i]) && name !== 'grass_block') packed &= ~4;
     }
     this.packed[i] = packed;
+    this.applyModel(i);
+  }
+
+  /** Atlas tiles of the block's model (pictures may be missing in a pack: then the block's side picture). */
+  applyModel(i) {
+    const m = this.model[i];
+    this.quads[i] = null;
+    this.faceTile[i] = null;
+    this.faceRot[i] = null;
+    this.tint[i] = null;
+    if (!m) return;
+    const tile = (t) => {
+      if (t === '#side') return this.tileSide[i];
+      const k = atlas.packTile(t);
+      return k >= 0 ? k : this.tileSide[i];
+    };
+    if (m.cube) {
+      const sides = ['east', 'west', 'up', 'down', 'south', 'north'];   // world.js FACES order
+      this.faceTile[i] = sides.map((s) => tile(m.cube[s]));
+      this.faceRot[i] = sides.map((s) => texTurn(s, m.texUp[s]));
+      return;
+    }
+    this.quads[i] = bakeModel(m).map((q) => ({ ...q, tile: tile(q.tex) }));
+    if (m.tint) {
+      const gray = this.quads[i].some((q) => atlas.isGray(q.tile));
+      // Packs with gray dust get Minecraft's color; already red dust (built-in pack) only gets darker
+      this.tint[i] = gray ? m.tint : [m.tint[0], m.tint[0], m.tint[0]].map((v) => Math.min(1, v * 1.1));
+    }
   }
 
   /** After the texture pack changed. */

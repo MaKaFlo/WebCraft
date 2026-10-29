@@ -213,6 +213,15 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                 case "sound" -> sounds.ask(s, str(json, "e"));
                 case "sfile" -> sounds.askFile(s, str(json, "h"));
                 case "beacon" -> { f.beacon(str(json, "p"), str(json, "s")); s.invDirty = true; }
+                case "sign" -> {
+                    String[] lines = new String[4];
+                    com.google.gson.JsonArray l = json.has("l") && json.get("l").isJsonArray() ? json.getAsJsonArray("l") : new com.google.gson.JsonArray();
+                    for (int i = 0; i < 4; i++) {
+                        String line = i < l.size() && l.get(i).isJsonPrimitive() ? l.get(i).getAsString() : "";
+                        lines[i] = line.length() > 90 ? line.substring(0, 90) : line;
+                    }
+                    f.signUpdate(integer(json, "x"), integer(json, "y"), integer(json, "z"), bool(json, "front"), lines);
+                }
                 case "rename" -> { f.rename(str(json, "name")); s.invDirty = true; }
                 case "swing" -> p.swingMainHand();   // only the animation (digging), no click event
                 case "slot" -> f.selectSlot(Math.max(0, Math.min(8, integer(json, "i"))));
@@ -612,6 +621,8 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                 m.add("list", list);
                 s.sendWithPalette(palette, m);
             }
+            JsonObject signs = WcSigns.take(s.signChanges, s.fake.handle().level());
+            if (signs != null) s.send(signs);
             if (!s.anims.isEmpty()) {
                 JsonArray list = new JsonArray();
                 int[] a;
@@ -849,10 +860,12 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                         s.sentChunks.remove(key);
                         return;
                     }
+                    JsonObject chunkSigns = WcSigns.ofChunk(((org.bukkit.craftbukkit.CraftChunk) chunk).getHandle(net.minecraft.world.level.chunk.status.ChunkStatus.FULL) instanceof net.minecraft.world.level.chunk.LevelChunk lc ? lc : null);
                     s.inFlight.incrementAndGet();
                     Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
                         try {
                             if (!s.closed) s.sendWithPalette(palette, ChunkEncoder.encode(cx, cz, sections, palette));
+                            if (!s.closed && chunkSigns != null) s.send(chunkSigns);
                         } catch (Exception e) {
                             getLogger().log(Level.WARNING, "Could not encode chunk " + cx + "," + cz, e);
                         } finally {

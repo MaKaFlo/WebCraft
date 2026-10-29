@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-10-28, version 0.26.0 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
+_Last update: 2026-10-29, version 0.27.0 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
 
 ## Current state
 
@@ -10,6 +10,14 @@ _Last update: 2026-10-28, version 0.26.0 (main). Tag pushes are refused by this 
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- 0.27.0 (friend's report "redstone ist ganz verbugt", signs, end rods, lanterns): state models in `blockmodels.js` (server
+  sends state properties `p`): pistons in all 6 directions + extended base/head, repeater (delay, locked), comparator,
+  lever (floor/wall/ceiling), redstone wire (connections, up the wall, color by power), torches as sticks, wall torches
+  leaning, observer/dispenser/dropper facing up/down, hopper, lamp on, daylight detector inverted, rails (curves,
+  slopes), end rod, lightning rod, lantern (hanging). Signs: board + post shape, text shown (`signs.js`, `WcSigns`) and
+  writable (`sign_edit` → editor → `sign`). Tested headless on Paper (screenshots of every row, sign placed and written).
+  Fabric compiled, not run. Not checked: comparator front torch look, piston side picture direction on every facing,
+  moving pistons are invisible for the 2 ticks of the move (no block entity animation), hanging sign text placement.
 - 0.26.0: motion blur, waypoints, item physics, own nametag (F5), boss bars (server sends `boss`). Tested headless.
 - 0.25.0: client mods like PvP clients (`mods.js`, 29 switches). Server sends armor (`inv.arm`) and effects (`stats.eff`).
   Tested headless (HUD, menu).

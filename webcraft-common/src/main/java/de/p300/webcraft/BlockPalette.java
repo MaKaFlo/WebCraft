@@ -142,6 +142,14 @@ public final class BlockPalette {
             e.addProperty("fa", state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING).getSerializedName());
         }
 
+        // Blocks the browser draws by their state (redstone parts, pistons, rails, torches, signs): all properties
+        String name = e.get("n").getAsString();
+        if (STATE_DRAWN.matcher(name).matches()) {
+            JsonObject props = new JsonObject();
+            for (var prop : state.getProperties()) props.addProperty(prop.getName(), propValue(state, prop));
+            if (!props.isEmpty()) e.add("p", props);
+        }
+
         // Light the block gives (torch 14, lava 15 ...): the browser spreads it like Minecraft's block light
         int light = state.getLightEmission();
         if (light > 0) e.addProperty("le", light);
@@ -196,6 +204,14 @@ public final class BlockPalette {
             if (parts != null) e.add("bs", parts);
         }
         return e;
+    }
+
+    private static final java.util.regex.Pattern STATE_DRAWN = java.util.regex.Pattern.compile(
+            "(sticky_)?piston(_head)?|repeater|comparator|redstone_wire|observer|dispenser|dropper|hopper|(powered_|detector_|activator_)?rail"
+                    + "|redstone_lamp|daylight_detector|lever|(\\w+_)?(wall_)?torch|\\w+_sign|end_rod|(\\w+_)?lightning_rod|(\\w+_)?lantern");
+
+    private static <T extends Comparable<T>> String propValue(BlockState state, net.minecraft.world.level.block.state.properties.Property<T> prop) {
+        return prop.getName(state.getValue(prop));
     }
 
     private static VoxelShape safeShape(BlockState s) {

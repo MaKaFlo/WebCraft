@@ -79,6 +79,15 @@
   .chat-line.sys { color: #ffb347; }
   .chat-line.old { opacity: 0; }
   body.chat-visible .chat-line.old { opacity: 1; }
+  #sign-editor { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; background: rgba(0, 0, 0, 0.45); font-family: "WebCraft Pixel", monospace; }
+  #sign-editor .sign-board { display: flex; flex-direction: column; gap: 4px; padding: 18px 16px; width: min(420px, 90vw);
+    background: #b8945f; border: 4px solid #6b4f2a; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5); }
+  #sign-editor input { background: transparent; border: none; border-bottom: 1px dashed rgba(60, 40, 20, 0.4); text-align: center;
+    font: 20px "WebCraft Pixel", monospace; color: #1a1208; outline: none; padding: 2px; }
+  #sign-editor input:focus { background: rgba(255, 255, 255, 0.15); }
+  #sign-editor .sign-hint { color: #eee; font-size: 13px; text-shadow: 1px 1px #000; text-align: center; padding: 0 16px; }
+  #sign-editor button { font: 16px "WebCraft Pixel", monospace; padding: 8px 28px; }
   #chat-input { background: rgba(20, 18, 34, 0.8); color: #fff; border: 2px solid #ffb347; }
   #loading {
     position: fixed; left: 50%; top: 58%; transform: translateX(-50%); color: #fff; font-size: 16px;

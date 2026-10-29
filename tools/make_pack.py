@@ -692,6 +692,27 @@ def resolve(name):
     return None
 
 
+# Pictures of block states the browser draws itself (blockmodels.js), not named after a block
+EXTRA_BLOCKS = ['piston_top', 'piston_top_sticky', 'piston_side', 'piston_bottom', 'piston_inner', 'repeater_on', 'comparator_on',
+                'redstone_torch_off', 'redstone_dust_dot', 'redstone_dust_line0', 'redstone_dust_line1', 'observer_back',
+                'observer_back_on', 'dispenser_front_vertical', 'dropper_front_vertical', 'hopper_outside', 'hopper_inside',
+                'daylight_detector_inverted_top', 'redstone_lamp_on', 'powered_rail_on', 'detector_rail_on', 'activator_rail_on',
+                'rail_corner', 'furnace_side', 'furnace_top', 'smooth_stone']
+
+
+def extra_blocks(have):
+    """{path: png} of the EXTRA_BLOCKS the zip does not have yet, plus their animations."""
+    files, extra_anims = {}, {}
+    for stem in EXTRA_BLOCKS:
+        if 'block/' + stem in have or stem not in block_files:
+            continue
+        im, anim = load(block_files[stem], stem)
+        files['block/' + stem] = png(im)
+        if anim:
+            extra_anims['block/' + stem] = anim
+    return files, extra_anims
+
+
 out, anims = {}, {}
 blocks = set(names['blocks'])
 if only_missing:
@@ -714,6 +735,11 @@ if only_missing:
             old['block/' + name + suffix + '.png'] = png(im)
             if anim:
                 old_anims['block/' + name + suffix] = anim
+    ex, ex_anims = extra_blocks({n[:-len('.png')] for n in old})
+    for path, data in ex.items():
+        old[path + '.png'] = data
+        added.append(path)
+    old_anims.update(ex_anims)
     old['animations.json'] = json.dumps(old_anims, separators=(',', ':')).encode()
     with zipfile.ZipFile(out_path, 'w', zipfile.ZIP_DEFLATED) as z:
         for n, data in sorted(old.items()):
@@ -733,6 +759,10 @@ for name in sorted(blocks):
         out[path] = png(im)
         if anim:
             anims[path] = anim
+
+ex, ex_anims = extra_blocks(set(out))
+out.update(ex)
+anims.update(ex_anims)
 
 # Cracks while digging
 for i in range(10):

@@ -581,6 +581,27 @@ export class World {
           const noise = 0.92 + hash3(wx, wy, wz) * 0.16;
           const r = P.rgb[id * 3] * noise, g = P.rgb[id * 3 + 1] * noise, b = P.rgb[id * 3 + 2] * noise;
 
+          if (P.quads[id]) {
+            // State models (redstone, pistons, rails, signs ...): ready quads, light of the own cell or of the
+            // neighbour a face lies against (full blocks like an extended piston have no light inside)
+            const tint = P.tint[id];
+            for (const q of P.quads[id]) {
+              // Light from the cell the face looks into (the block's own cell is dark when it stops sky light)
+              const nx = lx + Math.round(q.n[0]), ny = ly + Math.round(q.n[1]), nz = lz + Math.round(q.n[2]);
+              if (q.cull && P.occluding[idAt(nx, ny, nz)]) continue;
+              const sh = Math.abs(q.n[1]) > 0.5 ? (q.n[1] > 0 ? 1 : 0.55) : Math.abs(q.n[0]) > 0.5 ? 0.8 : 0.68;
+              const k = q.tile >= 0 ? sh * (0.97 + (noise - 1) * 0.3) : sh;
+              const cv = tint ? [tint[0] * k, tint[1] * k, tint[2] * k, 1] : [k, k, k, 1];
+              const own = L ? lightCurve(Math.max(lvl(nx, ny, nz), lvl(lx, ly, lz))) : 0;
+              const os = skyFlat === undefined ? lightCurve(Math.max(slv(nx, ny, nz), slv(lx, ly, lz))) : skyFlat;
+              const pts = q.p.map((v) => [lx + v[0], ly + v[1], lz + v[2]]);
+              const uvs = q.uv.map((v) => uvOf(q.tile, v[0], v[1]));
+              (atlas.animOf(q.tile) === undefined ? cross : aCross).quad(pts, [cv, cv, cv, cv], false, uvs,
+                L ? [own, own, own, own] : null, os === null ? null : [os, os, os, os]);
+            }
+            continue;
+          }
+
           if (kind === KIND_CROSS) {
             const h = 0.9, s = 0.12, e = 0.88;
             const col = P.packed[id] & 2 ? [0.9, 0.9, 0.9, 1] : [r * 0.9, g * 0.9, b * 0.9, 1];
@@ -640,7 +661,8 @@ export class World {
 
             const faceBit = F.n[1] > 0 ? 1 : F.n[1] < 0 ? 4 : 2;
             // The side the block looks to (furnace, chest ...) has its own picture
-            const front = f === P.facing[id] && P.tileFront[id] >= 0;
+            const ft = P.faceTile[id];
+            const front = ft ? true : f === P.facing[id] && P.tileFront[id] >= 0;
             let fr = r, fg = g, fb = b;
             if (front || (P.packed[id] & faceBit)) {
               // Pack textures bring their own colors
@@ -661,7 +683,8 @@ export class World {
               // Quarter turns only: other angles would reach outside the tile into its atlas neighbours
               if (Math.abs(gx) + Math.abs(gz) > 0.01) flowAngle = Math.round(Math.atan2(gx, gz) / (Math.PI / 2)) * (Math.PI / 2);
             }
-            const tile = F.n[1] > 0 ? P.tileTop[id] : F.n[1] < 0 ? P.tileBottom[id] : front ? P.tileFront[id] : P.tileSide[id];
+            const turn = ft ? P.faceRot[id][f] : 0;
+            const tile = ft ? ft[f] : F.n[1] > 0 ? P.tileTop[id] : F.n[1] < 0 ? P.tileBottom[id] : front ? P.tileFront[id] : P.tileSide[id];
             const useAo = kind === KIND_CUBE && full && !glow;
             for (let i = 0; i < 4; i++) {
               const [du, dv] = CORNERS[i];
@@ -678,6 +701,9 @@ export class World {
               if (F.n[1] !== 0) { su = F.n[1] > 0 ? vz : vx; tv = F.n[1] > 0 ? vx : vz; }
               else if (F.n[0] !== 0) { su = vz; tv = vy; }
               else { su = vx; tv = vy; }
+              if (turn === 1) [su, tv] = [tv, 1 - su];
+              else if (turn === 2) [su, tv] = [1 - su, 1 - tv];
+              else if (turn === 3) [su, tv] = [1 - tv, su];
               if (lc && F.n[1] > 0 && flowAngle !== null) {
                 // Rotate the texture so the water runs downhill
                 const cs = Math.cos(flowAngle), sn = Math.sin(flowAngle);

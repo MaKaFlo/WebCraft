@@ -2,7 +2,7 @@
 
 Ein Block-Spiel im Browser, das sich mit einem **Minecraft-Server** verbindet: **Paper** (als Plugin) oder **Fabric** (als Mod, damit auch für Vanilla). WebCraft-Spieler sind auf dem Server **echte Spieler**: Sie stehen in der Tab-Liste, bekommen Schaden, sterben, benutzen Befehle und Menüs von Plugins und Mods. Für den Server gibt es keinen Unterschied zu einem Minecraft-Spieler. So können Leute ohne Minecraft-Account mit Freunden auf dem Server spielen.
 
-Version 0.26.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
+Version 0.27.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
 
 ## Aufbau
 
@@ -170,6 +170,8 @@ Das Bild wird auf 32×32 Pixel verkleinert (bei Items wird der Hintergrund entfe
 - ✅ Steinsäge (Rezept auswählen), Webstuhl (Muster auswählen), Leuchtfeuer (Effekte auswählen und bezahlen)
 - ✅ Mobs und Tiere als Blockfiguren mit eigener Form: Creeper, Spinne, Huhn, Biene, Fledermaus, Papagei, Fische, Delfin, Tintenfisch, Ghast, Blaze, Breeze, Phantom, Wächter, Schleim, Shulker, Wither, Enderdrache ... Tiere mit Schwanz, Hörnern, Ohren, langem Hals. Flügel schlagen, Tentakel wackeln
 - ✅ Echte Blockformen: Stufen oben/unten, Schnee-Schichten, Türen und Falltüren offen/zu, Zäune, Portale
+- ✅ Redstone sieht aus wie in Minecraft: Kolben in alle Richtungen (auch ausgefahren), Repeater (Verzögerung, gesperrt), Komparator, Hebel, Redstone-Staub mit Verbindungen und Helligkeit nach Stärke, Redstone-Fackeln, Beobachter, Spender, Werfer, Trichter, Redstone-Lampe, Schienen (Kurven, Steigungen), Endstäbe, Blitzableiter, Laternen
+- ✅ Schilder: richtige Form, Text wird angezeigt (Farbe, leuchtende Tinte, Rückseite) und kann beschrieben werden
 - ✅ Hologramme und Schilder von Plugins, Text-Anzeigen, fallender Sand und Kies
 - ✅ Kämpfen wie in Minecraft: Hand mit Item, Schlag-Animation, Angriffs-Anzeige unter dem Fadenkreuz (voll aufladen = mehr Schaden), Treffer-Sounds
 - ✅ Mobs um WebCraft-Spieler laufen, sterben und spawnen jetzt richtig (vorher standen sie teilweise still)

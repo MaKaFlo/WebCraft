@@ -48,6 +48,8 @@ public final class WcSession {
     public final java.util.Queue<int[]> anims = new java.util.concurrent.ConcurrentLinkedQueue<>();
     /** Block changes the server sent to this player (commands, WorldEdit, explosions, water ...): x, y, z, state. */
     public final java.util.Queue<Object[]> blockChanges = new java.util.concurrent.ConcurrentLinkedQueue<>();
+    /** Signs whose text the server sent since the last tick (see WcSigns). */
+    public final java.util.Queue<net.minecraft.core.BlockPos> signChanges = new java.util.concurrent.ConcurrentLinkedQueue<>();
     /** Particle and level event packets since the last tick (see WcParticles). */
     public final java.util.Queue<Object> fx = new java.util.concurrent.ConcurrentLinkedQueue<>();
     /** Captured sound packets of this tick (see WcSounds). */

@@ -239,7 +239,7 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
 - Binary: byte 0 = type (1 = chunk), rest zlib: int32 cx, int32 cz, uint8 sections, per section
   int8 sectionY + 4096 × uint16 LE palette ids, index = (y*16+z)*16+x.
 - Server → client `t`: `welcome world pal tp vel stats inv items menu ents anim blocks unload chat notice
-  dead dig_info board tab pack error time fx skin lang snd sound boss`. Names: `items.js setNames()` (setting `lang`, default
+  dead dig_info board tab pack error time fx skin lang snd sound boss signs sign_edit`. Names: `items.js setNames()` (setting `lang`, default
   `de`, cached in localStorage `wc.lang.de_de`), used by `prettyName()` everywhere.
 - `time` (every second): `rain`, `thunder`, `snow`, `dry` (weather) and `v` = full world clock ticks (`World.getFullTime()` / `Level.getDefaultClockTime()`);
   the browser runs it on and stops when two values are equal (`doDaylightCycle` off).
@@ -253,10 +253,14 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
   gates/buttons/levers (palette `us` = sound of the state, played when the clicked block changes), rain, thunder,
   music (`Music`, 10-20 min pauses), `animateTick` sounds in `particles.js` (40 % of Minecraft's chances, we sample
   denser). `sounds.js`: Web Audio, PannerNode linear over 16 x volume, IndexedDB `wc-sounds` (hash → ogg).
+- `signs` {l: [{x, y, z, f: {l: [4 lines], c: dye color, g: glow}, b: {...}}]} (`WcSigns`): all signs with every chunk (sent after
+  the chunk) and changed ones per tick (captured `ClientboundBlockEntityDataPacket` of sign types); an entry without `f` = gone.
+  `sign_edit` {x, y, z, front} from a captured `ClientboundOpenSignEditorPacket`; the browser answers `sign` {x, y, z, front, l}
+  → `ServerboundSignUpdatePacket` (max 90 chars per line).
 - `skin` (answer to client `skin` {h}): `h` texture hash, `png` base64 (missing when not available).
 - Client → server `t`: `hello move input tp_ok slot click close inv_open drop swap_hands use use_on
   dig_start dig_stop dig_abort attack punch swing interact release button trade rename creative
-  respawn resync items chat pack_upload status kick reload beacon skin lang sound sfile` (`beacon`: `p`/`s` effect keys; `hello` has
+  respawn resync items chat pack_upload status kick reload beacon skin lang sound sfile sign` (`beacon`: `p`/`s` effect keys; `hello` has
   `name` and optional `skin` = Minecraft account name).
 - Skins (`WcSkins`): the login looks the account up at Mojang (api.mojang.com + sessionserver `?unsigned=false`,
   async, cached in `skins/profiles/`), the fake player's `GameProfile` gets the signed `textures` property, so
@@ -283,6 +287,8 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
 | `touch.js` | Phones/tablets (`isTouch`): joystick (8 directions as WASD keys, sprint at the edge), buttons, drag anywhere to look (pointer events on `document`, not on controls), gyro look (`setGyro`, deltas of heading/elevation from `deviceorientation`, `roll` for the 3D glasses), close button for inventory/chat |
 | `gamepad.js` | Gamepad API, console layout, polled per frame; `recent` = used within a minute (then `lockPointer` is skipped like on touch); d-pad/A/B navigate the game menu (`.pad-focus`) |
 | `vr.js` | 3D glasses: `StereoCamera` for world and hand scene, half-screen viewports, own HUD canvas (hotbar, hearts, food) and crosshair in the hand scene. Lens correction (setting 0-150 %, Cardboard K1 0.34 / K2 0.55 at 100 %): both eyes go into a render target (its own `viewport`/`scissor`), then a full-screen shader bends each half like a barrel. Only while playing (`stereoOn`); screens (inventory, menu, chat) show normally. Touch buttons are hidden then: a tap anywhere opens the game menu (`main.js`, capture-phase pointerdown; the click of that tap is swallowed; a gyro permission tap is skipped via `touch.permissionTap`), hint line in the VR HUD (`showHint`) |
+| `blockmodels.js` | Blocks drawn by their state (palette `p` = all state properties, sent by `BlockPalette.STATE_DRAWN` for pistons, repeaters, comparators, wire, observers, dispensers, hoppers, rails, lamps, levers, torches, signs, end rods, lightning rods, lanterns). `blockModel()` gives either `cube` (own picture per world side + `texUp` turn, used by the normal box path via `faceTile/faceRot`, keeps AO) or `elements` (boxes/quads in pixels like Minecraft models, built facing north, turned by `up`/`north`), baked once per id (`bakeModel`) into `Palette.quads`, drawn into the cross mesh with the light of the cell each face looks into. Extra pictures (`piston_inner`, `repeater_on`, `redstone_dust_line0` ...) come from `make_pack.py EXTRA_BLOCKS` |
+| `signs.js` | Sign texts (`signs`) as canvas planes on the board (front/back, color, glow ink), rebuilt on block changes; editor for `sign_edit` (4 inputs, answers `sign`) |
 | `textures.js` | Atlas: 64×64 tiles of 32 px + 8×8 animation atlas; pack tiles; gray detection for tinting |
 | `palette.js` | Palette from server: tiles per block (`texnames.js` candidates), tints, boxes |
 | `pack.js` | Texture sources: builtin (`texturen.zip` in the html) < server pack < local (IndexedDB). Import of MC packs incl. `.mcmeta`. `entity/` and `armor/` pictures stay out of the block atlas (`pack.image(path)`) |

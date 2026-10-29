@@ -569,6 +569,13 @@ public final class WcFakePlayer {
         listener().handleSelectTrade(new ServerboundSelectTradePacket(index));
     }
 
+    /** Text typed into the sign editor (like the vanilla client's "Done"). */
+    public void signUpdate(int x, int y, int z, boolean front, String[] lines) {
+        listener().handleSignUpdate(new net.minecraft.network.protocol.game.ServerboundSignUpdatePacket(
+                new BlockPos(x, y, z), java.util.List.of(lines),
+                front ? net.minecraft.world.level.block.entity.SignTextSlot.FRONT : net.minecraft.world.level.block.entity.SignTextSlot.BACK));
+    }
+
     public void rename(String name) {
         listener().handleRenameItem(new ServerboundRenameItemPacket(name == null ? "" : name));
     }
@@ -657,6 +664,20 @@ public final class WcFakePlayer {
             // Every block change the server tells a normal client about (also /setblock, WorldEdit, pistons ...)
             case ClientboundBlockUpdatePacket b -> session.blockChanges.add(new Object[] {b.getPos(), b.getBlockState()});
             case ClientboundSectionBlocksUpdatePacket b -> b.runUpdates((pos, state) -> session.blockChanges.add(new Object[] {pos.immutable(), state}));
+            // Sign texts and the sign editor (placing a sign, right click on it)
+            case net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket b -> {
+                var key = BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(b.getType());
+                if (key != null && key.getPath().endsWith("sign")) session.signChanges.add(b.getPos());
+            }
+            case net.minecraft.network.protocol.game.ClientboundOpenSignEditorPacket o -> {
+                com.google.gson.JsonObject m = new com.google.gson.JsonObject();
+                m.addProperty("t", "sign_edit");
+                m.addProperty("x", o.pos().getX());
+                m.addProperty("y", o.pos().getY());
+                m.addProperty("z", o.pos().getZ());
+                m.addProperty("front", o.slot() == net.minecraft.world.level.block.entity.SignTextSlot.FRONT);
+                session.send(m);
+            }
             // Since 26.x arm swings have their own packet
             case ClientboundSwingAnimationPacket a ->
                     session.anims.add(new int[] {a.entityId(), a.hand() == InteractionHand.OFF_HAND ? 3 : 0});

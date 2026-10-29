@@ -29,6 +29,7 @@ import { ModrinthPacks } from './modrinth.js';
 import { mods } from './mods.js';
 import { BossBars } from './bossbar.js';
 import { MotionBlur } from './motionblur.js';
+import { Signs } from './signs.js';
 
 const SKIES = {
   NORMAL: 0x9fc9ff,
@@ -85,6 +86,7 @@ const weather = new Weather(scene, world, particles);
 const player = new Player(world);
 player.autoJump = settings.autoJump;
 const entities = new Entities(scene);
+const signs = new Signs(scene, world);
 entities.world = world;
 const hud = new Hud();
 const tablist = new TabList($('tablist'));
@@ -258,6 +260,7 @@ function connect(url, name) {
         break;
       case 'world':
         world.clear();
+        signs.clear();
         entities.clear();
         setWorld(msg);
         addChat(`Du bist jetzt in "${msg.world}"`, 'sys');
@@ -268,13 +271,29 @@ function connect(url, name) {
         entities.palette = world.palette;
         break;
       case 'unload':
-        for (const [cx, cz] of msg.list) world.removeChunk(cx, cz);
+        for (const [cx, cz] of msg.list) { world.removeChunk(cx, cz); signs.unloadChunk(cx, cz); }
         break;
       case 'blocks':
         for (const [x, y, z, id] of msg.list) {
           blockSound(x, y, z, world.getId(x, y, z), id);
           world.setBlock(x, y, z, id);
+          signs.blockChanged(x, y, z);
         }
+        break;
+      case 'signs':
+        signs.message(msg);
+        break;
+      case 'sign_edit':
+        // Placed a sign or clicked one: type its text like in Minecraft
+        chatOpen = true;
+        player.keys.clear();
+        sendInput();
+        unlockPointer();
+        signs.edit(msg, (lines) => {
+          send({ t: 'sign', x: msg.x, y: msg.y, z: msg.z, front: msg.front !== false, l: lines });
+          chatOpen = false;
+          lockPointer();
+        });
         break;
       case 'snd':
         sounds.serverList(msg.l);
@@ -564,6 +583,7 @@ function enterGame() {
 function resetGame() {
   tablist.show(false);
   world.clear();
+  signs.clear();
   world.palette = null;
   entities.clear();
   lastSent = null;
@@ -1045,6 +1065,7 @@ function frame(now) {
     world.setCenter(Math.floor(player.x) >> 4, Math.floor(player.z) >> 4);
     world.processDirty(8, player.x, player.y, player.z);
     entities.update(dt);
+    signs.update();
     const playing = connected && !dead && !inventory.open && !chatOpen && ui.pause.hidden && !studio.isOpen;
     touch?.update(playing, connected && (inventory.open || chatOpen));
     pad.poll(dt, { playing, overlay: inventory.open || chatOpen, menu: !ui.pause.hidden, dead });
@@ -1345,4 +1366,4 @@ function updateHud() {
 }
 
 // Handy for debugging in the browser console: wc.player, wc.world
-window.wc = { player, world, entities, renderer, scene, camera, inventory, interaction, send, hud, sidebar, studio, pack, hand, sky, particles, weather, sounds, mods };
+window.wc = { signs, player, world, entities, renderer, scene, camera, inventory, interaction, send, hud, sidebar, studio, pack, hand, sky, particles, weather, sounds, mods };
