@@ -211,8 +211,7 @@ function connect(url, name) {
   sounds.connect(send);
   let welcomed = false;
 
-  ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', name, skin: ui.skin.value.trim() || undefined,
-    mode: loginChoice.mode === 'single' ? 'single' : undefined, creative: loginChoice.mode === 'single' && loginChoice.gm === 'creative' }));
+  ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', name, skin: ui.skin.value.trim() || undefined }));
   ws.onmessage = (ev) => {
     // Chunks are decompressed in parallel, but applied strictly in arrival order
     // Sound files (type 2) don't need the order of the other messages
@@ -510,31 +509,6 @@ ui.skin.value = localStorage.getItem('wc.skin') || '';
 const namePrefix = (window.WC_CONFIG && window.WC_CONFIG.namePrefix) || 'wc_';
 document.getElementById('name-prefix').textContent = namePrefix;
 document.getElementById('name-prefix-hint').textContent = namePrefix;
-
-// Multiplayer or an own world on the server (single player, survival or creative); the choice is remembered
-const loginChoice = { mode: 'multi', gm: 'survival' };
-try { Object.assign(loginChoice, JSON.parse(localStorage.getItem('wc.loginChoice') || '{}')); } catch (e) { /* none */ }
-function showLoginChoice() {
-  for (const b of document.querySelectorAll('#mode-choice button')) b.classList.toggle('on', b.dataset.mode === loginChoice.mode);
-  for (const b of document.querySelectorAll('#gm-choice button')) b.classList.toggle('on', b.dataset.gm === loginChoice.gm);
-  const single = loginChoice.mode === 'single';
-  const ownWorld = single && loginChoice.gm === 'creative';
-  $('gm-choice').hidden = !single;
-  $('single-hint').hidden = !single;
-  $('single-hint').textContent = ownWorld
-    ? 'Kreativ: eine eigene Welt mit derselben Landschaft wie der Server. Nur du kommst hinein, was du baust, sieht niemand. Eigenes Inventar (Name sp_...).'
-    : 'Überleben: die normale Server-Welt mit deinem Inventar, aber du siehst keine anderen Spieler und ihren Chat. Die anderen sehen dich und was du baust.';
-  $('name-prefix').textContent = ownWorld ? 'sp_' : namePrefix;
-}
-for (const b of document.querySelectorAll('#mode-choice button, #gm-choice button')) {
-  b.addEventListener('click', () => {
-    if (b.dataset.mode) loginChoice.mode = b.dataset.mode;
-    if (b.dataset.gm) loginChoice.gm = b.dataset.gm;
-    try { localStorage.setItem('wc.loginChoice', JSON.stringify(loginChoice)); } catch (e) { /* storage blocked */ }
-    showLoginChoice();
-  });
-}
-showLoginChoice();
 
 ui.form.addEventListener('submit', (e) => {
   e.preventDefault();

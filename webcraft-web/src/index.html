@@ -43,12 +43,6 @@
   }
   input:focus { border-color: var(--purple); box-shadow: 3px 3px 0 var(--purple); }
   .name-row { display: flex; align-items: stretch; }
-  .choice { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 4px; }
-  .choice[hidden] { display: none; }
-  .choice button { font: 700 15px var(--mono); padding: 8px 4px; cursor: pointer; background: #e8e1cf; color: var(--ink);
-    border: 3px solid var(--ink); }
-  .choice button.on { background: var(--orange); box-shadow: inset 0 0 0 2px #fff6; }
-  #gm-choice { margin-top: 6px; }
   .name-row .prefix {
     display: grid; place-items: center; padding: 0 10px; background: var(--ink); color: var(--paper);
     font-weight: 700; border: 3px solid var(--ink);
@@ -59,6 +53,9 @@
   }
   #play:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
   #play:disabled { opacity: 0.6; cursor: wait; }
+  .login-extra { margin-top: 10px; width: 100%; font: 700 15px var(--mono); padding: 8px; cursor: pointer;
+    background: #e8e1cf; color: var(--ink); border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+  .login-extra:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
   #login-error { min-height: 1.3em; margin: 12px 0 0; color: #b3261e; font-size: 14px; font-weight: 700; }
   .hint { font-size: 12px; opacity: 0.75; margin-top: 10px; line-height: 1.4; }
 
@@ -181,7 +178,6 @@
   .boss-bar.notched::after { content: ""; position: absolute; inset: 0;
     background: repeating-linear-gradient(90deg, transparent 0 calc(var(--notch) - 2px), rgba(0, 0, 0, 0.6) calc(var(--notch) - 2px) var(--notch)); }
   #pause label.mbtn { display: flex; align-items: center; justify-content: center; }
-  #login-packs { margin-top: 8px; }
   #pause { z-index: 40; }
   #pause .setting { color: #fff; text-shadow: 2px 2px 0 #3f3f3f; font: 400 16px var(--pixel); }
   /* Pixel font: Minecraft's GUI scale 2 (one font pixel = 2 screen pixels), crisp edges */
@@ -475,19 +471,9 @@
     </div>
     <label for="skin">Skin <small>(Name eines Minecraft-Spielers, freiwillig)</small></label>
     <input id="skin" name="skin" maxlength="16" placeholder="z.B. Notch" spellcheck="false">
-    <label>Spielart</label>
-    <div class="choice" id="mode-choice">
-      <button type="button" data-mode="multi">👥 Mehrspieler</button>
-      <button type="button" data-mode="single">🏠 Einzelspieler</button>
-    </div>
-    <div class="choice" id="gm-choice" hidden>
-      <button type="button" data-gm="survival">⚔️ Überleben</button>
-      <button type="button" data-gm="creative">🧱 Kreativ</button>
-    </div>
     <button id="play" type="submit">Spielen</button>
     <button id="login-packs" type="button" class="login-extra">🎨 Texturpakete</button>
     <p id="login-error"></p>
-    <p class="hint" id="single-hint" hidden></p>
     <p class="hint">Im Spiel siehst du dich als <b><span id="name-prefix-hint">wc_</span>Name</b>. Minecraft-Spieler sehen dich auch so. Mit einem Skin siehst du für alle so aus wie dieser Spieler.</p>
   </form>
 </div>

@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-10-29, version 0.28.0 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
+_Last update: 2026-10-29, version 0.28.1 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
 
 ## Current state
 
@@ -10,6 +10,9 @@ _Last update: 2026-10-29, version 0.28.0 (main). Tag pushes are refused by this 
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- 0.28.1: login page without the "Spielart" choice (owner: buggy, single player out for now; the class `.choice` clashed
+  with the stonecutter grid CSS). Server side of single player is still there (`hello` mode single), just no button.
+  Texture pack button styled like the form.
 - 0.28.0 (owner's wish): account linking `/webcraft link` (Java: code, WebCraft: `/webcraft link <code>`, both `link delete`),
   linked WebCraft login plays as the Java account (`WcLinks`). Tested on Paper headless with a hand-written `links.json`
   (login as the linked account, unlink + automatic relogin, wrong code message). Not tested: the Java side (no 26.3 client
