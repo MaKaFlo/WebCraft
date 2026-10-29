@@ -602,8 +602,18 @@ class Entity {
       }
       // Eating / drinking / bow: right arm up in front of the face, a little bobbing
       if (d.use && this.swingT <= 0) {
-        this.limbs.armR.rotation.x = -1.3 + Math.sin(performance.now() / 70) * 0.08;
-        this.limbs.armR.rotation.z = -0.3;
+        if (d.hand === 'trident') {
+          // Trident ready to throw: arm up over the head (Minecraft's THROW_TRIDENT pose)
+          this.limbs.armR.rotation.x = -2.9;
+          this.limbs.armR.rotation.z = 0;
+        } else if (/_spear$/.test(d.hand || '')) {
+          // Spear: arm forward and low, like a lance
+          this.limbs.armR.rotation.x = -1.1;
+          this.limbs.armR.rotation.z = 0.1;
+        } else {
+          this.limbs.armR.rotation.x = -1.3 + Math.sin(performance.now() / 70) * 0.08;
+          this.limbs.armR.rotation.z = -0.3;
+        }
       }
       // Arm swing when hitting or using something
       if (this.swingT > 0) {

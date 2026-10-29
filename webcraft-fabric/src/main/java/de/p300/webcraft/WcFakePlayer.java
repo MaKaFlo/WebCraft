@@ -539,7 +539,11 @@ public final class WcFakePlayer {
                 if (id >= 0) {
                     try {
                         int level = em.levelClue[i];
-                        name = registry.get(id).map(h -> net.minecraft.world.item.enchantment.Enchantment.getFullname(h, level).getString()).orElse("");
+                        var holder = registry.get(id);
+                        name = holder.map(h -> net.minecraft.world.item.enchantment.Enchantment.getFullname(h, level).getString()).orElse("");
+                        // Key and level: the browser shows the enchantment in its own language
+                        holder.flatMap(h -> h.unwrapKey()).ifPresent(k -> t.addProperty("key", k.identifier().getPath()));
+                        t.addProperty("lvl", level);
                     } catch (RuntimeException ignored) {
                         // unknown enchantment id
                     }

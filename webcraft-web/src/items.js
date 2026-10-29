@@ -62,6 +62,28 @@ export function prettyName(key) {
   return key.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
+// Enchantment names in German (our own list; the game's names come from Mojang's language files)
+const ENCHANT_DE = {
+  protection: 'Schutz', fire_protection: 'Feuerschutz', feather_falling: 'Federfall', blast_protection: 'Explosionsschutz',
+  projectile_protection: 'Schusssicher', respiration: 'Atmung', aqua_affinity: 'Wasseraffinität', thorns: 'Dornen',
+  depth_strider: 'Wasserläufer', frost_walker: 'Eisläufer', binding_curse: 'Fluch der Bindung', soul_speed: 'Seelenläufer',
+  swift_sneak: 'Huschen', sharpness: 'Schärfe', smite: 'Bann', bane_of_arthropods: 'Nemesis der Gliederfüßer',
+  knockback: 'Rückstoß', fire_aspect: 'Verbrennung', looting: 'Plünderung', sweeping_edge: 'Schwungkraft',
+  efficiency: 'Effizienz', silk_touch: 'Behutsamkeit', unbreaking: 'Haltbarkeit', fortune: 'Glück', power: 'Stärke',
+  punch: 'Schlag', flame: 'Flamme', infinity: 'Unendlichkeit', luck_of_the_sea: 'Glück des Meeres', lure: 'Köder',
+  loyalty: 'Treue', impaling: 'Harpune', riptide: 'Sog', channeling: 'Entladung', multishot: 'Mehrfachschuss',
+  quick_charge: 'Schnellladen', piercing: 'Durchschuss', density: 'Dichte', breach: 'Bresche', wind_burst: 'Windstoß',
+  mending: 'Reparatur', vanishing_curse: 'Fluch des Verschwindens', lunge: 'Ausfallschritt',
+};
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+
+/** "Schärfe III" for an enchantment key and level (curses and one-level enchantments without a number). */
+export function enchantName(key, level) {
+  const name = ENCHANT_DE[key] || prettyName(key);
+  const one = /curse|^mending$|^silk_touch$|^infinity$|^aqua_affinity$|^channeling$|^multishot$|^flame$/.test(key);
+  return one && level <= 1 ? name : name + ' ' + (ROMAN[level] || level);
+}
+
 /** Can this item be placed as a block (as far as the client can tell)? */
 export function isPlaceable(palette, key) {
   const id = palette?.index.get(key);

@@ -24,7 +24,20 @@ final class WcItems {
                 o.addProperty("d", Math.round(100.0 * d.getDamage() / max) / 100.0);
             }
         }
-        if (!s.getEnchantments().isEmpty()) o.addProperty("e", true);
+        // Enchantments (also the stored ones of enchanted books) as [key, level] for the tooltip
+        java.util.Map<org.bukkit.enchantments.Enchantment, Integer> ench = new java.util.LinkedHashMap<>(s.getEnchantments());
+        if (s.hasItemMeta() && s.getItemMeta() instanceof org.bukkit.inventory.meta.EnchantmentStorageMeta book) ench.putAll(book.getStoredEnchants());
+        if (!ench.isEmpty()) {
+            o.addProperty("e", true);
+            com.google.gson.JsonArray list = new com.google.gson.JsonArray();
+            ench.forEach((e, lvl) -> {
+                com.google.gson.JsonArray a = new com.google.gson.JsonArray();
+                a.add(e.getKey().getKey());
+                a.add(lvl);
+                list.add(a);
+            });
+            o.add("en", list);
+        }
         return o;
     }
 }

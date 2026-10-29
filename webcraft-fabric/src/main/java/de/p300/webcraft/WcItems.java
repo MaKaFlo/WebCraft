@@ -23,7 +23,24 @@ final class WcItems {
         if (s.isDamageableItem() && s.getDamageValue() > 0) {
             o.addProperty("d", Math.round(100.0 * s.getDamageValue() / s.getMaxDamage()) / 100.0);
         }
-        if (s.isEnchanted()) o.addProperty("e", true);
+        // Enchantments (also the stored ones of enchanted books) as [key, level] for the tooltip
+        com.google.gson.JsonArray list = new com.google.gson.JsonArray();
+        for (var comp : java.util.List.of(net.minecraft.core.component.DataComponents.ENCHANTMENTS, net.minecraft.core.component.DataComponents.STORED_ENCHANTMENTS)) {
+            var ench = s.get(comp);
+            if (ench == null) continue;
+            for (var e : ench.entrySet()) {
+                e.getKey().unwrapKey().ifPresent(k -> {
+                    com.google.gson.JsonArray a = new com.google.gson.JsonArray();
+                    a.add(k.identifier().getPath());
+                    a.add(e.getIntValue());
+                    list.add(a);
+                });
+            }
+        }
+        if (!list.isEmpty()) {
+            o.addProperty("e", true);
+            o.add("en", list);
+        }
         return o;
     }
 }

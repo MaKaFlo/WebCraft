@@ -1,5 +1,5 @@
 // Hotbar and the inventory / container screen. The server owns all items; we only send clicks.
-import { iconFor, prettyName } from './items.js';
+import { iconFor, prettyName, enchantName } from './items.js';
 
 const escapeHtml = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
@@ -87,7 +87,7 @@ function fillSlot(el, item, palette) {
   img.style.visibility = 'visible';
   count.textContent = item.c > 1 ? item.c : '';
   // Shown by our own tooltip (the browser's title tooltip is slow and vanishes when slots refresh)
-  el.dataset.tip = prettyName(item.k) + (item.e ? '\n✨ Verzaubert' : '')
+  el.dataset.tip = prettyName(item.k) + (item.en ? item.en.map(([k, l]) => '\n✨ ' + enchantName(k, l)).join('') : item.e ? '\n✨ Verzaubert' : '')
     + (item.d ? `\nHaltbarkeit: ${Math.round((1 - item.d) * 100)} %` : '');
   el.classList.toggle('ench', !!item.e);
   if (item.d) {
@@ -560,7 +560,12 @@ export class Inventory {
       x.enchant.forEach((b, i) => {
         const o = offers[i] || { cost: 0, name: '' };
         b.disabled = !o.cost;
-        b.innerHTML = o.cost ? `<span>${escapeHtml(o.name || 'Verzauberung')}</span><b>${o.cost}</b><small>${i + 1} Lapis</small>` : '&nbsp;';
+        // Like Minecraft: one of the enchantments you will get, then "..." (there may be more)
+        const name = o.key ? enchantName(o.key, o.lvl) : o.name;
+        b.innerHTML = o.cost ? `<span>${escapeHtml(name ? name + ' . . . ?' : 'Verzauberung')}</span><b>${o.cost}</b>`
+          + `<small>Stufe ${o.cost} nötig · kostet ${i + 1} Lapis und ${i + 1} ${i ? 'Stufen' : 'Stufe'}</small>` : '&nbsp;';
+        b.dataset.tip = o.cost ? `${name || 'Verzauberung'} . . . ?\nBenötigt Erfahrungsstufe ${o.cost}\n${i + 1} Lapislazuli\n${i + 1} ${i ? 'Erfahrungsstufen' : 'Erfahrungsstufe'}` : '';
+        if (!o.cost) delete b.dataset.tip;
       });
     }
     if (x.trades && m.trades?.list) {

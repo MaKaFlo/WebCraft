@@ -243,6 +243,10 @@ the `block/<name>_front` picture on that side (`palette.js tileFront/facing`), a
 icons. Chest faces (`chest/trapped_chest/ender_chest_front/side/top/bottom`) are cut from `entity/chest/*.png` by
 `make_pack.py chest_faces()` (the strips in that picture are upside down); other fronts come from `FRONT_FILES`.
 
+Enchantments: item JSON has `en` [[key, level]] (also stored enchantments of books), the enchanting offers have `key` and
+`lvl`; `items.js enchantName()` gives German names (own list `ENCHANT_DE`, roman levels) for slot tooltips and the
+enchanting buttons (name + " . . . ?", level needed, lapis cost, tooltip like Minecraft's).
+
 Screens with a choice (`webcraft-common/WcMenus`): the menu message's `trades` carries `cut` (stonecutter
 results, button id = index) and `sel`, `patterns` (loom pattern keys, button id = index) and `sel`, or
 `beacon` {levels, pay, primary, secondary, tiers}. The beacon's "Fertig" sends `beacon` (like
@@ -299,7 +303,7 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
 | `skins.js` | Textured mob models with the classic Minecraft box layout (`MODELS`, built in Minecraft model space: y down, ground y = 24, front -z, then turned half around x). `SKINS` maps mob type (+ variant) to model and picture, `GLOW` eye layers, armor from `armor/<material>_layer_1/2`. Scaled to the hitbox height; players always 1.8 |
 | `entities.js` | Mob/player models (humanoid, quadruped, part specs from `mobs.js`), variants/colors (`VARIANTS`, `JOBS`), held item in right arm, armor, swing/hurt anims, projectiles, items, holograms. Rebuild when `lookKey(d)` changes |
 | `models.js` | `blockMesh`, `itemExtruded` (pixel-extruded 3D item, front/back one-sided), `itemModel` |
-| `hand.js` | First-person arm/item (arm with the own skin from `welcome.skin/slim`), swing, eat/drink/bow animations, crumbs. `drawnPicture()`: bow/crossbow pulling pictures by draw time; `THROWN`: items thrown with a swing instead of being held |
+| `hand.js` | First-person arm/item (arm with the own skin from `welcome.skin/slim`), swing, eat/drink/bow animations (trident: raised to throw and trembling; spears `*_spear`: forward like a lance; `useKind`), crumbs. `drawnPicture()`: bow/crossbow pulling pictures by draw time; `THROWN`: items thrown with a swing instead of being held |
 | `chunkgrid.js` | Chunk borders (F3+G / setting): yellow every 2 blocks on the own chunk, blue section heights, red corners around. Upright lines are cut into 16-block pieces (long lines vanished in swiftshader) |
 | `touch.js` | Phones/tablets (`isTouch`): joystick (8 directions as WASD keys, sprint at the edge), buttons, drag anywhere to look (pointer events on `document`, not on controls), gyro look (`setGyro`, deltas of heading/elevation from `deviceorientation`, `roll` for the 3D glasses), close button for inventory/chat |
 | `gamepad.js` | Gamepad API, console layout, polled per frame; `recent` = used within a minute (then `lockPointer` is skipped like on touch); d-pad/A/B navigate the game menu (`.pad-focus`) |

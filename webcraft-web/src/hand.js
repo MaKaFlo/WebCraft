@@ -19,7 +19,7 @@ for (const step of [
 ]) ARM_MATRIX.multiply(step);
 const FOOD = /apple|bread|^cooked_|beef$|porkchop|mutton|^chicken$|^rabbit$|^cod$|^salmon$|tropical_fish|pufferfish|carrot$|potato$|beetroot$|cookie|melon_slice|pie$|stew$|soup$|berries|chorus_fruit|dried_kelp$|spider_eye|rotten_flesh|^cake$/;
 const DRINK = /potion$|milk_bucket|honey_bottle|ominous_bottle/;
-const BOW = /^bow$|crossbow|trident|spear$/;
+const BOW = /^bow$|crossbow/;
 
 /** What kind of "hold right click" animation an item has. */
 /** Thrown with right click (an arm swing, no holding): snowballs, eggs, ender pearls, splash potions ... */
@@ -40,6 +40,8 @@ export function useKind(key) {
   if (DRINK.test(key)) return 'drink';
   if (FOOD.test(key)) return 'eat';
   if (BOW.test(key)) return 'bow';
+  if (key === 'trident') return 'trident';
+  if (/_spear$/.test(key)) return 'spear';
   return null;
 }
 
@@ -202,6 +204,17 @@ export class Hand {
         const bob = this.useT > 0.2 ? Math.abs(Math.sin(this.useT * 13)) * 0.04 : 0;
         this.root.position.set(0.56 - 0.5 * k, -0.52 + 0.12 * k + bob, -0.72 + 0.12 * k);
         this.root.rotation.set(this.using === 'drink' ? 0.5 * k : 0.15 * k, 0.12 + 0.9 * k, -0.15 * k);
+      } else if (this.using === 'trident') {
+        // Minecraft's trident: lifted over the shoulder ready to throw, prongs forward, pulled back for 0.5 s, then it trembles
+        const pull = Math.min(1, this.useT / 0.5);
+        const shake = pull >= 1 ? Math.sin(this.useT * 26) * 0.006 : 0;
+        this.root.position.set(0.56 - 0.1 * k, -0.52 + 0.3 * k + shake, -0.72 + 0.1 * k + 0.2 * pull);
+        this.root.rotation.set(-0.6 * k, 0.12 + 0.2 * k, 0.15 * k);
+      } else if (this.using === 'spear') {
+        // Spear: held low like a lance, tip forward, drawn back a little while charging
+        const pull = Math.min(1, this.useT / 0.5);
+        this.root.position.set(0.56 - 0.18 * k, -0.52 - 0.04 * k, -0.72 + 0.1 * pull);
+        this.root.rotation.set(-1.05 * k, 0.12 + 0.35 * k, -0.2 * k);
       } else if (this.using === 'bow') {
         const pull = Math.min(1, this.useT / 1.0);       // full draw after 1 s like Minecraft
         const shake = pull >= 1 ? Math.sin(this.useT * 40) * 0.004 : 0;
