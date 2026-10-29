@@ -489,6 +489,13 @@ function sendMove() {
 }
 
 let lastInput = '';
+/** Drops the item in hand: gone at once in the hotbar (like Minecraft's client), the server sends the real inventory after. */
+function dropItem(all) {
+  if (!inventory.predictDrop(all)) return;
+  if (interaction.using) interaction.stopUse();
+  send({ t: 'drop', all });
+}
+
 function sendInput() {
   const k = player.keys;
   const input = {
@@ -833,7 +840,7 @@ const touch = isTouch ? new TouchControls({
   openChat: () => openChat(),
   openMenu: () => showMenu(),
   toggleView: () => cycleView(),
-  drop: () => send({ t: 'drop', all: false }),
+  drop: () => dropItem(false),
 }) : null;
 
 // Game controllers (also on phones over Bluetooth)
@@ -843,7 +850,7 @@ const pad = new GamepadControls({
   openInventory: () => inventory.setOpen(true),
   closeOverlay: () => { if (chatOpen) closeChat(); else if (inventory.open) inventory.setOpen(false); },
   toggleMenu: () => { if (ui.pause.hidden) showMenu(); else hideMenu(); },
-  drop: () => send({ t: 'drop', all: false }),
+  drop: () => dropItem(false),
   toggleVr: () => setVr(!settings.vr),
   toggleView: () => cycleView(),
   clickDefault: () => { if (!ui.death.hidden) ui.respawn.click(); },
@@ -957,7 +964,8 @@ document.addEventListener('keydown', (e) => {
   if (e.code === 'Space') e.preventDefault();
   if (e.code.startsWith('Digit') && e.code !== 'Digit0') { inventory.select(Number(e.code.slice(5)) - 1); return; }
   if (e.code === 'KeyE') { inventory.setOpen(true); return; }
-  if (e.code === 'KeyQ' && !e.repeat) { send({ t: 'drop', all: e.shiftKey }); return; }
+  // Q drops one item, Shift+Q the stack (Ctrl+Q would quit the browser); held down it keeps dropping like Minecraft
+  if (e.code === 'KeyQ') { dropItem(e.shiftKey); return; }
   if (e.code === 'KeyF' && !e.repeat) { send({ t: 'swap_hands' }); return; }
   if (e.code === 'KeyJ' && !e.repeat) {
     player.autoJump = settings.autoJump = !player.autoJump;
@@ -1384,4 +1392,4 @@ function updateHud() {
 }
 
 // Handy for debugging in the browser console: wc.player, wc.world
-window.wc = { signs, player, world, entities, renderer, scene, camera, inventory, interaction, send, hud, sidebar, studio, pack, hand, sky, particles, weather, sounds, mods };
+window.wc = { get state() { return { connected, chatOpen, dead, view }; }, signs, player, world, entities, renderer, scene, camera, inventory, interaction, send, hud, sidebar, studio, pack, hand, sky, particles, weather, sounds, mods };

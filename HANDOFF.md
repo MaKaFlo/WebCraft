@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-10-29, version 0.31.0 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
+_Last update: 2026-10-29, version 0.31.1 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
 
 ## Current state
 
@@ -10,6 +10,9 @@ _Last update: 2026-10-29, version 0.31.0 (main). Tag pushes are refused by this 
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- 0.31.1: Q drop made complete: instant prediction in the hotbar, holding Q repeats, Shift+Q stack, inventory resent
+  after drop and swap. Tested against the server inventory (Q, held, sword, Shift+Q, last item, F swap, Q in the
+  inventory screen, throwing out of the screen): browser and server always the same.
 - 0.31.0: elytra (flight physics like Minecraft, rockets, gliding pose and wings for others and in F5) and the Q-drop
   ghost item fix (inventory sent again after `drop`). Tested headless on Paper (glide 14-20 b/s, rocket ~32 b/s, server
   confirms, model screenshot). Not done: elytra wind sound, crash into walls damage, roll when turning. Fabric compiled only.

@@ -457,7 +457,7 @@ public final class WcMod implements ModInitializer, WcHost {
                 case "slot" -> f.selectSlot(Math.max(0, Math.min(8, integer(json, "i"))));
                 // The server assumes the client already took the item out (vanilla predicts drops): send the inventory again
                 case "drop" -> { f.drop(bool(json, "all")); s.invDirty = true; }
-                case "swap_hands" -> f.swapHands();
+                case "swap_hands" -> { f.swapHands(); s.invDirty = true; }
                 case "inv_open" -> {
                     f.openOwnInventory();
                     s.screenOpen = true;

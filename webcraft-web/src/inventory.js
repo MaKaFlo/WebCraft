@@ -201,6 +201,16 @@ export class Inventory {
 
   // ------------------------------------------------------------------ messages from the server
 
+  /** Q pressed: take the item out of the hand at once like Minecraft's client (the server's inventory follows). */
+  predictDrop(all) {
+    const it = this.hot?.[this.selected];
+    if (!it) return false;
+    this.hot = this.hot.slice();
+    this.hot[this.selected] = all || (it.c ?? 1) <= 1 ? null : { ...it, c: it.c - 1 };
+    this.renderHotbar();
+    return true;
+  }
+
   updateHotbar(msg) {
     const oldItem = this.hot[this.selected];
     const oldSel = this.selected;

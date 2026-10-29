@@ -228,7 +228,10 @@ Minecraft's `travelFallFlying` per 1/20 s tick (`glideTick`, velocity in blocks/
 `equipment/wings/elytra`) on the body when `arm[1]` is elytra, wing angles like `ElytraModel` (spread by velocity).
 
 Drops: vanilla predicts Q drops on the client, so `ServerPlayer.drop` only updates the remote slot and sends nothing;
-`drop` therefore sets `invDirty` (else a ghost item stayed in the hotbar).
+`drop` therefore sets `invDirty` (else a ghost item stayed in the hotbar); `swap_hands` too. The browser predicts the drop
+like the vanilla client (`main.js dropItem` → `inventory.predictDrop`, also touch/pad), holding Q repeats.
+Headless key tests need a fake pointer lock (`Object.defineProperty(document, 'pointerLockElement', ...)`) and a living
+player (`wc.state` = {connected, chatOpen, dead, view}); `/home/user/srv/drop.cjs` compares hotbar and server inventory.
 
 Weather: the `time` message also carries `rain`, `thunder` (0..1) and `snow`/`dry` for the player's biome
 (`WcWeather`). Lightning bolts are sent as entities.
