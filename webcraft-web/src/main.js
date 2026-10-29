@@ -27,6 +27,8 @@ import { GamepadControls } from './gamepad.js';
 import { StereoView } from './vr.js';
 import { ModrinthPacks } from './modrinth.js';
 import { mods } from './mods.js';
+import { BossBars } from './bossbar.js';
+import { MotionBlur } from './motionblur.js';
 
 const SKIES = {
   NORMAL: 0x9fc9ff,
@@ -277,6 +279,9 @@ function connect(url, name) {
       case 'snd':
         sounds.serverList(msg.l);
         break;
+      case 'boss':
+        bossBars.message(msg);
+        break;
       case 'sound':
         sounds.onDef(msg);
         break;
@@ -400,6 +405,7 @@ function setBorder(b) {
 
 function setWorld(msg) {
   world.minY = msg.minY; world.maxY = msg.maxY;
+  mods.setPlace(ws?.url ?? '', msg.world ?? '');   // waypoints belong to this world
   setBorder(msg.border);
   const color = SKIES[msg.env] ?? SKIES.NORMAL;
   scene.background.setHex(color);
@@ -568,6 +574,7 @@ function resetGame() {
   studio.close();
   myEntityId = -1;
   music.stop();
+  bossBars.clear();
   interaction.reset();
   hud.reset();
   dead = false;
@@ -670,7 +677,7 @@ $('m-settings').addEventListener('click', () => { syncSettingsUi(); showMenu('me
 $('m-keys').addEventListener('click', () => showMenu('menu-keys'));
 const modrinth = new ModrinthPacks($('menu-packs'));
 $('m-packs').addEventListener('click', () => { showMenu('menu-packs'); modrinth.open(); });
-$('m-mods').addEventListener('click', () => { mods.renderMenu($('mods-list')); showMenu('menu-mods'); });
+$('m-mods').addEventListener('click', () => { mods.renderMenu($('mods-list'), player); showMenu('menu-mods'); });
 // "Fertig" goes back to the main menu, or to the login when the page was opened there
 for (const b of ui.pause.querySelectorAll('[data-back]')) b.addEventListener('click', () => { if (connected) showMenu(); else ui.pause.hidden = true; });
 $('login-packs').addEventListener('click', () => { showMenu('menu-packs'); modrinth.open(); });
@@ -873,6 +880,7 @@ document.addEventListener('keydown', (e) => {
   if (e.repeat) return;
   mods.held.add(e.code);
   if (e.code === 'KeyV' && mods.on('snaplook') && snapView === null) { snapView = view; view = 2; }
+  if (e.code === 'KeyB' && mods.on('waypoints') && !f3Down) showNotice('📍 ' + mods.addWaypoint(player).name + ' gesetzt');
 }, true);
 document.addEventListener('keyup', (e) => {
   mods.held.delete(e.code);
@@ -1068,6 +1076,7 @@ function frame(now) {
       i: -2, type: 'player', x: player.x, y: player.y, z: player.z, yaw: player.yaw, pitch: player.pitch, body: player.yaw,
       w: 0.6, h: 1.8, skin: mySkin || undefined, slim: mySlim || undefined, hand: inventory.selectedItem()?.k,
       sn: (player.keys.has('ShiftLeft') && !player.flying) || undefined, use: interaction.using || undefined,
+      n: mods.on('ownname') ? myName : undefined, wc: true,
     } : null);
     entities.showHitboxes = settings.hitboxes;
     chunkGrid.update(settings.chunks, player.x, player.z, world.minY, world.maxY);
@@ -1123,9 +1132,13 @@ function frame(now) {
     checkMissingChunks(dt);
   }
 
+  const blur = connected ? mods.value('motionblur') : 0;
   if (stereoOn) {
     stereo.render(renderer, scene, camera, hand, handLight, hand.visibleMode !== false && !view);
+  } else if (blur > 0) {
+    motionBlur.render(renderer, scene, camera, blur);
   } else {
+    motionBlur.reset();
     renderer.render(scene, camera);
   }
   if (!stereoOn && connected && world.palette && !dead && hand.visibleMode !== false && !view) {
@@ -1174,9 +1187,14 @@ function applyMods(dt) {
   ui.coords.classList.toggle('mod-off', !mods.on('coords'));
   ui.info.classList.toggle('mod-off', !mods.on('debuginfo'));
   $('sidebar').classList.toggle('mod-off', mods.on('noscoreboard'));
+  $('bossbars').classList.toggle('mod-off', !mods.on('bossbar'));
+  Entities.itemPhysics = mods.on('itemphysics');
+  mods.updateWaypoints(scene, camera, dt);
   mods.updateHud({ el: $('modhud'), dt, fps, player, keys: player.keys, mouse: mouseDown, sky, palette: world.palette, world, entities });
 }
 const modState = { bright: false };
+const bossBars = new BossBars($('bossbars'));
+const motionBlur = new MotionBlur();
 
 // ---------------------------------------------------------------- sounds the vanilla client makes itself
 
@@ -1327,4 +1345,4 @@ function updateHud() {
 }
 
 // Handy for debugging in the browser console: wc.player, wc.world
-window.wc = { player, world, entities, renderer, scene, camera, inventory, interaction, send, hud, sidebar, studio, pack, hand, sky, particles, weather, sounds };
+window.wc = { player, world, entities, renderer, scene, camera, inventory, interaction, send, hud, sidebar, studio, pack, hand, sky, particles, weather, sounds, mods };

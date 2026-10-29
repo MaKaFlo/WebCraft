@@ -239,7 +239,7 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
 - Binary: byte 0 = type (1 = chunk), rest zlib: int32 cx, int32 cz, uint8 sections, per section
   int8 sectionY + 4096 × uint16 LE palette ids, index = (y*16+z)*16+x.
 - Server → client `t`: `welcome world pal tp vel stats inv items menu ents anim blocks unload chat notice
-  dead dig_info board tab pack error time fx skin lang snd sound`. Names: `items.js setNames()` (setting `lang`, default
+  dead dig_info board tab pack error time fx skin lang snd sound boss`. Names: `items.js setNames()` (setting `lang`, default
   `de`, cached in localStorage `wc.lang.de_de`), used by `prettyName()` everywhere.
 - `time` (every second): `rain`, `thunder`, `snow`, `dry` (weather) and `v` = full world clock ticks (`World.getFullTime()` / `Level.getDefaultClockTime()`);
   the browser runs it on and stops when two values are equal (`doDaylightCycle` off).
@@ -291,7 +291,9 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
 | `inventory.js` | Inventory/creative/menus (brewing, furnace, enchanting, merchant, anvil ...) |
 | `studio.js` | Texture studio (ChatGPT prompts, paste image, 32 px) |
 | `sounds.js` | Minecraft sounds (see Protocol `snd`), music |
-| `mods.js` | Client mods with switches (menu "Mods ...", localStorage `wc.mods`): `MODS` list (id, group, default, options), `mods.on/value`, HUD (`#modhud`: list, keystrokes, armor from `inv.arm`, effects from `stats.eff`, minimap from palette `rgb`), input (`held` keys: C zoom, Alt freelook with `freeYaw/freePitch`, V snaplook), CPS/reach/combo counters. `main.js applyMods()` sets fullbright (`world.setAmbient`), `sky.fixedTime`, `particles.amount`, `Entities.hitColor`, outline color, `--crosshair`, hides panels; F2 screenshot after the render; toggle sneak/sprint in the key handlers |
+| `mods.js` | Client mods with switches (menu "Mods ...", localStorage `wc.mods`): `MODS` list (id, group, default, options), `mods.on/value`, HUD (`#modhud`: list, keystrokes, armor from `inv.arm`, effects from `stats.eff`, minimap from palette `rgb`), input (`held` keys: C zoom, Alt freelook with `freeYaw/freePitch`, V snaplook), CPS/reach/combo counters. `main.js applyMods()` sets fullbright (`world.setAmbient`), `sky.fixedTime`, `particles.amount`, `Entities.hitColor`, outline color, `--crosshair`, hides panels; F2 screenshot after the render; toggle sneak/sprint in the key handlers. Waypoints per server+world (localStorage `wc.waypoints`, beam + label sprite kept within 48 blocks, key B), item physics (`Entities.itemPhysics`), own nametag in F5 (`n` in `showSelf`, `lookKey` has `n`) |
+| `motionblur.js` | Motion blur mod: scene into a render target, mixed with the last result (ping-pong targets), copied to the screen; hand drawn on top as before |
+| `bossbar.js` | Boss bars from `boss` messages (`WcBossBars` in common: `ClientboundBossEventPacket.dispatch` → {op add/remove/progress/name/style, id, name, p, color, overlay}) |
 | `modrinth.js` | Menu page "Texturpakete": Modrinth API search (`project_type:resourcepack`, CORS allowed), newest version for 26.3 (else newest), download from cdn.modrinth.com with progress, `pack.importZip` (block/item pictures only, stacked over earlier ones; "Standard-Texturen" = `pack.clearLocal`). Loaded project ids in localStorage `wc.modrinthLoaded` (button "Geladen ✓"). Also reachable from the login form (`#login-packs`; "Fertig" then hides `#pause`). "ZIP/Ordner hochladen": `pack.importFiles`; files with `.class` / `fabric.mod.json` / `mods.toml` are mods and are refused with a message. CurseForge's API needs a secret key (403 without), so not in the browser |
 | `hud.js sidebar.js tablist.js border.js` | HUD, scoreboard, tab list, border |
 | `index.html` | All markup and CSS; `<!-- WC_SCRIPT -->` is replaced by the bundle |

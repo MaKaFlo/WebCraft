@@ -72,7 +72,7 @@ const JOBS = {
 };
 
 /** What makes a mob look different (rebuild the model when it changes). */
-const lookKey = (d) => [d.var, d.col, d.col2, d.sheared ? 1 : 0, d.hand, (d.arm || []).join(','), d.skin ? d.skin + (skinLoaded(d.skin) ? '+' : '') : ''].join('|');
+const lookKey = (d) => [d.n, d.var, d.col, d.col2, d.sheared ? 1 : 0, d.hand, (d.arm || []).join(','), d.skin ? d.skin + (skinLoaded(d.skin) ? '+' : '') : ''].join('|');
 
 // Extra parts for animals, so a cow, a pig and a horse don't all look the same
 const ANIMAL_EXTRAS = {
@@ -640,7 +640,13 @@ class Entity {
       if (this.swirl) { this.swirl.rotation.x += dt * 9; this.swirl.rotation.y += dt * 5; }
       return;
     }
-    if (d.type === 'item' || d.type === 'item_display') {
+    if (d.type === 'item' && Entities.itemPhysics) {
+      // Item physics mod: the item lies flat on the ground, turned a bit differently for each item
+      this.group.rotation.y = ((d.i * 2654435761) % 360) * Math.PI / 180;
+      if (this.itemMesh.userData.flat) { this.itemMesh.rotation.set(-Math.PI / 2, 0, 0); this.itemMesh.position.y = 0.02; }
+      else { this.itemMesh.rotation.set(0, 0, 0); this.itemMesh.position.y = 0.125; }
+    } else if (d.type === 'item' || d.type === 'item_display') {
+      if (this.itemMesh.rotation.x) this.itemMesh.rotation.set(0, 0, 0);
       this.spin += dt * 2;
       this.group.rotation.y = this.spin;
       this.itemMesh.position.y = this.baseY + Math.sin(this.spin * 1.5) * 0.05;
@@ -697,6 +703,7 @@ class Entity {
 /** Color mobs flash in when hit (treffer-farbe mod). */
 export class Entities {
   static hitColor = 0xff3030;
+  static itemPhysics = false;   // item physics mod
 
   constructor(scene) {
     this.scene = scene;

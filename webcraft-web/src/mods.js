@@ -2,6 +2,7 @@
 // HUD displays (fps, cps, keystrokes, armor, effects, clock, reach, combo, minimap ...), fullbright, zoom, freelook,
 // snaplook, time changer, no weather, particle amount, crosshair/outline/hit colors, toggle sprint/sneak, screenshot.
 // Nothing here is code from other clients: these are WebCraft's own versions of the same ideas.
+import * as THREE from 'three';
 import { iconCanvas, prettyName } from './items.js';
 
 const KEY = 'wc.mods';
@@ -23,6 +24,8 @@ export const MODS = [
   { id: 'minimap', name: 'Minimap', group: 'Anzeigen' },
   { id: 'chattime', name: 'Uhrzeit im Chat', group: 'Anzeigen' },
   { id: 'noscoreboard', name: 'Scoreboard ausblenden', group: 'Anzeigen' },
+  { id: 'bossbar', name: 'Bossbar', group: 'Anzeigen', def: true },
+  { id: 'waypoints', name: 'Wegpunkte (B setzt einen)', group: 'Anzeigen' },
   { id: 'fullbright', name: 'Fullbright (alles hell)', group: 'Sicht' },
   { id: 'zoom', name: 'Zoom (C halten)', group: 'Sicht', def: true },
   { id: 'freelook', name: 'Freelook (Alt halten)', group: 'Sicht' },
@@ -40,6 +43,10 @@ export const MODS = [
   { id: 'hitcolor', name: 'Treffer-Farbe', group: 'Sicht', def: 0xff3030,
     options: [[0xff3030, 'rot'], [0x3080ff, 'blau'], [0x40ff40, 'grün'], [0xffe040, 'gelb'], [0xc040ff, 'lila']] },
   { id: 'screenshot', name: 'Screenshot (F2)', group: 'Sicht', def: true },
+  { id: 'motionblur', name: 'Bewegungsunschärfe', group: 'Sicht', def: 0,
+    options: [[0, 'aus'], [0.5, 'leicht'], [0.7, 'mittel'], [0.85, 'stark']] },
+  { id: 'itemphysics', name: 'Item-Physik (Items liegen flach)', group: 'Sicht' },
+  { id: 'ownname', name: 'Eigenes Namensschild (F5)', group: 'Sicht' },
   { id: 'togglesprint', name: 'Toggle Sprint (immer sprinten mit W)', group: 'Bewegung' },
   { id: 'togglesneak', name: 'Toggle Sneak (Shift schaltet um)', group: 'Bewegung' },
 ];
@@ -59,6 +66,9 @@ const EFFECT_NAMES = {
 };
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
 
+const WAYPOINT_KEY = 'wc.waypoints';
+const WAYPOINT_COLORS = [0xff4040, 0x40a0ff, 0x40ff60, 0xffe040, 0xd060ff, 0xffffff];
+
 const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 class Mods {
@@ -76,6 +86,103 @@ class Mods {
     this.mapT = 0;
     this.armor = [];
     this.effects = [];
+    this.waypoints = {};
+    try { this.waypoints = JSON.parse(localStorage.getItem(WAYPOINT_KEY) || '{}'); } catch (e) { /* none */ }
+    this.place = '';            // server address + world: waypoints belong to one world
+    this.wpGroup = null;
+    this.wpBuilt = '';
+  }
+
+  // ---------------------------------------------------------------- waypoints
+
+  /** The world we are in now (server address and world name). */
+  setPlace(server, world) {
+    this.place = server + '|' + world;
+  }
+
+  points() {
+    return this.waypoints[this.place] ?? [];
+  }
+
+  savePoints(list) {
+    this.waypoints[this.place] = list;
+    try { localStorage.setItem(WAYPOINT_KEY, JSON.stringify(this.waypoints)); } catch (e) { /* storage blocked */ }
+    this.wpBuilt = '';
+    this.onWaypoints?.();
+  }
+
+  addWaypoint(player) {
+    const list = this.points();
+    const n = list.length + 1;
+    list.push({ name: 'Punkt ' + n, x: Math.floor(player.x) + 0.5, y: Math.floor(player.y), z: Math.floor(player.z) + 0.5,
+      color: WAYPOINT_COLORS[(n - 1) % WAYPOINT_COLORS.length] });
+    this.savePoints(list);
+    return list[list.length - 1];
+  }
+
+  removeWaypoint(i) {
+    const list = this.points();
+    list.splice(i, 1);
+    this.savePoints(list);
+  }
+
+  /** Beams and labels in the world (per frame: the labels keep their size and show the distance). */
+  updateWaypoints(scene, camera, dt) {
+    if (!this.wpGroup) {
+      this.wpGroup = new THREE.Group();
+      scene.add(this.wpGroup);
+    }
+    const show = this.on('waypoints');
+    this.wpGroup.visible = show;
+    if (!show) return;
+    const list = this.points();
+    const sig = this.place + JSON.stringify(list);
+    if (sig !== this.wpBuilt) {
+      this.wpBuilt = sig;
+      for (const c of [...this.wpGroup.children]) {
+        this.wpGroup.remove(c);
+        c.traverse((o) => { o.geometry?.dispose(); o.material?.map?.dispose(); o.material?.dispose(); });
+      }
+      for (const w of list) {
+        const g = new THREE.Group();
+        g.position.set(w.x, w.y, w.z);
+        const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 256, 6, 1, true),
+          new THREE.MeshBasicMaterial({ color: w.color, transparent: true, opacity: 0.4, depthWrite: false, fog: false }));
+        beam.position.y = 128;
+        g.add(beam);
+        const canvas = document.createElement('canvas');
+        canvas.width = 256; canvas.height = 48;
+        const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), depthTest: false, fog: false }));
+        label.renderOrder = 10;
+        label.userData = { canvas, w, last: '' };
+        g.add(label);
+        this.wpGroup.add(g);
+      }
+    }
+    for (const g of this.wpGroup.children) {
+      const label = g.children[1];
+      const { canvas, w } = label.userData;
+      const dx = w.x - camera.position.x, dy = w.y + 2 - camera.position.y, dz = w.z - camera.position.z;
+      const dist = Math.hypot(dx, dy, dz);
+      // Far away waypoints are drawn closer (inside the view distance), always the same size on the screen
+      const shown = Math.min(dist, 48) / Math.max(dist, 0.001);
+      label.position.set(dx * shown + camera.position.x - w.x, dy * shown + camera.position.y - w.y, dz * shown + camera.position.z - w.z);
+      const s = Math.min(dist, 48) * 0.09;
+      label.scale.set(s * 5.33, s, 1);
+      const text = `${w.name} (${Math.round(dist)} m)`;
+      if (text !== label.userData.last) {
+        label.userData.last = text;
+        const g2 = canvas.getContext('2d');
+        g2.clearRect(0, 0, 256, 48);
+        g2.fillStyle = 'rgba(0,0,0,0.5)';
+        g2.fillRect(0, 4, 256, 40);
+        g2.font = 'bold 26px sans-serif';
+        g2.textAlign = 'center';
+        g2.fillStyle = '#' + w.color.toString(16).padStart(6, '0');
+        g2.fillText(text, 128, 33);
+        label.material.map.needsUpdate = true;
+      }
+    }
   }
 
   value(id) {
@@ -98,9 +205,10 @@ class Mods {
 
   // ---------------------------------------------------------------- menu page
 
-  /** Fills the menu page: one button per mod, grouped. */
-  renderMenu(el) {
+  /** Fills the menu page: one button per mod, grouped, and the waypoints of this world. */
+  renderMenu(el, player) {
     el.innerHTML = '';
+    this.onWaypoints = () => this.renderMenu(el, player);
     let group = null;
     for (const m of MODS) {
       if (m.group !== group) {
@@ -135,6 +243,26 @@ class Mods {
       });
       el.appendChild(b);
     }
+    // Waypoints of this world
+    const h = document.createElement('div');
+    h.className = 'mods-group';
+    h.textContent = 'Wegpunkte in dieser Welt';
+    el.appendChild(h);
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'mbtn mod-toggle';
+    add.textContent = 'Wegpunkt hier setzen';
+    add.addEventListener('click', () => { if (!this.on('waypoints')) this.set('waypoints', true); this.addWaypoint(player); });
+    el.appendChild(add);
+    this.points().forEach((w, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'mbtn mod-toggle';
+      b.textContent = `✖ ${w.name}: ${Math.floor(w.x)} ${w.y} ${Math.floor(w.z)}`;
+      b.title = 'Löschen';
+      b.addEventListener('click', () => this.removeWaypoint(i));
+      el.appendChild(b);
+    });
   }
 
   // ---------------------------------------------------------------- input

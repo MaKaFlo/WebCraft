@@ -633,6 +633,7 @@ public final class WcFakePlayer {
                 if (WcSounds.wanted(fx)) session.sounds.add(fx);
             }
             case ClientboundSoundPacket snd -> session.sounds.add(snd);
+            case ClientboundBossEventPacket b -> WcBossBars.send(session, b);
             case ClientboundSoundEntityPacket snd -> session.sounds.add(snd);
             case ClientboundTakeItemEntityPacket snd -> session.sounds.add(snd);
             // Every block change the server tells a normal client about (also /setblock, WorldEdit, pistons ...)

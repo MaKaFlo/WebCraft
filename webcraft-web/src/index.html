@@ -161,6 +161,16 @@
   #modhud .mod-map { position: absolute; right: 10px; top: 10px; width: 128px; height: 128px; border: 2px solid rgba(0, 0, 0, 0.6); image-rendering: pixelated; }
   #modhud [hidden] { display: none; }
   body.vr-on #modhud { display: none; }
+  /* Boss bars like Minecraft's: name above a 182 x 5 bar (GUI scale 2), notches for the segmented styles */
+  #bossbars { position: fixed; top: 6px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column;
+    gap: 6px; align-items: center; pointer-events: none; z-index: 5; }
+  .boss { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .boss-name { color: #fff; font: 700 14px var(--mono); text-shadow: 2px 2px 0 #3f3f3f; }
+  .boss-bar { position: relative; width: 364px; max-width: 70vw; height: 10px; background: color-mix(in srgb, var(--boss) 30%, #000);
+    border: 1px solid #000; }
+  .boss-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--boss); }
+  .boss-bar.notched::after { content: ""; position: absolute; inset: 0;
+    background: repeating-linear-gradient(90deg, transparent 0 calc(var(--notch) - 2px), rgba(0, 0, 0, 0.6) calc(var(--notch) - 2px) var(--notch)); }
   #pause label.mbtn { display: flex; align-items: center; justify-content: center; }
   #login-packs { margin-top: 8px; }
   #pause { z-index: 40; }
@@ -486,6 +496,7 @@
   <div id="item-name"></div>
   <div id="damage-flash"></div>
   <div id="modhud"></div>
+  <div id="bossbars"></div>
   <div id="stats"><div id="armor"></div><div id="air"></div><div id="hearts"></div><div id="food"></div></div>
   <div id="xp"><div id="xp-bar"></div></div>
   <div id="xp-level"></div>
