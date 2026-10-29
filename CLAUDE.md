@@ -189,6 +189,12 @@ or no open sky in reach (0). A changed column top re-meshes the sections between
 first-person hand get `World.brightnessAt()` (estimate from column tops and light blocks nearby, no flood fill),
 applied with `dimUnlit(root, basic, lambert)`. Costs about 10-20 % more meshing time.
 
+Section seams: every section is its own mesh with its own offset, and the GPU rounds a shared edge of two meshes
+differently (dotted cracks to the background, best seen through water), so face corners on the section edge reach
+`SEAM` (0.002) over it (`meshSection`). Movement uses real time (`main.js realDt`, max 0.5 s, sub-stepped in
+`player.update`); everything else keeps the 0.1 s cap. A 0.1 s cap for movement made slow frames slow motion (elytra
+flight felt slow while meshing new chunks). Spectators (`stats.gm`) always fly and pass through blocks (`player.spectator`).
+
 Atlas UVs keep a quarter-to-half pixel away from tile edges (`tileUV`/`animUV` inset): with less, edge pixels
 sampled the neighbour tile's see-through pixels and alphaTest cut gaps into walls (bright lines in dark caves).
 

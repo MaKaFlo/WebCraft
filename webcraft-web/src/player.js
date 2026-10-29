@@ -31,6 +31,7 @@ export class Player {
     this.canSprint = true;   // false when hungry (food <= 6)
     this.autoJump = true;
     this.canFly = false;   // creative / allowed by the server
+    this.spectator = false; // spectator mode: always flying, through blocks
     this.flying = false;
     this.swimming = false; // sprinting in water: lying, moves where you look
     this.gliding = false;  // elytra
@@ -107,6 +108,7 @@ export class Player {
   }
 
   toggleFly() {
+    if (this.spectator) { this.flying = true; return; }   // spectators always fly
     if (!this.canFly) { this.flying = false; return; }
     this.flying = !this.flying;
     this.vy = 0;
@@ -168,6 +170,7 @@ export class Player {
     if (this.frozen || !this.groundLoaded()) return; // wait in the air until the world is there
     this.unstuck();
     if (!this.canFly) this.flying = false;
+    if (this.spectator) this.flying = true;
     // Sub-steps keep collision stable on slow frames
     const steps = Math.ceil(dt / 0.02);
     const h = dt / steps;
@@ -325,6 +328,11 @@ export class Player {
   /** Move along one axis (0=x, 1=y, 2=z) and stop at blocks. Returns distance actually moved. */
   moveAxis(axis, delta) {
     if (delta === 0) return 0;
+    // Spectators fly through blocks like in Minecraft
+    if (this.spectator) {
+      if (axis === 0) this.x += delta; else if (axis === 1) this.y += delta; else this.z += delta;
+      return delta;
+    }
     const pos = [this.x, this.y, this.z];
     const start = pos[axis];
     pos[axis] += delta;

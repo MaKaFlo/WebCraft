@@ -15,6 +15,7 @@ const FACES = [
   { n: [0, 0, 1], u: [1, 0, 0], v: [0, 1, 0], shade: 0.68 },
   { n: [0, 0, -1], u: [0, 1, 0], v: [1, 0, 0], shade: 0.68 },
 ];
+const SEAM = 0.002;   // how far faces reach over the section edge (see meshSection)
 const CORNERS = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
 const AO_LEVELS = [0.5, 0.68, 0.84, 1.0];
 
@@ -696,7 +697,14 @@ export class World {
               const vx = ux > 0.5 ? box[3] : box[0];
               const vy = uy > 0.5 ? (lc ? lc[(ux > 0.5 ? 2 : 0) + ((ux > 0.5) !== (uz > 0.5) ? 1 : 0)] : Math.min(box[4], 1)) : box[1];
               const vz = uz > 0.5 ? box[5] : box[2];
-              pts[i] = [lx + vx, ly + vy, lz + vz];
+              // Corners on the edge of the section reach a hair over it: neighbouring sections are separate meshes
+              // with their own offset, and the GPU rounds their shared edge differently (dotted cracks, best seen on water)
+              const px = lx + vx, py = ly + vy, pz = lz + vz;
+              pts[i] = [
+                F.n[0] === 0 ? (px <= 0 ? -SEAM : px >= 16 ? 16 + SEAM : px) : px,
+                F.n[1] === 0 ? (py <= 0 ? -SEAM : py >= 16 ? 16 + SEAM : py) : py,
+                F.n[2] === 0 ? (pz <= 0 ? -SEAM : pz >= 16 ? 16 + SEAM : pz) : pz,
+              ];
               // Texture coordinates follow the real size so small blocks are not squashed
               let su, tv;
               if (F.n[1] !== 0) { su = F.n[1] > 0 ? vz : vx; tv = F.n[1] > 0 ? vx : vz; }

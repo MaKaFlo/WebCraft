@@ -356,6 +356,7 @@ function connect(url, name) {
         if (msg.border) setBorder(msg.border);
         hand.visibleMode = msg.gm !== 'SPECTATOR';
         player.canFly = msg.fly;
+        player.spectator = msg.gm === 'SPECTATOR';
         // Like Minecraft: with 3 drumsticks or less you can't sprint (unless you may fly, e.g. creative)
         player.canSprint = msg.food > 6 || msg.fly;
         if (!player.canSprint && player.sprinting) {
@@ -1078,11 +1079,14 @@ function placeThirdPersonCamera() {
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.1, (now - last) / 1000);
+  // Movement runs on real time like Minecraft's 20 ticks per second: on slow frames (meshing new chunks while
+  // flying) a cap of 0.1 s turned the game into slow motion (elytra flight felt slow); the player sub-steps anyway
+  const realDt = Math.min(0.5, (now - last) / 1000);
   last = now;
   atlas.animate(now);
 
   if (connected && world.palette) {
-    player.update(dt);
+    player.update(realDt);
     world.setCenter(Math.floor(player.x) >> 4, Math.floor(player.z) >> 4);
     world.processDirty(8, player.x, player.y, player.z);
     entities.update(dt);
@@ -1096,7 +1100,7 @@ function frame(now) {
     if (stereoOn) stereo.updateHud(dt, inventory, world.palette, hud.stats);
     hud.tick(dt);
 
-    sendTimer += dt;
+    sendTimer += realDt;
     if (sendTimer >= MOVE_SEND_INTERVAL) { sendTimer = 0; sendMove(); }
 
     camera.position.set(player.x, player.eyeY, player.z);
