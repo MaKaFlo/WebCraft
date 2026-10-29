@@ -2,7 +2,7 @@
 
 Ein Block-Spiel im Browser, das sich mit einem **Minecraft-Server** verbindet: **Paper** (als Plugin) oder **Fabric** (als Mod, damit auch für Vanilla). WebCraft-Spieler sind auf dem Server **echte Spieler**: Sie stehen in der Tab-Liste, bekommen Schaden, sterben, benutzen Befehle und Menüs von Plugins und Mods. Für den Server gibt es keinen Unterschied zu einem Minecraft-Spieler. So können Leute ohne Minecraft-Account mit Freunden auf dem Server spielen.
 
-Version 0.29.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
+Version 0.30.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
 
 ## Aufbau
 
@@ -141,6 +141,16 @@ Jedes WebCraft-Konto hat ein Passwort. Beim ersten Anmelden (auch bei Konten, di
 - Gespeichert wird nur ein Hash (PBKDF2) in `plugins/WebCraft/passwords.json` (Fabric: `config/webcraft/passwords.json`).
 - Abschalten: `passwords: false` in der config.yml (Fabric: `passwords=false`).
 
+## Admin-Seite (Spieler anlegen)
+
+Nur OPs (Recht `webcraft.admin`): `/webcraft admin` gibt einen Link zur Admin-Seite (30 Minuten gültig, nicht weitergeben). Dafür die Adresse deiner WebCraft-Seite als `web-url` in die config.yml eintragen (Fabric: `web-url=` in webcraft.properties). Ohne `web-url` zeigt der Befehl den Schlüssel, den man als `?admin=...` an die Adresse der Seite hängt.
+
+Auf der Seite:
+- **Neuer Spieler:** Name und Passwort festlegen. Der Spieler meldet sich dann auf der WebCraft-Seite mit diesem Namen und Passwort an (steht der Server auf Whitelist, kommt er automatisch drauf).
+- **Passwort ändern / löschen**, Spieler **rauswerfen**.
+- **Mit Minecraft-Account verknüpfen:** einen Minecraft-Spieler auswählen, der schon auf dem Server war. Das WebCraft-Konto spielt dann als dieser Spieler (gleiche Items, gleicher Ort), wie bei `/webcraft link`. "lösen" hebt es auf.
+- Mit `self-register: false` in der Config können sich nur noch Konten anmelden, die hier angelegt wurden.
+
 ## Accounts verknüpfen (Minecraft + WebCraft)
 
 Wer Minecraft (Java) hat, kann seinen WebCraft-Account damit verknüpfen. Danach sind beide **ein Account**: gleiche Items, gleicher Ort, gleiche Rechte, gleicher Skin.
@@ -156,6 +166,7 @@ Es ist immer nur eine Seite gleichzeitig online: wer sich neu einloggt, wirft di
 - `/webcraft status`: wer ist über WebCraft online, Chunks, Tracking
 - `/webcraft kick <name>`: WebCraft-Spieler rauswerfen (normales `/kick` und `/ban` gehen auch)
 - `/webcraft reload`: Config und `texturen.zip` neu laden
+- `/webcraft admin`: Link zur Admin-Seite (Spieler mit Name und Passwort anlegen, mit Minecraft-Accounts verknüpfen)
 - `/webcraft password <name>`: Passwort eines WebCraft-Kontos löschen (vergessen), beim nächsten Anmelden wird ein neues festgelegt
 - `/webcraft whitelist <name>` (nur Fabric): WebCraft-Spieler auf die Whitelist setzen
 

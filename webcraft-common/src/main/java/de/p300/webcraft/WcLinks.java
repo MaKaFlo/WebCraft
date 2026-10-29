@@ -97,6 +97,13 @@ public final class WcLinks {
         return p.account();
     }
 
+    /** Links directly (admin page): one WebCraft account per Minecraft account, like with a code. */
+    public synchronized void link(String webcraftAccount, UUID uuid, String name) {
+        links.values().removeIf(a -> a.uuid().equals(uuid));
+        links.put(key(webcraftAccount), new Account(uuid, name));
+        save();
+    }
+
     /** Removes the link of a WebCraft account. Returns the Java account it had, or null. */
     public synchronized Account unlink(String webcraftAccount) {
         Account a = links.remove(key(webcraftAccount));

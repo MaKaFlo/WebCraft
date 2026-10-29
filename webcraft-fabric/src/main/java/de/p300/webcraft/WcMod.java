@@ -113,7 +113,9 @@ public final class WcMod implements ModInitializer, WcHost {
     private WcSkins skins;
     private WcLinks links;
     private WcAccounts accounts;
-    private boolean passwords;
+    private boolean passwords, selfRegister;
+    private String webUrl;
+    private WcAdmin admin;
     private WcLang lang;
     private WcSounds sounds;
     private WcServer socket;
@@ -160,6 +162,53 @@ public final class WcMod implements ModInitializer, WcHost {
         skins = new WcSkins(new File(dataFolder, "skins").toPath(), logger);
         links = new WcLinks(new File(dataFolder, "links.json").toPath(), logger);
         accounts = new WcAccounts(new File(dataFolder, "passwords.json").toPath(), logger);
+        admin = new WcAdmin(this, accounts, links, new WcAdmin.Platform() {
+            public String namePrefix() { return namePrefix; }
+            public List<String> online() {
+                List<String> out = new ArrayList<>();
+                for (WcSession x : sessions.values()) if (x.account != null) out.add(x.account);
+                return out;
+            }
+            public void whitelist(String account) {
+                var players = server.getPlayerList();
+                if (!players.isUsingWhitelist()) return;
+                players.getWhiteList().add(new net.minecraft.server.players.UserWhiteListEntry(new NameAndId(WcFakePlayer.uuidFor(account), account)));
+                try {
+                    players.getWhiteList().save();
+                } catch (IOException e) {
+                    logger.log(java.util.logging.Level.WARNING, "Could not save the whitelist", e);
+                }
+            }
+            public boolean kick(String account) {
+                for (WcSession x : sessions.values()) {
+                    if (account.equalsIgnoreCase(x.account) && x.fake != null) {
+                        x.fake.kick("Von einem Admin rausgeworfen");
+                        return true;
+                    }
+                }
+                return false;
+            }
+            public boolean selfRegister() { return selfRegister; }
+            public Map<String, UUID> minecraftPlayers() {
+                // Everyone in the server's usercache.json plus who is online, without WebCraft's own players
+                Map<String, UUID> out = new HashMap<>();
+                try {
+                    var file = server.getServerDirectory().resolve("usercache.json");
+                    if (java.nio.file.Files.exists(file)) {
+                        for (var e : com.google.gson.JsonParser.parseString(java.nio.file.Files.readString(file)).getAsJsonArray()) {
+                            var o = e.getAsJsonObject();
+                            out.put(o.get("name").getAsString(), UUID.fromString(o.get("uuid").getAsString()));
+                        }
+                    }
+                } catch (Exception ex) {
+                    logger.log(java.util.logging.Level.FINE, "Could not read usercache.json", ex);
+                }
+                for (ServerPlayer pl : server.getPlayerList().getPlayers()) out.put(pl.getGameProfile().name(), pl.getUUID());
+                out.keySet().removeIf(n -> n.toLowerCase().startsWith(namePrefix.toLowerCase()));
+                for (WcSession x : sessions.values()) if (x.name != null) out.remove(x.name);
+                return out;
+            }
+        });
         WcAssets assets = new WcAssets(new File(dataFolder, "assets").toPath(), logger);
         lang = new WcLang(assets, mojangAssets);
         sounds = new WcSounds(assets, mojangAssets, new File(dataFolder, "sounds.zip").toPath());
@@ -212,6 +261,8 @@ public final class WcMod implements ModInitializer, WcHost {
         logBlocks = Boolean.parseBoolean(p.getProperty("log-blocks", "true").trim());
         mojangAssets = Boolean.parseBoolean(p.getProperty("mojang-assets", "false").trim());
         passwords = Boolean.parseBoolean(p.getProperty("passwords", "true").trim());
+        selfRegister = Boolean.parseBoolean(p.getProperty("self-register", "true").trim());
+        webUrl = p.getProperty("web-url", "").trim();
     }
 
     private static int intProp(Properties p, String key, int fallback) {
@@ -294,6 +345,9 @@ public final class WcMod implements ModInitializer, WcHost {
         if (s.closed || server == null) return;
         String type = str(json, "t");
         if (type == null) return;
+        // Admin page (no player): token from /webcraft admin
+        if (s.name == null && !s.helloSeen && admin.handle(s, type, json)) return;
+        if (s.admin) return;
         if (!s.loggedIn()) {
             if ("hello".equals(type) && s.name == null && !s.helloSeen) {
                 s.helloSeen = true;
@@ -312,7 +366,7 @@ public final class WcMod implements ModInitializer, WcHost {
                 // Password first (slow hash), then the skin of the chosen Minecraft account (asks Mojang): not on the server thread
                 java.util.concurrent.CompletableFuture.runAsync(() -> {
                     if (passwords && name != null && NAME_PATTERN.matcher(name).matches()) {
-                        WcAccounts.Result r = accounts.check(namePrefix + name, pw, register);
+                        WcAccounts.Result r = accounts.check(namePrefix + name, pw, register, selfRegister);
                         refused[0] = WcAccounts.refusal(r);
                         if (refused[0] != null) return;
                         if (r == WcAccounts.Result.REGISTERED) logger.info("WebCraft account " + namePrefix + name + " set its password");
@@ -1386,6 +1440,7 @@ public final class WcMod implements ModInitializer, WcHost {
                     .then(Commands.literal("reload").requires(admin).executes(this::reload))
                     .then(Commands.literal("kick").requires(admin)
                             .then(Commands.argument("name", StringArgumentType.word()).executes(this::kick)))
+                    .then(Commands.literal("admin").requires(admin).executes(this::adminPage))
                     .then(Commands.literal("password").requires(admin)
                             .then(Commands.argument("name", StringArgumentType.word()).executes(this::resetPassword)))
                     .then(Commands.literal("whitelist").requires(admin)
@@ -1471,6 +1526,27 @@ public final class WcMod implements ModInitializer, WcHost {
             s.conn.close(1000, "relogin");
             handleDisconnect(s);
         });
+    }
+
+    /** Link to the admin page (accounts with name and password). */
+    private int adminPage(CommandContext<CommandSourceStack> ctx) {
+        String token = admin.newToken();
+        String link = WcAdmin.link(webUrl, token);
+        var src = ctx.getSource();
+        if (link != null) {
+            src.sendSystemMessage(Component.literal("WebCraft-Admin: ").withStyle(ChatFormatting.GOLD)
+                    .append(Component.literal("hier klicken").withStyle(st -> st.withColor(ChatFormatting.AQUA).withUnderlined(true)
+                            .withClickEvent(new net.minecraft.network.chat.ClickEvent.OpenUrl(java.net.URI.create(link)))
+                            .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(Component.literal(link)))))
+                    .append(Component.literal(" (30 Minuten gültig, nicht weitergeben)").withStyle(ChatFormatting.GRAY)));
+        } else {
+            src.sendSystemMessage(Component.literal("WebCraft-Admin: öffne deine WebCraft-Seite mit ?admin=" + token
+                    + " hinten an der Adresse (30 Minuten gültig, nicht weitergeben).").withStyle(st -> st.withColor(ChatFormatting.GOLD)
+                    .withClickEvent(new net.minecraft.network.chat.ClickEvent.CopyToClipboard("?admin=" + token))));
+            src.sendSystemMessage(Component.literal("Tipp: trage die Adresse der Seite als web-url in webcraft.properties ein, dann gibt es hier einen Link.")
+                    .withStyle(ChatFormatting.GRAY));
+        }
+        return 1;
     }
 
     /** Removes a WebCraft account's password (forgotten): the next login sets a new one. */

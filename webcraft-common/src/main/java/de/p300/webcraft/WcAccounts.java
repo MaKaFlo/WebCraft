@@ -27,7 +27,7 @@ import java.util.logging.Logger;
  */
 public final class WcAccounts {
 
-    public enum Result { OK, REGISTERED, NEED_PASSWORD, WRONG, LOCKED, TOO_SHORT }
+    public enum Result { OK, REGISTERED, NEED_PASSWORD, WRONG, LOCKED, TOO_SHORT, NO_ACCOUNT }
 
     public static final int MIN_LENGTH = 4;
     private static final int ITERATIONS = 120_000;
@@ -53,6 +53,11 @@ public final class WcAccounts {
         return account.toLowerCase(Locale.ROOT);
     }
 
+    /** All accounts with a password (lower case). */
+    public synchronized java.util.List<String> names() {
+        return new java.util.ArrayList<>(entries.keySet());
+    }
+
     public synchronized boolean hasPassword(String account) {
         return entries.containsKey(key(account));
     }
@@ -62,6 +67,11 @@ public final class WcAccounts {
      * (REGISTERED), else NEED_PASSWORD (the browser then asks for a new password).
      */
     public Result check(String account, String password, boolean register) {
+        return check(account, password, register, true);
+    }
+
+    /** Like {@link #check(String, String, boolean)}; without {@code selfRegister} only accounts made by an admin work. */
+    public Result check(String account, String password, boolean register, boolean selfRegister) {
         String k = key(account);
         Entry e;
         synchronized (this) {
@@ -70,6 +80,7 @@ public final class WcAccounts {
             e = entries.get(k);
         }
         if (e == null) {
+            if (!selfRegister) return Result.NO_ACCOUNT;
             if (!register || password == null) return Result.NEED_PASSWORD;
             if (password.length() < MIN_LENGTH) return Result.TOO_SHORT;
             set(account, password);
@@ -158,6 +169,7 @@ public final class WcAccounts {
             case TOO_SHORT -> "Das Passwort braucht mindestens " + MIN_LENGTH + " Zeichen.";
             case WRONG -> "Falsches Passwort.";
             case LOCKED -> "Zu viele falsche Passwörter. Warte eine Minute.";
+            case NO_ACCOUNT -> "Dieses Konto gibt es nicht. Ein Admin muss es erst anlegen.";
         };
         if (msg == null) return null;
         JsonObject err = new JsonObject();

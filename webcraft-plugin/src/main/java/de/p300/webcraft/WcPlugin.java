@@ -57,7 +57,9 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
     private String namePrefix;
     WcLinks links;
     private WcAccounts accounts;
-    private boolean passwords;
+    private boolean passwords, selfRegister;
+    private String webUrl;
+    private WcAdmin admin;
     private int maxPlayers;
     private int viewDistance;
     private int chunksPerTick;
@@ -95,6 +97,38 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         skins = new WcSkins(new File(getDataFolder(), "skins").toPath(), getLogger());
         links = new WcLinks(new File(getDataFolder(), "links.json").toPath(), getLogger());
         accounts = new WcAccounts(new File(getDataFolder(), "passwords.json").toPath(), getLogger());
+        admin = new WcAdmin(this, accounts, links, new WcAdmin.Platform() {
+            public String namePrefix() { return namePrefix; }
+            public List<String> online() {
+                List<String> out = new ArrayList<>();
+                for (WcSession x : sessions.values()) if (x.account != null) out.add(x.account);
+                return out;
+            }
+            public void whitelist(String account) {
+                if (Bukkit.hasWhitelist()) Bukkit.getOfflinePlayer(WcFakePlayer.uuidFor(account)).setWhitelisted(true);
+            }
+            public boolean kick(String account) {
+                for (WcSession x : sessions.values()) {
+                    if (account.equalsIgnoreCase(x.account) && x.fake != null) {
+                        x.fake.bukkit().kick(Component.text("Von einem Admin rausgeworfen"));
+                        return true;
+                    }
+                }
+                return false;
+            }
+            public boolean selfRegister() { return selfRegister; }
+            public Map<String, UUID> minecraftPlayers() {
+                // Everyone who was on the server, without WebCraft's own players
+                Map<String, UUID> out = new HashMap<>();
+                String sp = singlePlayer != null ? singlePlayer.prefix.toLowerCase() : null;
+                for (OfflinePlayer o : Bukkit.getOfflinePlayers()) {
+                    String n = o.getName();
+                    if (n == null || n.toLowerCase().startsWith(namePrefix.toLowerCase()) || (sp != null && n.toLowerCase().startsWith(sp))) continue;
+                    out.put(n, o.getUniqueId());
+                }
+                return out;
+            }
+        });
         WcAssets assets = new WcAssets(new File(getDataFolder(), "assets").toPath(), getLogger());
         lang = new WcLang(assets, mojangAssets);
         sounds = new WcSounds(assets, mojangAssets, new File(getDataFolder(), "sounds.zip").toPath());
@@ -132,6 +166,8 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         logBlocks = getConfig().getBoolean("log-blocks", true);
         mojangAssets = getConfig().getBoolean("mojang-assets", false);
         passwords = getConfig().getBoolean("passwords", true);
+        selfRegister = getConfig().getBoolean("self-register", true);
+        webUrl = getConfig().getString("web-url", "");
     }
 
     private void startServer() {
@@ -164,6 +200,9 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         if (s.closed) return;
         String type = str(json, "t");
         if (type == null) return;
+        // Admin page (no player): token from /webcraft admin
+        if (s.name == null && !s.helloSeen && admin.handle(s, type, json)) return;
+        if (s.admin) return;
         if (!s.loggedIn()) {
             if ("hello".equals(type) && s.name == null && !s.helloSeen) {
                 s.helloSeen = true;
@@ -175,7 +214,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                 }
                 // Password first (slow hash: not on the server thread), before anything can kick the old session
                 Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
-                    WcAccounts.Result r = accounts.check(namePrefix + name, pw, register);
+                    WcAccounts.Result r = accounts.check(namePrefix + name, pw, register, selfRegister);
                     Bukkit.getScheduler().runTask(this, () -> {
                         if (s.closed) return;
                         JsonObject refused = WcAccounts.refusal(r);
@@ -1317,7 +1356,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
 
     // ------------------------------------------------------------------ /webcraft command
 
-    private static final List<String> ADMIN_SUBS = List.of("status", "kick", "reload", "password");
+    private static final List<String> ADMIN_SUBS = List.of("status", "kick", "reload", "password", "admin");
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
@@ -1388,6 +1427,23 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                     sender.sendMessage(Component.text("Kicked " + s.name, NamedTextColor.GREEN));
                 }
             }
+            case "admin" -> {
+                String token = admin.newToken();
+                String link = WcAdmin.link(webUrl, token);
+                if (link != null) {
+                    sender.sendMessage(Component.text("WebCraft-Admin: ", NamedTextColor.GOLD)
+                            .append(Component.text("hier klicken", NamedTextColor.AQUA, net.kyori.adventure.text.format.TextDecoration.UNDERLINED)
+                                    .clickEvent(net.kyori.adventure.text.event.ClickEvent.openUrl(link))
+                                    .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(Component.text(link))))
+                            .append(Component.text(" (30 Minuten gültig, nicht weitergeben)", NamedTextColor.GRAY)));
+                } else {
+                    sender.sendMessage(Component.text("WebCraft-Admin: öffne deine WebCraft-Seite mit ?admin=" + token
+                            + " hinten an der Adresse (30 Minuten gültig, nicht weitergeben).", NamedTextColor.GOLD)
+                            .clickEvent(net.kyori.adventure.text.event.ClickEvent.copyToClipboard("?admin=" + token)));
+                    sender.sendMessage(Component.text("Tipp: trage die Adresse der Seite als web-url in die config.yml ein, dann gibt es hier einen Link.",
+                            NamedTextColor.GRAY));
+                }
+            }
             case "password" -> {
                 if (args.length < 2) {
                     sender.sendMessage(Component.text("Usage: /webcraft password <name>  (removes the password, the next login sets a new one)", NamedTextColor.RED));
@@ -1406,7 +1462,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                 startServer();
                 sender.sendMessage(Component.text("WebCraft bridge reloaded (port " + port + ")", NamedTextColor.GREEN));
             }
-            default -> sender.sendMessage(Component.text("Usage: /webcraft [status|kick <name>|reload|password <name>|link]", NamedTextColor.RED));
+            default -> sender.sendMessage(Component.text("Usage: /webcraft [status|kick <name>|reload|password <name>|admin|link]", NamedTextColor.RED));
         }
         return true;
     }

@@ -53,6 +53,25 @@
   }
   #play:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
   #play:disabled { opacity: 0.6; cursor: wait; }
+  #admin { position: fixed; inset: 0; z-index: 70; overflow-y: auto; padding: 24px 12px; background: rgba(20, 18, 34, 0.55); }
+  #admin .admin-card { max-width: 860px; margin: 0 auto; background: var(--paper, #fff7e6); color: var(--ink); border: 4px solid var(--ink);
+    box-shadow: 8px 8px 0 var(--ink); padding: 22px 26px; font-family: var(--mono); }
+  #admin h1 { margin: 0 0 6px; color: var(--orange); text-shadow: 3px 3px 0 var(--ink); font-size: 34px; }
+  #admin h2 { font-size: 16px; margin: 18px 0 6px; }
+  #admin .admin-status { min-height: 1.3em; font-weight: 700; color: #2e7d32; }
+  #admin .admin-status.bad { color: #b3261e; }
+  #admin .admin-self { font-size: 13px; color: #555; }
+  #admin .admin-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; }
+  #admin .admin-row .prefix { display: flex; align-items: center; padding: 0 10px; background: var(--ink); color: #fff; font-weight: 700; }
+  #admin input, #admin select { font: 15px var(--mono); padding: 7px 9px; border: 3px solid var(--ink); background: #fff; min-width: 0; }
+  #admin .admin-row input { flex: 1 1 140px; }
+  #admin button { font: 700 13px var(--mono); padding: 6px 10px; cursor: pointer; background: #e8e1cf; color: var(--ink);
+    border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); margin: 2px 0; }
+  #admin .admin-row button { background: var(--orange); font-size: 15px; border-width: 3px; }
+  #admin table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  #admin th, #admin td { text-align: left; padding: 6px; border-bottom: 2px solid #0002; vertical-align: middle; }
+  #admin select { font-size: 13px; padding: 4px; border-width: 2px; max-width: 150px; }
+  #admin .admin-on { background: #2e7d32; color: #fff; font-size: 11px; padding: 1px 5px; }
   .login-extra { margin-top: 10px; width: 100%; font: 700 15px var(--mono); padding: 8px; cursor: pointer;
     background: #e8e1cf; color: var(--ink); border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); }
   .login-extra:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }

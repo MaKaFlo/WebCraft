@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-10-29, version 0.29.0 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
+_Last update: 2026-10-29, version 0.30.0 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
 
 ## Current state
 
@@ -10,6 +10,10 @@ _Last update: 2026-10-29, version 0.29.0 (main). Tag pushes are refused by this 
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- 0.30.0 (owner's wish): admin page `/webcraft admin` (OPs only) → link with token, page makes accounts (name +
+  password), changes passwords, kicks, links accounts with Minecraft players that were on the server; config
+  `self-register`, `web-url`. Tested on Paper headless (create, link, login as the new account, password change, bad token).
+  Fabric compiled only. Account names in the list are lower case (passwords.json keys).
 - 0.29.0 (owner's wish): passwords for WebCraft accounts (`WcAccounts`): first login sets one (typed twice), then name +
   password; admin reset `/webcraft password <name>`. Tested on Paper headless (register, mismatch, wrong, right, reset).
   Fabric compiled only. `tools/test/bot.mjs` sends `pw` (env `WC_PW`, default `bot-test`).

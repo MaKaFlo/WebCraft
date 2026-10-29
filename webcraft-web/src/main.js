@@ -30,6 +30,7 @@ import { mods } from './mods.js';
 import { BossBars } from './bossbar.js';
 import { MotionBlur } from './motionblur.js';
 import { Signs } from './signs.js';
+import { startAdmin } from './admin.js';
 
 const SKIES = {
   NORMAL: 0x9fc9ff,
@@ -513,6 +514,15 @@ ui.skin.value = localStorage.getItem('wc.skin') || '';
 const namePrefix = (window.WC_CONFIG && window.WC_CONFIG.namePrefix) || 'wc_';
 document.getElementById('name-prefix').textContent = namePrefix;
 document.getElementById('name-prefix-hint').textContent = namePrefix;
+
+// Admin page (link from /webcraft admin): accounts instead of the game
+const adminToken = params.get('admin');
+if (adminToken) {
+  ui.login.hidden = true;
+  let url = ui.server.value.trim();
+  if (url && !/^wss?:\/\//.test(url)) url = 'ws://' + url;
+  startAdmin(url, adminToken);
+}
 
 // Passwords: the first login of an account sets one (the server says so), later name + password
 let registering = false;
