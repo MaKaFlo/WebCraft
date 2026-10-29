@@ -283,6 +283,7 @@ public final class WcFakePlayer {
     private long pendingStopAt = -1;
 
     public void dig(String action, int x, int y, int z, int face) {
+        flushMove();
         BlockPos pos = new BlockPos(x, y, z);
         switch (action) {
             case "start" -> {
@@ -338,14 +339,42 @@ public final class WcFakePlayer {
 
     /** Right click on a block: open doors/chests, place blocks, use buckets ... */
     public void useOn(int x, int y, int z, int face, double hx, double hy, double hz) {
-        BlockHitResult hit = new BlockHitResult(new Vec3(hx, hy, hz), direction(face), new BlockPos(x, y, z), false);
+        flushMove();
+        BlockPos pos = new BlockPos(x, y, z);
+        BlockHitResult hit = new BlockHitResult(new Vec3(hx, hy, hz), direction(face), pos, false);
+        // Like Minecraft's client: the main hand first; when it did nothing, the item in the off hand (torch, block ...)
+        Object before = useState(pos, pos.relative(direction(face)));
         listener().handleUseItemOn(new ServerboundUseItemOnPacket(InteractionHand.MAIN_HAND, hit, sequence++));
+        if (!handle().getOffhandItem().isEmpty() && before.equals(useState(pos, pos.relative(direction(face))))) {
+            listener().handleUseItemOn(new ServerboundUseItemOnPacket(InteractionHand.OFF_HAND, hit, sequence++));
+        }
         swing();
+    }
+
+    /** What a click can change: the two blocks, the open screen, the item in the main hand, using an item. */
+    private Object useState(BlockPos a, BlockPos b) {
+        ServerPlayer p = handle();
+        net.minecraft.world.item.ItemStack main = p.getMainHandItem();
+        return java.util.List.of(p.level().getBlockState(a), p.level().getBlockState(b), p.containerMenu.containerId,
+                main.getItem(), main.getCount(), main.getDamageValue(), p.isUsingItem());
+    }
+
+    /** The position the browser sent last goes to the server before an action (else it checks the old one). */
+    private void flushMove() {
+        ServerboundMovePlayerPacket move = pendingMove;
+        pendingMove = null;
+        if (move != null) listener().handleMovePlayer(move);
     }
 
     /** Right click into the air: eat, drink, throw, draw a bow ... */
     public void useItem() {
+        flushMove();
+        Object before = useState(handle().blockPosition(), handle().blockPosition());
         listener().handleUseItem(new ServerboundUseItemPacket(InteractionHand.MAIN_HAND, sequence++, handle().getYRot(), handle().getXRot()));
+        // Main hand did nothing (empty, nothing to use): the off hand (food, firework rocket, shield ...)
+        if (!handle().getOffhandItem().isEmpty() && before.equals(useState(handle().blockPosition(), handle().blockPosition()))) {
+            listener().handleUseItem(new ServerboundUseItemPacket(InteractionHand.OFF_HAND, sequence++, handle().getYRot(), handle().getXRot()));
+        }
     }
 
     public void releaseUse() {
@@ -354,6 +383,7 @@ public final class WcFakePlayer {
     }
 
     public void attack(int entityId) {
+        flushMove();
         listener().handleAttack(new ServerboundAttackPacket(entityId));
         punch();
     }

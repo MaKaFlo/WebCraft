@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { atlas, tileUV } from './textures.js';
 import { KIND_CROSS, KIND_CUBE, KIND_LIQUID } from './palette.js';
 import { isPlaceable, prettyName } from './items.js';
-import { THROWN } from './hand.js';
+import { THROWN, useKind } from './hand.js';
 
 const BLOCK_REACH = 4.5;
 const ENTITY_REACH = 3.0;
@@ -281,8 +281,11 @@ export class Interaction {
     if (this.using) return;            // still eating / drawing the bow
     const t = this.target;
     const item = this.inventory.selectedItem();
-    // Firework rocket while gliding with the elytra: a push forward (the server fires the rocket too)
-    if (item?.k === 'firework_rocket' && this.player.gliding) {
+    // Firework rocket while gliding with the elytra: a push forward (the server fires the rocket too); also from the
+    // off hand when the main hand has nothing to use (like Minecraft)
+    const off = this.inventory.off;
+    const offRocket = off?.k === 'firework_rocket' && (!item || (!useKind(item.k) && !THROWN.test(item.k)));
+    if ((item?.k === 'firework_rocket' || offRocket) && this.player.gliding) {
       this.send({ t: 'use' });
       this.onSwing();
       this.player.boost();
@@ -337,6 +340,9 @@ export class Interaction {
     }
     if (item && !this.using) {
       this.using = true;
+      this.send({ t: 'use' });
+    } else if (!item && off) {
+      // Empty main hand: the server uses the item in the off hand (food, potion, shield ...)
       this.send({ t: 'use' });
     }
   }

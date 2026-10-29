@@ -130,7 +130,13 @@ const inventory = new Inventory({
     else lockPointer();
   },
 });
-const interaction = new Interaction(scene, world, player, entities, inventory, send);
+// Like Minecraft's client: the newest position goes out before every action, so the server checks a block placed
+// under us (building up) or a hit against where we really are and not where we were up to 50 ms ago
+const ACTIONS = /^(use_on|use|dig_start|dig_stop|attack|interact)$/;
+const interaction = new Interaction(scene, world, player, entities, inventory, (m) => {
+  if (ACTIONS.test(m.t)) sendMove();
+  send(m);
+});
 interaction.onSwing = () => { hand.swing(); if (entities.self) entities.self.swingT = SELF_SWING; };
 setSkinRequester((h) => send({ t: 'skin', h }));
 entities.onLightning = (d) => {

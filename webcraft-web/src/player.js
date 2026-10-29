@@ -44,7 +44,11 @@ export class Player {
 
   get height() { return this.swimming || this.gliding ? SWIM_HEIGHT : HEIGHT; }
 
-  get eyeY() { return this.y + (this.swimming || this.gliding ? 0.4 : this.keys.has('ShiftLeft') ? EYE - 0.3 : EYE); }
+  /** Where the eyes should be: lying 0.4, sneaking 1.27 (Minecraft's crouch), else 1.62. */
+  get eyeTarget() { return this.swimming || this.gliding ? 0.4 : this.keys.has('ShiftLeft') && !this.flying ? 1.27 : EYE; }
+
+  // The eyes glide to their height like in Minecraft (halfway each tick), so sneaking goes down instead of jumping
+  get eyeY() { return this.y + (this.eyeH ?? this.eyeTarget); }
 
   setPosition(x, y, z) {
     this.x = x; this.y = y; this.z = z;
@@ -167,6 +171,8 @@ export class Player {
   }
 
   update(dt) {
+    const target = this.eyeTarget;
+    this.eyeH = this.eyeH === undefined ? target : this.eyeH + (target - this.eyeH) * (1 - Math.exp(-dt * 14));
     if (this.frozen || !this.groundLoaded()) return; // wait in the air until the world is there
     this.unstuck();
     if (!this.canFly) this.flying = false;

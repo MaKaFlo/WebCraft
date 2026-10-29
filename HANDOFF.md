@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-10-29, version 0.34.0 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
+_Last update: 2026-10-29, version 0.35.0 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
 
 ## Current state
 
@@ -10,6 +10,10 @@ _Last update: 2026-10-29, version 0.34.0 (main). Tag pushes are refused by this 
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- 0.35.0 (friend's reports): off hand works (blocks, torches, food, rockets), off hand slot no longer over hotbar slot 1,
+  water gaps between chunks (edge chunks meshed again when the neighbour arrives), building up no longer loses blocks
+  (position before actions), less lag (no re-mesh on confirmations), smooth sneaking. Tested headless/with a raw
+  WebSocket bot (off hand, 4 blocks built up). Water gap fix not seen on a real GPU yet.
 - 0.34.0 (owner's wish: only the jar, everything in game; the server keeps html 0.33.1): `/webcraft account
   create|password|reset|link|unlink|list`. Tested on Paper via console (all subcommands, login with a random password).
   Fabric compiled only.

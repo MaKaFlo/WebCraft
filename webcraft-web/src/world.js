@@ -382,6 +382,17 @@ export class World {
     if (old) this.disposeChunk(old);
     const chunk = { cx, cz, sections, meshes: new Map(), meshed: false };
     this.chunks.set(key, chunk);
+    // Neighbours that were meshed while this chunk was missing (at the edge of the view) drew their border with air
+    // here: water edges sank and showed a gap between the chunks, faces toward us were drawn. Mesh them again.
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dz = -1; dz <= 1; dz++) {
+        const n = (dx || dz) && this.chunks.get(chunkKey(cx + dx, cz + dz));
+        if (n && n.meshed && n.incomplete) {
+          n.incomplete = this.missingNeighbours(n.cx, n.cz);
+          for (const sy of n.sections.keys()) this.dirty.add(n.cx + ',' + n.cz + ',' + sy);
+        }
+      }
+    }
     // This chunk and its neighbours may now be ready to mesh
     this.markChunkIfReady(cx, cz);
     this.markChunkIfReady(cx + 1, cz);
@@ -412,6 +423,7 @@ export class World {
     }
     const idx = ((y & 15) * S + (z & 15)) * S + (x & 15);
     const old = sec[idx];
+    if (old === id) return;   // the server confirms what we predicted (placing, the re-checks): nothing to rebuild
     sec[idx] = id;
     c.emit?.delete(sy);
     c.sortedY = null;
@@ -457,7 +469,16 @@ export class World {
       if (!this.hasChunk(nx, nz) && this.inView(nx, nz)) return;
     }
     c.meshed = true;
+    c.incomplete = this.missingNeighbours(cx, cz);
     for (const sy of c.sections.keys()) this.dirty.add(cx + ',' + cz + ',' + sy);
+  }
+
+  /** Any of the 8 chunks around missing (then the border is meshed again when it comes)? */
+  missingNeighbours(cx, cz) {
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dz = -1; dz <= 1; dz++) if ((dx || dz) && !this.hasChunk(cx + dx, cz + dz)) return true;
+    }
+    return false;
   }
 
   inView(cx, cz) {

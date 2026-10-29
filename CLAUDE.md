@@ -234,6 +234,15 @@ Minecraft's `travelFallFlying` per 1/20 s tick (`glideTick`, velocity in blocks/
 `entities.js` lays the body along the pitch, `skins.js MODELS.elytra` (`entity/elytra`, Faithful
 `equipment/wings/elytra`) on the body when `arm[1]` is elytra, wing angles like `ElytraModel` (spread by velocity).
 
+Off hand and actions: `WcFakePlayer.useOn/useItem` try the main hand, then the off hand when nothing changed
+(`useState`: the clicked block and its neighbour, open screen, main hand item, using an item), like the vanilla client's
+hand loop. `flushMove()` applies the newest `move` before use/dig/attack (moves were only applied at the next tick, so a
+block placed under you while building up was refused as "inside the player" and vanished); the browser also sends
+its position right before those actions (`main.js ACTIONS`). `world.setBlock` ignores unchanged ids (server
+confirmations re-meshed sections, lag while building). Chunks meshed with a missing neighbour (`incomplete`, edge of the
+view) are meshed again when it arrives (their border drew air there: water edges sank, a gap between chunks).
+Sneaking: the eye height glides (`player.eyeH`, crouch eye 1.27 like Minecraft).
+
 Drops: vanilla predicts Q drops on the client, so `ServerPlayer.drop` only updates the remote slot and sends nothing;
 `drop` therefore sets `invDirty` (else a ghost item stayed in the hotbar); `swap_hands` too. The browser predicts the drop
 like the vanilla client (`main.js dropItem` → `inventory.predictDrop`, also touch/pad), holding Q repeats.
