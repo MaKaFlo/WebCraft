@@ -85,14 +85,16 @@ const lightCurve = (level) => {
 
 /** World materials: vertex colors times max(sky brightness x sky light, warm block light, a little cave ambient). */
 const skyUniform = { value: 1 };
+const ambientUniform = { value: 0.05 };   // darkest a block gets (fullbright mod: 1)
 function withBlockLight(mat) {
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.uSky = skyUniform;
+    shader.uniforms.uAmbient = ambientUniform;
     shader.vertexShader = 'attribute float light;\nattribute float sky;\nvarying float vLight;\nvarying float vSkyL;\n' + shader.vertexShader
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvLight = light;\nvSkyL = sky;');
-    shader.fragmentShader = 'uniform float uSky;\nvarying float vLight;\nvarying float vSkyL;\n' + shader.fragmentShader
+    shader.fragmentShader = 'uniform float uSky;\nuniform float uAmbient;\nvarying float vLight;\nvarying float vSkyL;\n' + shader.fragmentShader
       .replace('#include <color_fragment>', '#include <color_fragment>\n'
-        + 'diffuseColor.rgb *= max(vec3(max(uSky * vSkyL, 0.05)), vec3(vLight, vLight * 0.9, vLight * 0.75));');
+        + 'diffuseColor.rgb *= max(vec3(max(uSky * vSkyL, uAmbient)), vec3(vLight, vLight * 0.9, vLight * 0.75));');
   };
   return mat;
 }
@@ -145,6 +147,12 @@ export class World {
   /** Day/night: all block materials get darker (1 = full daylight). */
   setBrightness(b) {
     skyUniform.value = b;
+  }
+
+  /** The darkest a block may get (0.05 like a cave; 1 = fullbright). */
+  setAmbient(a) {
+    ambientUniform.value = a;
+    this.ambient = a;
   }
 
   /** Number of light-giving blocks in a section (cached until the section changes). */
@@ -335,7 +343,7 @@ export class World {
   /** Brightness 0..1 of a mob or the hand at a point, with the day brightness b (like the blocks' shader, no warm tint). */
   brightnessAt(x, y, z, b) {
     const { sky, block } = this.lightAt(x, y, z);
-    return Math.max(b * lightCurve(sky), lightCurve(Math.max(0, block)), 0.05);
+    return Math.max(b * lightCurve(sky), lightCurve(Math.max(0, block)), this.ambient ?? 0.05);
   }
 
   // ---------------------------------------------------------------- block access

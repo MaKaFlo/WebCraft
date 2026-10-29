@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-10-28, version 0.24.1 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
+_Last update: 2026-10-28, version 0.25.0 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
 
 ## Current state
 
@@ -10,6 +10,8 @@ _Last update: 2026-10-28, version 0.24.1 (main). Tag pushes are refused by this 
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- 0.25.0: client mods like PvP clients (`mods.js`, 29 switches). Server sends armor (`inv.arm`) and effects (`stats.eff`).
+  Tested headless (HUD, menu). Not yet: motion blur, waypoints, item physics, nametags.
 - 0.24.1 (owner's wish): single player survival = normal world, others hidden for him; creative = own world with
   the server's seed. Tested headless. German names don't come any more since `mojang-assets` is off by default:
   asked the owner how to solve it (switch on, or free German names).

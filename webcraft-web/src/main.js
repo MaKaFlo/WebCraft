@@ -26,6 +26,7 @@ import { TouchControls, isTouch } from './touch.js';
 import { GamepadControls } from './gamepad.js';
 import { StereoView } from './vr.js';
 import { ModrinthPacks } from './modrinth.js';
+import { mods } from './mods.js';
 
 const SKIES = {
   NORMAL: 0x9fc9ff,
@@ -135,6 +136,7 @@ entities.onLightning = (d) => {
 interaction.onBreak = (x, y, z, id) => { particles.breakBlock(x, y, z, id); sounds.block(world.palette, id, 0, x, y, z); };
 interaction.onDigHit = (x, y, z, n, id) => { particles.digHit(x, y, z, n, id); sounds.block(world.palette, id, 3, x, y, z); };
 interaction.onPlace = (x, y, z, id) => sounds.block(world.palette, id, 2, x, y, z);
+interaction.onAttack = (dist) => mods.attacked(dist);
 sounds.entityPos = (id) => (id === myEntityId ? { x: player.x, y: player.y, z: player.z } : entities.map.get(id) ?? null);
 sounds.entityType = (id) => entities.map.get(id)?.type;
 particles.sound = (e, x, y, z, v, p) => sounds.play(e, x, y, z, v, p);
@@ -307,7 +309,7 @@ function connect(url, name) {
         break;
       case 'time':
         sky.setTime(msg.v, performance.now());
-        weather.set(msg);
+        weather.set(mods.on('noweather') ? { ...msg, rain: 0, thunder: 0 } : msg);
         break;
       case 'vel':
         player.push(msg.x, msg.y, msg.z);
@@ -316,6 +318,7 @@ function connect(url, name) {
         hud.update(msg);
         inventory.setCreative(msg.gm === 'CREATIVE');
         gameMode = msg.gm;
+        mods.setEffects(msg.eff);
         interaction.attackSpeed = msg.as ?? 4;
         if (msg.border) setBorder(msg.border);
         hand.visibleMode = msg.gm !== 'SPECTATOR';
@@ -350,6 +353,7 @@ function connect(url, name) {
         break;
       case 'inv':
         inventory.updateHotbar(msg);
+        mods.setArmor(msg.arm);
         break;
       case 'menu':
         inventory.updateMenu(msg);
@@ -378,13 +382,14 @@ function onAnim(list) {
   for (const [id, kind] of list) {
     if (id === myEntityId) {
       if (kind === 1) {
-        hurtTilt = 0.35;
+        if (!mods.on('nohurtcam')) hurtTilt = 0.35;
+        mods.hurt();
         // The server leaves our own hurt sound to the client (like for every player)
         if (!dead) sounds.play('entity.player.hurt', player.x, player.eyeY, player.z, 1, (Math.random() - Math.random()) * 0.2 + 1);
       }
       continue;
     }
-    if (atk && id === atk.id && now - atk.at < 700 && kind === 1) interaction.lastAttack = null;
+    if (atk && id === atk.id && now - atk.at < 700 && kind === 1) { interaction.lastAttack = null; mods.hitConfirmed(); }
   }
 }
 
@@ -648,7 +653,7 @@ function hideMenu() {
 {
   let id = null, lastY = 0, moved = 0;
   ui.pause.addEventListener('pointerdown', (e) => {
-    if (e.pointerType !== 'touch' || e.target.closest('input[type=range], .mr-list')) return;
+    if (e.pointerType !== 'touch' || e.target.closest('input[type=range], .mr-list, #mods-list')) return;
     id = e.pointerId; lastY = e.clientY; moved = 0;
   });
   ui.pause.addEventListener('pointermove', (e) => {
@@ -665,6 +670,7 @@ $('m-settings').addEventListener('click', () => { syncSettingsUi(); showMenu('me
 $('m-keys').addEventListener('click', () => showMenu('menu-keys'));
 const modrinth = new ModrinthPacks($('menu-packs'));
 $('m-packs').addEventListener('click', () => { showMenu('menu-packs'); modrinth.open(); });
+$('m-mods').addEventListener('click', () => { mods.renderMenu($('mods-list')); showMenu('menu-mods'); });
 // "Fertig" goes back to the main menu, or to the login when the page was opened there
 for (const b of ui.pause.querySelectorAll('[data-back]')) b.addEventListener('click', () => { if (connected) showMenu(); else ui.pause.hidden = true; });
 $('login-packs').addEventListener('click', () => { showMenu('menu-packs'); modrinth.open(); });
@@ -770,7 +776,7 @@ ui.chatInput.addEventListener('keydown', (e) => {
 function addChat(text, cls) {
   const line = document.createElement('div');
   line.className = 'chat-line' + (cls ? ' ' + cls : '');
-  line.textContent = text;
+  line.textContent = (mods.on('chattime') ? new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + '  ' : '') + text;
   ui.chatLog.appendChild(line);
   while (ui.chatLog.children.length > 60) ui.chatLog.firstChild.remove();
   setTimeout(() => line.classList.add('old'), 10000);
@@ -850,11 +856,29 @@ document.addEventListener('pointerlockchange', () => {
 
 document.addEventListener('mousemove', (e) => {
   if (!isLocked()) return;
-  player.look(e.movementX, e.movementY, settings.sens / 100);
+  // Freelook turns only the camera; zoom makes the mouse slower like the view is narrower
+  const sens = settings.sens / 100 * (mods.zooming() ? 0.3 : 1);
+  if (!mods.look(e.movementX, e.movementY, sens)) player.look(e.movementX, e.movementY, sens);
 });
 
 let lastWPress = 0, lastSpacePress = 0;
 const normKey = (code) => (code === 'ShiftRight' ? 'ShiftLeft' : code);
+
+// Mods: keys held for zoom (C), freelook (Alt) and snaplook (V); F2 screenshot; Shift as a switch (toggle sneak)
+let snapView = null, shotWanted = false;
+document.addEventListener('keydown', (e) => {
+  if (!connected || chatOpen || inventory.open || !ui.pause.hidden || studio.isOpen) return;
+  if (e.code === 'F2' && mods.on('screenshot')) { e.preventDefault(); shotWanted = true; return; }
+  if (e.code === 'AltLeft' || e.code === 'AltRight') e.preventDefault();   // the browser's menu bar must not open
+  if (e.repeat) return;
+  mods.held.add(e.code);
+  if (e.code === 'KeyV' && mods.on('snaplook') && snapView === null) { snapView = view; view = 2; }
+}, true);
+document.addEventListener('keyup', (e) => {
+  mods.held.delete(e.code);
+  if (e.code === 'KeyV' && snapView !== null) { view = snapView; snapView = null; }
+}, true);
+window.addEventListener('blur', () => mods.held.clear());
 
 document.addEventListener('keydown', (e) => {
   // Tab: show all players while held
@@ -913,10 +937,16 @@ document.addEventListener('keydown', (e) => {
       else lastSpacePress = now;
     }
   }
+  // Toggle sneak: Shift switches sneaking on and off instead of being held
+  if (mods.on('togglesneak') && normKey(e.code) === 'ShiftLeft') {
+    if (!e.repeat) { if (player.keys.has('ShiftLeft')) player.keys.delete('ShiftLeft'); else player.keys.add('ShiftLeft'); sendInput(); }
+    return;
+  }
   player.keys.add(normKey(e.code));
   sendInput();
 });
 document.addEventListener('keyup', (e) => {
+  if (mods.on('togglesneak') && normKey(e.code) === 'ShiftLeft') return;
   if (e.code === 'F3') f3Down = false;
   if (e.code === 'Tab') tablist.show(false);
   if (e.code === 'KeyW') player.sprinting = false;
@@ -927,10 +957,14 @@ document.addEventListener('keyup', (e) => {
 document.addEventListener('mousedown', (e) => {
   unlockAudio();
   if (!isLocked()) return;
+  mods.click(e.button);
+  mouseDown[e.button === 0 ? 0 : 1] = true;
   if (e.button === 0) { interaction.leftDown = true; interaction.leftClick(); }
   if (e.button === 2) { interaction.rightDown = true; interaction.useTimer = 0; }
 });
+const mouseDown = [false, false];
 document.addEventListener('mouseup', (e) => {
+  mouseDown[e.button === 0 ? 0 : 1] = false;
   if (e.button === 0) interaction.leftDown = false;
   if (e.button === 2) interaction.rightDown = false;
 });
@@ -1016,8 +1050,17 @@ function frame(now) {
     if (sendTimer >= MOVE_SEND_INTERVAL) { sendTimer = 0; sendMove(); }
 
     camera.position.set(player.x, player.eyeY, player.z);
-    camera.rotation.y = Math.PI - player.yaw * Math.PI / 180;
-    camera.rotation.x = -player.pitch * Math.PI / 180;
+    // Freelook: the camera turns without the player (mods.freeYaw/freePitch go back to 0 afterwards)
+    camera.rotation.y = Math.PI - (player.yaw + mods.freeYaw) * Math.PI / 180;
+    camera.rotation.x = -Math.max(-90, Math.min(90, player.pitch + mods.freePitch)) * Math.PI / 180;
+    // Zoom: a quarter of the field of view, eased in and out
+    const fov = mods.zooming() ? settings.fov / 4 : settings.fov;
+    if (Math.abs(camera.fov - fov) > 0.05) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 14); camera.updateProjectionMatrix(); }
+    // Toggle sprint: W always sprints (when Minecraft allows sprinting)
+    if (mods.on('togglesprint') && player.keys.has('KeyW') && player.canSprint && !player.keys.has('ShiftLeft') && !player.sprinting) {
+      player.sprinting = true;
+      sendInput();
+    }
     hurtTilt = Math.max(0, hurtTilt - dt);
     camera.rotation.z = (dead ? 0.4 : Math.sin(hurtTilt / 0.35 * Math.PI) * 0.06) + (stereoOn && touch?.gyroOn ? touch.roll : 0);
     if (view && !dead) placeThirdPersonCamera();
@@ -1065,6 +1108,7 @@ function frame(now) {
     weather.rainMat.color.setRGB(0.54 * light, 0.66 * light, 0.85 * light);
     weather.snowMat.color.setScalar(light);
     if (Math.abs(light - shownLight) > 0.004) { shownLight = light; world.setBrightness(light); entities.setBrightness(light); }
+    applyMods(dt);
     particles.brightness = light;
     handLightT -= dt;
     if (handLightT <= 0 && world.palette) { handLightT = 0.25; handLight = world.brightnessAt(player.x, player.eyeY, player.z, light); }
@@ -1090,6 +1134,20 @@ function frame(now) {
     renderer.autoClear = true;
   }
 
+  // F2: the picture just drawn (world and hand) as a PNG file
+  if (shotWanted) {
+    shotWanted = false;
+    renderer.domElement.toBlob((blob) => {
+      if (!blob) return;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'webcraft-' + new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-') + '.png';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      showNotice('📸 Screenshot gespeichert');
+    }, 'image/png');
+  }
+
   fpsFrames++; fpsTime += dt;
   if (fpsTime >= 0.5) { fps = Math.round(fpsFrames / fpsTime); fpsFrames = 0; fpsTime = 0; }
   hudTime += dt;
@@ -1098,6 +1156,28 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // Watchdog: if chunks around you stay missing, ask the server to send them again
+// ---------------------------------------------------------------- mods (menu "Mods ...")
+
+/** Settings of the mods that act on the world, the camera and the HUD (every frame, cheap). */
+function applyMods(dt) {
+  const bright = mods.on('fullbright');
+  if (bright !== modState.bright) {
+    modState.bright = bright;
+    world.setAmbient(bright ? 1 : 0.05);
+    handLightT = 0;
+  }
+  sky.fixedTime = mods.value('timechanger') ?? undefined;
+  particles.amount = mods.value('particles');
+  Entities.hitColor = mods.value('hitcolor');
+  interaction.outline.material.color.setHex(mods.value('outline'));
+  document.documentElement.style.setProperty('--crosshair', mods.value('crosshair'));
+  ui.coords.classList.toggle('mod-off', !mods.on('coords'));
+  ui.info.classList.toggle('mod-off', !mods.on('debuginfo'));
+  $('sidebar').classList.toggle('mod-off', mods.on('noscoreboard'));
+  mods.updateHud({ el: $('modhud'), dt, fps, player, keys: player.keys, mouse: mouseDown, sky, palette: world.palette, world, entities });
+}
+const modState = { bright: false };
+
 // ---------------------------------------------------------------- sounds the vanilla client makes itself
 
 /** Steps: like Minecraft's Entity.move, one every 1/0.6 blocks walked on the ground (not when sneaking). */

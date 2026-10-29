@@ -658,7 +658,7 @@ class Entity {
     this.hurtT = Math.max(0, this.hurtT - dt);
     const red = this.hurtT > 0 || d.dead;
     for (const [m, base] of this.materials) {
-      if (red) m.color.setHex(base).lerp(new THREE.Color(0xff3030), 0.6);
+      if (red) m.color.setHex(base).lerp(new THREE.Color(Entities.hitColor), 0.6);
       else m.color.setHex(base);
     }
     this.group.rotation.z = d.dead ? Math.PI / 2 : 0;
@@ -694,7 +694,10 @@ class Entity {
   }
 }
 
+/** Color mobs flash in when hit (treffer-farbe mod). */
 export class Entities {
+  static hitColor = 0xff3030;
+
   constructor(scene) {
     this.scene = scene;
     this.map = new Map();

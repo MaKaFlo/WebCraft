@@ -713,6 +713,16 @@ public final class WcMod implements ModInitializer, WcHost {
         m.addProperty("as", round(p.getAttributeValue(Attributes.ATTACK_SPEED)));
         addBorder(m, p.level());   // the border can move
         m.addProperty("dead", p.isDeadOrDying());
+        // Potion effects: [key, level (0 = I), seconds left] for the effects display
+        JsonArray eff = new JsonArray();
+        for (var e : p.getActiveEffects()) {
+            JsonArray a = new JsonArray();
+            a.add(e.getEffect().unwrapKey().map(k -> k.identifier().getPath()).orElse("unknown"));
+            a.add(e.getAmplifier());
+            a.add(e.isInfiniteDuration() ? -1 : e.getDuration() / 20);
+            eff.add(a);
+        }
+        if (!eff.isEmpty()) m.add("eff", eff);
         String key = m.toString();
         if (key.equals(s.lastStats)) return;
         s.lastStats = key;
@@ -729,6 +739,12 @@ public final class WcMod implements ModInitializer, WcHost {
         hud.add("hot", hot);
         hud.add("off", WcItems.json(p.getOffhandItem()));
         hud.addProperty("sel", inv.getSelectedSlot());
+        // Armor (helmet, chest, legs, boots) for the armor display mod
+        JsonArray arm = new JsonArray();
+        for (var slot : new net.minecraft.world.entity.EquipmentSlot[] {net.minecraft.world.entity.EquipmentSlot.HEAD,
+                net.minecraft.world.entity.EquipmentSlot.CHEST, net.minecraft.world.entity.EquipmentSlot.LEGS,
+                net.minecraft.world.entity.EquipmentSlot.FEET}) arm.add(WcItems.json(p.getItemBySlot(slot)));
+        hud.add("arm", arm);
         s.send(hud);
 
         // The open screen (own inventory, chest, workbench, mod GUI ...)

@@ -236,6 +236,7 @@ class System {
 
 export class Particles {
   constructor(scene, world) {
+    this.amount = 1;   // 0..1, the particle mod
     this.world = world;
     this.blocks = new System(scene, atlas.texture);
     this.sprites = new System(scene, drawSheet());
@@ -252,6 +253,7 @@ export class Particles {
 
   /** A sheet particle. */
   sprite(kind, x, y, z, vx, vy, vz, color) {
+    if (this.amount < 1 && Math.random() >= this.amount) return;   // particle mod: fewer or none
     const k = KINDS[kind] ?? DEFAULT_KIND;
     let c = color ?? k.color;
     if (Array.isArray(c)) c = c[Math.floor(Math.random() * c.length)];
@@ -268,6 +270,7 @@ export class Particles {
 
   /** A small piece of a block's texture. */
   piece(id, x, y, z, vx, vy, vz, size = 0.09) {
+    if (this.amount < 1 && Math.random() >= this.amount) return;
     const P = this.palette;
     if (!P || !id) return;
     const tile = P.tileSide[id] >= 0 ? P.tileSide[id] : P.tileTop[id];

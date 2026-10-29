@@ -64,7 +64,7 @@
 
   /* ---------- in game */
   #crosshair { position: fixed; left: 50%; top: 50%; width: 18px; height: 18px; transform: translate(-50%, -50%); pointer-events: none; }
-  #crosshair::before, #crosshair::after { content: ""; position: absolute; background: rgba(255,255,255,0.85); mix-blend-mode: difference; }
+  #crosshair::before, #crosshair::after { content: ""; position: absolute; background: var(--crosshair, rgba(255,255,255,0.85)); mix-blend-mode: difference; }
   #crosshair::before { left: 8px; top: 0; width: 2px; height: 18px; }
   #crosshair::after { top: 8px; left: 0; height: 2px; width: 18px; }
   .panel { position: fixed; background: rgba(20, 18, 34, 0.55); color: #fff; font-size: 13px; padding: 6px 10px; pointer-events: none; }
@@ -92,7 +92,7 @@
      the top stay reachable when it doesn't (grid centering would cut off the top). Fingers scroll it in main.js. */
   #pause { display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; padding: 12px 0; box-sizing: border-box; }
   #pause > .card { margin: auto; flex-shrink: 0; }
-  body.touch #pause .mr-list { touch-action: pan-y; }
+  body.touch #pause .mr-list, body.touch #pause #mods-list { touch-action: pan-y; }
   #pause h2 { margin: 0 0 8px; font-size: 28px; }
   #pause .card.menu { width: min(420px, 100%); }
   .menu-page { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
@@ -140,6 +140,27 @@
   .mr-text small { color: #aaa; }
   .mr-text span { color: #ccc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #pause .mr-item .mbtn { width: 90px; }
+  /* Mods: menu list and displays */
+  #mods-list { display: flex; flex-direction: column; gap: 6px; max-height: min(60vh, 520px); overflow-y: auto; }
+  .mods-group { color: #ffffa0; font: 400 14px var(--pixel); text-shadow: 2px 2px 0 #3f3f3f; text-align: left; margin-top: 6px; }
+  #pause .mbtn.mod-toggle { font-size: 14px; flex-shrink: 0; }
+  #pause .mbtn.mod-toggle.on { color: #a0ffa0; }
+  .mod-off { display: none !important; }
+  #modhud { position: fixed; inset: 0; pointer-events: none; z-index: 4; font: 700 14px var(--mono); color: #fff; text-shadow: 1px 1px 0 #000; }
+  #modhud .mod-list { position: absolute; left: 10px; top: 88px; background: rgba(0, 0, 0, 0.35); padding: 4px 8px; border-radius: 4px; line-height: 1.5; }
+  #modhud .mod-keys { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 3px; align-items: center; }
+  #modhud .k-row { display: flex; gap: 3px; }
+  #modhud .k-row b { width: 36px; height: 36px; display: grid; place-items: center; background: rgba(0, 0, 0, 0.45); border-radius: 3px; font-size: 13px; }
+  #modhud .k-row b.wide { width: 56px; font-size: 11px; line-height: 1.1; text-align: center; }
+  #modhud .k-row b.space { width: 114px; height: 20px; font-size: 10px; }
+  #modhud .k-row b.down { background: rgba(255, 255, 255, 0.7); color: #000; text-shadow: none; }
+  #modhud .mod-armor { position: absolute; right: 10px; bottom: 110px; display: flex; flex-direction: column; gap: 2px; }
+  #modhud .mod-armor div { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+  #modhud .mod-armor .mod-icon { width: 28px; height: 28px; image-rendering: pixelated; }
+  #modhud .mod-armor .low { color: #ff6060; }
+  #modhud .mod-map { position: absolute; right: 10px; top: 10px; width: 128px; height: 128px; border: 2px solid rgba(0, 0, 0, 0.6); image-rendering: pixelated; }
+  #modhud [hidden] { display: none; }
+  body.vr-on #modhud { display: none; }
   #pause label.mbtn { display: flex; align-items: center; justify-content: center; }
   #login-packs { margin-top: 8px; }
   #pause { z-index: 40; }
@@ -464,6 +485,7 @@
   <div id="notice"></div>
   <div id="item-name"></div>
   <div id="damage-flash"></div>
+  <div id="modhud"></div>
   <div id="stats"><div id="armor"></div><div id="air"></div><div id="hearts"></div><div id="food"></div></div>
   <div id="xp"><div id="xp-bar"></div></div>
   <div id="xp-level"></div>
@@ -506,6 +528,7 @@
         <button type="button" class="mbtn" id="m-textures">Textur-Studio</button>
         <button type="button" class="mbtn" id="m-packs">Texturpakete ...</button>
       </div>
+      <button type="button" class="mbtn" id="m-mods">Mods ...</button>
       <button type="button" class="mbtn danger" id="m-leave">Verbindung trennen</button>
     </div>
     <div class="menu-page" id="menu-settings" hidden>
@@ -542,6 +565,11 @@
         <button type="button" class="mbtn mr-reset">Standard-Texturen</button>
         <button type="button" class="mbtn" data-back>Fertig</button>
       </div>
+    </div>
+    <div class="menu-page" id="menu-mods" hidden>
+      <div id="mods-list"></div>
+      <small class="mr-hint">Nur für dich in diesem Browser. Zoom: C halten, Freelook: Alt halten, Snaplook: V halten, Screenshot: F2.</small>
+      <button type="button" class="mbtn" data-back>Fertig</button>
     </div>
     <div class="menu-page" id="menu-keys" hidden>
       <div class="keys">

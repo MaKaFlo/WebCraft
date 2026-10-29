@@ -161,7 +161,8 @@ export class Interaction {
   /** Left button pressed: hit an entity right away, or swing at the air. */
   leftClick() {
     if (this.targetEntity) {
-      this.lastAttack = { id: this.targetEntity.id, at: performance.now(), charge: this.charge() };
+      this.lastAttack = { id: this.targetEntity.id, at: performance.now(), charge: this.charge(), dist: this.targetEntity.t };
+      this.onAttack?.(this.targetEntity.t);
       this.send({ t: 'attack', id: this.targetEntity.id });
       this.swing();
       return;

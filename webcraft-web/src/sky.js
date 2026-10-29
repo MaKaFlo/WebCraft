@@ -175,7 +175,8 @@ export class Sky {
     if (!this.enabled) { this.brightness = 1; return 1; }
     this.time += dt * 20 * this.rate;
     if (this.drift) { const d = this.drift * Math.min(1, dt * 2); this.time += d; this.drift -= d; }
-    const dayTime = ((this.time % 24000) + 24000) % 24000;
+    // fixedTime: the time changer mod shows another time of day than the server's (only in this browser)
+    const dayTime = this.fixedTime ?? ((this.time % 24000) + 24000) % 24000;
     const angle = celestialAngle(dayTime);
     const light = daylight(angle);
 

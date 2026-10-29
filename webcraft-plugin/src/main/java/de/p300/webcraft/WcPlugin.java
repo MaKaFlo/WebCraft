@@ -685,6 +685,16 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         m.addProperty("as", round(attr(p, Attribute.ATTACK_SPEED, 4)));
         addBorder(m, p.getWorld());   // the border can move (shrinking border plugins)
         m.addProperty("dead", p.isDead());
+        // Potion effects: [key, level (0 = I), seconds left] for the effects display
+        JsonArray eff = new JsonArray();
+        for (org.bukkit.potion.PotionEffect e : p.getActivePotionEffects()) {
+            JsonArray a = new JsonArray();
+            a.add(e.getType().getKey().getKey());
+            a.add(e.getAmplifier());
+            a.add(e.isInfinite() ? -1 : e.getDuration() / 20);
+            eff.add(a);
+        }
+        if (!eff.isEmpty()) m.add("eff", eff);
         String key = m.toString();
         if (key.equals(s.lastStats)) return;
         s.lastStats = key;
@@ -706,6 +716,10 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         hud.add("hot", hot);
         hud.add("off", WcItems.json(inv.getItemInOffHand()));
         hud.addProperty("sel", inv.getHeldItemSlot());
+        // Armor (helmet, chest, legs, boots) for the armor display mod
+        JsonArray arm = new JsonArray();
+        for (ItemStack a : new ItemStack[] {inv.getHelmet(), inv.getChestplate(), inv.getLeggings(), inv.getBoots()}) arm.add(WcItems.json(a));
+        hud.add("arm", arm);
         s.send(hud);
 
         // The open screen (own inventory, chest, workbench, plugin GUI ...)
