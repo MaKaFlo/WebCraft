@@ -112,6 +112,8 @@ public final class WcMod implements ModInitializer, WcHost {
     private BlockPalette palette;
     private WcSkins skins;
     private WcLinks links;
+    private WcAccounts accounts;
+    private boolean passwords;
     private WcLang lang;
     private WcSounds sounds;
     private WcServer socket;
@@ -157,6 +159,7 @@ public final class WcMod implements ModInitializer, WcHost {
         blockLog = new WcBlockLog(new File(dataFolder, "blocklog.csv"), logger);
         skins = new WcSkins(new File(dataFolder, "skins").toPath(), logger);
         links = new WcLinks(new File(dataFolder, "links.json").toPath(), logger);
+        accounts = new WcAccounts(new File(dataFolder, "passwords.json").toPath(), logger);
         WcAssets assets = new WcAssets(new File(dataFolder, "assets").toPath(), logger);
         lang = new WcLang(assets, mojangAssets);
         sounds = new WcSounds(assets, mojangAssets, new File(dataFolder, "sounds.zip").toPath());
@@ -208,6 +211,7 @@ public final class WcMod implements ModInitializer, WcHost {
                 .map(String::trim).filter(o -> !o.isEmpty()).toList();
         logBlocks = Boolean.parseBoolean(p.getProperty("log-blocks", "true").trim());
         mojangAssets = Boolean.parseBoolean(p.getProperty("mojang-assets", "false").trim());
+        passwords = Boolean.parseBoolean(p.getProperty("passwords", "true").trim());
     }
 
     private static int intProp(Properties p, String key, int fallback) {
@@ -302,15 +306,29 @@ public final class WcMod implements ModInitializer, WcHost {
                     s.conn.close(1000, "No single player");
                     return;
                 }
-                String name = str(json, "name"), skin = str(json, "skin");
-                // Skin of the chosen Minecraft account first (asks Mojang, so not on the server thread)
+                String name = str(json, "name"), skin = str(json, "skin"), pw = str(json, "pw");
+                boolean register = json.has("register") && json.get("register").getAsBoolean();
+                JsonObject[] refused = new JsonObject[1];
+                // Password first (slow hash), then the skin of the chosen Minecraft account (asks Mojang): not on the server thread
                 java.util.concurrent.CompletableFuture.runAsync(() -> {
+                    if (passwords && name != null && NAME_PATTERN.matcher(name).matches()) {
+                        WcAccounts.Result r = accounts.check(namePrefix + name, pw, register);
+                        refused[0] = WcAccounts.refusal(r);
+                        if (refused[0] != null) return;
+                        if (r == WcAccounts.Result.REGISTERED) logger.info("WebCraft account " + namePrefix + name + " set its password");
+                    }
                     // Linked with a Minecraft account: that account's skin
                     WcLinks.Account linked = name == null ? null : links.of(namePrefix + name);
                     String skinOf = skin != null && !skin.isBlank() ? skin.trim() : linked != null ? linked.name() : null;
                     if (skinOf != null) s.skin = skins.lookup(skinOf);
                 }).whenComplete((ok, err) -> server.execute(() -> {
-                    if (!s.closed) login(s, name);
+                    if (s.closed) return;
+                    if (refused[0] != null) {
+                        s.send(refused[0]);
+                        s.conn.close(1000, "Login refused");
+                        return;
+                    }
+                    login(s, name);
                 }));
             }
             else if (s.name == null) s.conn.close(1008, "Login first");
@@ -1368,6 +1386,8 @@ public final class WcMod implements ModInitializer, WcHost {
                     .then(Commands.literal("reload").requires(admin).executes(this::reload))
                     .then(Commands.literal("kick").requires(admin)
                             .then(Commands.argument("name", StringArgumentType.word()).executes(this::kick)))
+                    .then(Commands.literal("password").requires(admin)
+                            .then(Commands.argument("name", StringArgumentType.word()).executes(this::resetPassword)))
                     .then(Commands.literal("whitelist").requires(admin)
                             .then(Commands.argument("name", StringArgumentType.word()).executes(this::whitelist))));
         }
@@ -1451,6 +1471,18 @@ public final class WcMod implements ModInitializer, WcHost {
             s.conn.close(1000, "relogin");
             handleDisconnect(s);
         });
+    }
+
+    /** Removes a WebCraft account's password (forgotten): the next login sets a new one. */
+    private int resetPassword(CommandContext<CommandSourceStack> ctx) {
+        String name = StringArgumentType.getString(ctx, "name");
+        String acc = name.toLowerCase().startsWith(namePrefix.toLowerCase()) ? name : namePrefix + name;
+        if (accounts.reset(acc)) {
+            ctx.getSource().sendSystemMessage(Component.literal("Password of " + acc + " removed: the next login sets a new one").withStyle(ChatFormatting.GREEN));
+            return 1;
+        }
+        ctx.getSource().sendFailure(Component.literal(acc + " has no password"));
+        return 0;
     }
 
     private int status(CommandContext<CommandSourceStack> ctx) {

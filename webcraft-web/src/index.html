@@ -467,14 +467,20 @@
     <label for="name">Dein Name</label>
     <div class="name-row">
       <span class="prefix" id="name-prefix">wc_</span>
-      <input id="name" name="name" maxlength="13" placeholder="Max" spellcheck="false">
+      <input id="name" name="name" maxlength="13" placeholder="Max" spellcheck="false" autocomplete="username">
+    </div>
+    <label for="pw" id="pw-label">Passwort</label>
+    <input id="pw" name="password" type="password" maxlength="64" autocomplete="current-password">
+    <div id="pw2-row" hidden>
+      <label for="pw2">Passwort wiederholen</label>
+      <input id="pw2" name="password2" type="password" maxlength="64" autocomplete="new-password">
     </div>
     <label for="skin">Skin <small>(Name eines Minecraft-Spielers, freiwillig)</small></label>
     <input id="skin" name="skin" maxlength="16" placeholder="z.B. Notch" spellcheck="false">
     <button id="play" type="submit">Spielen</button>
     <button id="login-packs" type="button" class="login-extra">🎨 Texturpakete</button>
     <p id="login-error"></p>
-    <p class="hint">Im Spiel siehst du dich als <b><span id="name-prefix-hint">wc_</span>Name</b>. Minecraft-Spieler sehen dich auch so. Mit einem Skin siehst du für alle so aus wie dieser Spieler.</p>
+    <p class="hint">Neu hier? Beim ersten Mal legst du ein Passwort fest, danach meldest du dich mit Name und Passwort an. Im Spiel siehst du dich als <b><span id="name-prefix-hint">wc_</span>Name</b>. Minecraft-Spieler sehen dich auch so. Mit einem Skin siehst du für alle so aus wie dieser Spieler.</p>
   </form>
 </div>
 

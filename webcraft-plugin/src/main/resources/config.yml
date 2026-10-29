@@ -13,6 +13,10 @@ world: ""
 # Servers that ran the old "GgBridge" plugin keep its prefix "gg_" (the old config is taken over).
 name-prefix: "wc_"
 
+# WebCraft accounts need a password: the first login sets it, then name + password (plugins/WebCraft/passwords.json).
+# Reset a forgotten one with /webcraft password <name>.
+passwords: true
+
 # Maximum number of WebCraft players at the same time.
 max-players: 10
 

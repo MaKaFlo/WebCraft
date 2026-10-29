@@ -211,7 +211,8 @@ function connect(url, name) {
   sounds.connect(send);
   let welcomed = false;
 
-  ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', name, skin: ui.skin.value.trim() || undefined }));
+  ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', name, skin: ui.skin.value.trim() || undefined,
+    pw: $('pw').value || undefined, register: registering || undefined }));
   ws.onmessage = (ev) => {
     // Chunks are decompressed in parallel, but applied strictly in arrival order
     // Sound files (type 2) don't need the order of the other messages
@@ -245,6 +246,7 @@ function connect(url, name) {
     switch (msg.t) {
       case 'welcome':
         welcomed = true;
+        setRegistering(false);
         connected = true;
         myName = msg.name;
         myEntityId = msg.entityId;
@@ -391,6 +393,8 @@ function connect(url, name) {
         showNotice(msg.msg);
         break;
       case 'error':
+        // New account (or one from before passwords): set a password, typed twice
+        if (msg.register) setRegistering(true);
         showLoginError(msg.msg);
         // Account linked or unlinked: log in again by itself (the server then picks the right account)
         if (msg.relogin) setTimeout(() => { if (!connected && !ui.play.disabled) ui.play.click(); }, 1500);
@@ -510,8 +514,23 @@ const namePrefix = (window.WC_CONFIG && window.WC_CONFIG.namePrefix) || 'wc_';
 document.getElementById('name-prefix').textContent = namePrefix;
 document.getElementById('name-prefix-hint').textContent = namePrefix;
 
+// Passwords: the first login of an account sets one (the server says so), later name + password
+let registering = false;
+function setRegistering(on) {
+  registering = on;
+  $('pw2-row').hidden = !on;
+  $('pw-label').textContent = on ? 'Neues Passwort festlegen' : 'Passwort';
+  $('pw').autocomplete = on ? 'new-password' : 'current-password';
+}
+// Another name: maybe an existing account again
+ui.name.addEventListener('input', () => { if (registering) setRegistering(false); });
+
 ui.form.addEventListener('submit', (e) => {
   e.preventDefault();
+  if (registering) {
+    if ($('pw').value.length < 4) { showLoginError('Das Passwort braucht mindestens 4 Zeichen.'); return; }
+    if ($('pw').value !== $('pw2').value) { showLoginError('Die beiden Passwörter sind nicht gleich.'); return; }
+  }
   let url = ui.server.value.trim();
   const name = ui.name.value.trim();
   if (!url) { showLoginError('Bitte Server-Adresse eingeben.'); return; }

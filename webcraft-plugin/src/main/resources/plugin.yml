@@ -7,7 +7,7 @@ commands:
   webcraft:
     description: Link your account with WebCraft (/webcraft link), admins also status, kick and reload.
     aliases: [wc]
-    usage: /webcraft [link [delete|<code>]|status|kick <name>|reload]
+    usage: /webcraft [link [delete|<code>]|status|kick <name>|reload|password <name>]
 permissions:
   webcraft.admin:
     description: Use /webcraft admin commands.

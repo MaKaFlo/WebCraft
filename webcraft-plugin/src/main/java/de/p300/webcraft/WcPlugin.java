@@ -56,6 +56,8 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
     private String worldName;
     private String namePrefix;
     WcLinks links;
+    private WcAccounts accounts;
+    private boolean passwords;
     private int maxPlayers;
     private int viewDistance;
     private int chunksPerTick;
@@ -92,6 +94,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         blockLog = new WcBlockLog(new File(getDataFolder(), "blocklog.csv"), getLogger());
         skins = new WcSkins(new File(getDataFolder(), "skins").toPath(), getLogger());
         links = new WcLinks(new File(getDataFolder(), "links.json").toPath(), getLogger());
+        accounts = new WcAccounts(new File(getDataFolder(), "passwords.json").toPath(), getLogger());
         WcAssets assets = new WcAssets(new File(getDataFolder(), "assets").toPath(), getLogger());
         lang = new WcLang(assets, mojangAssets);
         sounds = new WcSounds(assets, mojangAssets, new File(getDataFolder(), "sounds.zip").toPath());
@@ -128,6 +131,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         allowedOrigins = getConfig().getStringList("allowed-origins");
         logBlocks = getConfig().getBoolean("log-blocks", true);
         mojangAssets = getConfig().getBoolean("mojang-assets", false);
+        passwords = getConfig().getBoolean("passwords", true);
     }
 
     private void startServer() {
@@ -163,7 +167,27 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         if (!s.loggedIn()) {
             if ("hello".equals(type) && s.name == null && !s.helloSeen) {
                 s.helloSeen = true;
-                login(s, str(json, "name"), str(json, "skin"), "single".equals(str(json, "mode")), bool(json, "creative"));
+                String name = str(json, "name"), skin = str(json, "skin"), pw = str(json, "pw");
+                boolean single = "single".equals(str(json, "mode")), creative = bool(json, "creative"), register = bool(json, "register");
+                if (!passwords || name == null || !NAME_PATTERN.matcher(name).matches()) {
+                    login(s, name, skin, single, creative);
+                    return;
+                }
+                // Password first (slow hash: not on the server thread), before anything can kick the old session
+                Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                    WcAccounts.Result r = accounts.check(namePrefix + name, pw, register);
+                    Bukkit.getScheduler().runTask(this, () -> {
+                        if (s.closed) return;
+                        JsonObject refused = WcAccounts.refusal(r);
+                        if (refused != null) {
+                            s.send(refused);
+                            s.conn.close(1000, "Login refused");
+                            return;
+                        }
+                        if (r == WcAccounts.Result.REGISTERED) getLogger().info("WebCraft account " + namePrefix + name + " set its password");
+                        login(s, name, skin, single, creative);
+                    });
+                });
             }
             else if (s.name == null) s.conn.close(1008, "Login first");
             return;
@@ -1293,7 +1317,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
 
     // ------------------------------------------------------------------ /webcraft command
 
-    private static final List<String> ADMIN_SUBS = List.of("status", "kick", "reload");
+    private static final List<String> ADMIN_SUBS = List.of("status", "kick", "reload", "password");
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
@@ -1304,7 +1328,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
             if (admin) options.addAll(ADMIN_SUBS);
         } else if (args.length == 2 && args[0].equalsIgnoreCase("link") && sender.hasPermission("webcraft.link")) {
             options.add("delete");
-        } else if (args.length == 2 && args[0].equalsIgnoreCase("kick") && admin) {
+        } else if (args.length == 2 && (args[0].equalsIgnoreCase("kick") || args[0].equalsIgnoreCase("password")) && admin) {
             for (WcSession s : sessions.values()) if (s.name != null) options.add(s.name);
         }
         String start = args[args.length - 1].toLowerCase();
@@ -1364,6 +1388,16 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                     sender.sendMessage(Component.text("Kicked " + s.name, NamedTextColor.GREEN));
                 }
             }
+            case "password" -> {
+                if (args.length < 2) {
+                    sender.sendMessage(Component.text("Usage: /webcraft password <name>  (removes the password, the next login sets a new one)", NamedTextColor.RED));
+                    return true;
+                }
+                String acc = args[1].toLowerCase().startsWith(namePrefix.toLowerCase()) ? args[1] : namePrefix + args[1];
+                sender.sendMessage(accounts.reset(acc)
+                        ? Component.text("Password of " + acc + " removed: the next login sets a new one", NamedTextColor.GREEN)
+                        : Component.text(acc + " has no password", NamedTextColor.RED));
+            }
             case "reload" -> {
                 for (WcSession s : new ArrayList<>(sessions.values())) fail(s, "WebCraft is restarting");
                 stopServer();
@@ -1372,7 +1406,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                 startServer();
                 sender.sendMessage(Component.text("WebCraft bridge reloaded (port " + port + ")", NamedTextColor.GREEN));
             }
-            default -> sender.sendMessage(Component.text("Usage: /webcraft [status|kick <name>|reload|link]", NamedTextColor.RED));
+            default -> sender.sendMessage(Component.text("Usage: /webcraft [status|kick <name>|reload|password <name>|link]", NamedTextColor.RED));
         }
         return true;
     }

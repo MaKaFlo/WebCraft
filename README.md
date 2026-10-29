@@ -2,7 +2,7 @@
 
 Ein Block-Spiel im Browser, das sich mit einem **Minecraft-Server** verbindet: **Paper** (als Plugin) oder **Fabric** (als Mod, damit auch für Vanilla). WebCraft-Spieler sind auf dem Server **echte Spieler**: Sie stehen in der Tab-Liste, bekommen Schaden, sterben, benutzen Befehle und Menüs von Plugins und Mods. Für den Server gibt es keinen Unterschied zu einem Minecraft-Spieler. So können Leute ohne Minecraft-Account mit Freunden auf dem Server spielen.
 
-Version 0.28.1 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
+Version 0.29.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
 
 ## Aufbau
 
@@ -133,6 +133,14 @@ Wenn Webseite und Plugin auf verschiedenen Domains laufen, in `config.yml` unter
 
 Im Inventar: Maus über ein Item zeigt seinen Namen. Shift+Klick verschiebt, `1`-`9` legt das Item unter der Maus auf die Hotbar. Im Kreativmodus: rechts im Inventar alle Items mit Suche. Klick legt 1 Stück in den gewählten Hotbar-Platz, Shift+Klick einen ganzen Stapel, `Entf` leert den Platz unter der Maus.
 
+## Passwort
+
+Jedes WebCraft-Konto hat ein Passwort. Beim ersten Anmelden (auch bei Konten, die schon vorher gespielt haben) fragt die Seite nach einem neuen Passwort (zweimal eintippen, mindestens 4 Zeichen). Danach meldet man sich mit Name und Passwort an. Nach 5 falschen Versuchen ist das Konto eine Minute gesperrt.
+
+- Passwort vergessen: ein OP tippt `/webcraft password <name>`, dann legt man beim nächsten Anmelden ein neues fest.
+- Gespeichert wird nur ein Hash (PBKDF2) in `plugins/WebCraft/passwords.json` (Fabric: `config/webcraft/passwords.json`).
+- Abschalten: `passwords: false` in der config.yml (Fabric: `passwords=false`).
+
 ## Accounts verknüpfen (Minecraft + WebCraft)
 
 Wer Minecraft (Java) hat, kann seinen WebCraft-Account damit verknüpfen. Danach sind beide **ein Account**: gleiche Items, gleicher Ort, gleiche Rechte, gleicher Skin.
@@ -148,6 +156,7 @@ Es ist immer nur eine Seite gleichzeitig online: wer sich neu einloggt, wirft di
 - `/webcraft status`: wer ist über WebCraft online, Chunks, Tracking
 - `/webcraft kick <name>`: WebCraft-Spieler rauswerfen (normales `/kick` und `/ban` gehen auch)
 - `/webcraft reload`: Config und `texturen.zip` neu laden
+- `/webcraft password <name>`: Passwort eines WebCraft-Kontos löschen (vergessen), beim nächsten Anmelden wird ein neues festgelegt
 - `/webcraft whitelist <name>` (nur Fabric): WebCraft-Spieler auf die Whitelist setzen
 
 ## Textur-Studio 🎨 (eigene Grafiken mit ChatGPT)

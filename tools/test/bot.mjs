@@ -3,7 +3,8 @@ const name = process.argv[2] || 'Lena';
 const ws = new WebSocket(process.env.WC_URL || 'ws://127.0.0.1:25007', { headers: { origin: 'null' } });
 ws.binaryType = 'arraybuffer';
 const out = { anims: [], players: new Set(), myId: null };
-ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', name }));
+// Test password (WC_PW): sets it on the first login (register), then logs in with it
+ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', name, pw: process.env.WC_PW || 'bot-test', register: true }));
 ws.onmessage = (ev) => {
   if (typeof ev.data !== 'string') return;
   const m = JSON.parse(ev.data);
