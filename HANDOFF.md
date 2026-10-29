@@ -10,6 +10,9 @@ _Last update: 2026-10-29, version 0.33.2 (main). Tag pushes are refused by this 
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- After 0.33.2 (not released, not tested yet): `/webcraft account create|password|reset|link|unlink|list` for admins in game
+  (`WcAdmin.command/complete`, random password when none is given, shown only to the admin). Owner keeps plugin 0.33.1
+  for now and uses the 0.33.2 html's "🔑 Admin" button with the long token.
 - 0.33.2: admin code instead of the long token (owner could not copy it in game): 8 characters, "🔑 Admin" button on the
   login page, `/webcraft admin` in WebCraft opens the page directly. Tested headless.
 - 0.33.1: elytra felt slow: movement now runs on real time (slow frames were slow motion; measured 31-35 b/s with

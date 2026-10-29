@@ -1368,18 +1368,20 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
 
     // ------------------------------------------------------------------ /webcraft command
 
-    private static final List<String> ADMIN_SUBS = List.of("status", "kick", "reload", "password", "admin");
+    private static final List<String> ADMIN_SUBS = List.of("status", "kick", "reload", "password", "admin", "account");
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
-        boolean admin = sender.hasPermission("webcraft.admin");
+        boolean isAdmin = sender.hasPermission("webcraft.admin");
         List<String> options = new ArrayList<>();
         if (args.length == 1) {
             if (sender.hasPermission("webcraft.link")) options.add("link");
-            if (admin) options.addAll(ADMIN_SUBS);
+            if (isAdmin) options.addAll(ADMIN_SUBS);
         } else if (args.length == 2 && args[0].equalsIgnoreCase("link") && sender.hasPermission("webcraft.link")) {
             options.add("delete");
-        } else if (args.length == 2 && (args[0].equalsIgnoreCase("kick") || args[0].equalsIgnoreCase("password")) && admin) {
+        } else if (args.length >= 2 && args[0].equalsIgnoreCase("account") && isAdmin) {
+            return this.admin.complete(args);
+        } else if (args.length == 2 && (args[0].equalsIgnoreCase("kick") || args[0].equalsIgnoreCase("password")) && isAdmin) {
             for (WcSession s : sessions.values()) if (s.name != null) options.add(s.name);
         }
         String start = args[args.length - 1].toLowerCase();
@@ -1459,6 +1461,17 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                                     .clickEvent(net.kyori.adventure.text.event.ClickEvent.openUrl(link))));
                 }
             }
+            case "account" -> admin.command(args, (text, kind) -> {
+                NamedTextColor color = switch (kind) {
+                    case "ok" -> NamedTextColor.GREEN;
+                    case "err" -> NamedTextColor.RED;
+                    case "secret" -> NamedTextColor.AQUA;
+                    default -> NamedTextColor.GRAY;
+                };
+                Component c = Component.text(text, color);
+                if (kind.equals("secret")) c = c.hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(Component.text("Nur du siehst das. Gib es dem Spieler.")));
+                sender.sendMessage(c);
+            });
             case "password" -> {
                 if (args.length < 2) {
                     sender.sendMessage(Component.text("Usage: /webcraft password <name>  (removes the password, the next login sets a new one)", NamedTextColor.RED));
@@ -1477,7 +1490,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                 startServer();
                 sender.sendMessage(Component.text("WebCraft bridge reloaded (port " + port + ")", NamedTextColor.GREEN));
             }
-            default -> sender.sendMessage(Component.text("Usage: /webcraft [status|kick <name>|reload|password <name>|admin|link]", NamedTextColor.RED));
+            default -> sender.sendMessage(Component.text("Usage: /webcraft [status|kick <name>|reload|password <name>|admin|account|link]", NamedTextColor.RED));
         }
         return true;
     }

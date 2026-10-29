@@ -101,6 +101,126 @@ public final class WcAdmin {
         return webUrl.trim() + (webUrl.contains("?") ? "&" : "?") + "admin=" + token;
     }
 
+    // ------------------------------------------------------------------ the same in game: /webcraft account ...
+
+    /** Message lines for an admin in game: [text, kind] with kind "ok", "err", "info" or "secret" (a password). */
+    public interface Reply {
+        void line(String text, String kind);
+    }
+
+    public static final String ACCOUNT_USAGE = "/webcraft account <create|password|reset|link|unlink|list> ...";
+
+    /** {@code /webcraft account ...} (admins only, main thread). args[0] = "account". */
+    public void command(String[] args, Reply out) {
+        String sub = args.length > 1 ? args[1].toLowerCase(java.util.Locale.ROOT) : "list";
+        String name = args.length > 2 ? strip(args[2]) : null;
+        String account = name == null ? null : platform.namePrefix() + name;
+        switch (sub) {
+            case "list" -> {
+                List<String> online = platform.online();
+                TreeSet<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+                names.addAll(accounts.names());
+                names.addAll(online);
+                out.line("WebCraft-Konten (" + names.size() + "):", "info");
+                for (String n : names) {
+                    WcLinks.Account l = links.of(n);
+                    boolean on = online.stream().anyMatch(o -> o.equalsIgnoreCase(n));
+                    out.line(" - " + n + (accounts.hasPassword(n) ? "" : " (kein Passwort)") + (l != null ? " = Minecraft " + l.name() : "")
+                            + (on ? " [online]" : ""), "info");
+                }
+                if (!platform.selfRegister()) out.line("Neue Spieler können sich nicht selbst anmelden (self-register: false).", "info");
+            }
+            case "create", "password" -> {
+                if (name == null || !NAME.matcher(name).matches()) {
+                    out.line("Benutzung: /webcraft account " + sub + " <name> [passwort]  (Name: 3-13 Zeichen, Buchstaben, Zahlen, _)", "err");
+                    return;
+                }
+                boolean create = sub.equals("create");
+                if (create && accounts.hasPassword(account)) {
+                    out.line(account + " gibt es schon. Neues Passwort: /webcraft account password " + name, "err");
+                    return;
+                }
+                if (!create && !accounts.hasPassword(account) && !platform.online().stream().anyMatch(account::equalsIgnoreCase)) {
+                    out.line("Hinweis: " + account + " hatte noch kein Passwort.", "info");
+                }
+                // No password given: a random one (then it is not in the server log, typed commands are)
+                String pw = args.length > 3 ? args[3] : randomPassword();
+                if (pw.length() < WcAccounts.MIN_LENGTH || pw.length() > 64) {
+                    out.line("Das Passwort braucht 4 bis 64 Zeichen.", "err");
+                    return;
+                }
+                CompletableFuture.runAsync(() -> accounts.set(account, pw)).whenComplete((ok, err) -> host.runSync(() -> {
+                    if (err != null) {
+                        out.line("Fehler beim Speichern, siehe Server-Log.", "err");
+                        return;
+                    }
+                    if (create) platform.whitelist(account);
+                    host.logger().info("WebCraft: " + (create ? "account created: " : "new password for ") + account);
+                    out.line(create ? account + " angelegt." : "Neues Passwort für " + account + " gespeichert.", "ok");
+                    out.line("Anmelden auf der WebCraft-Seite mit Name: " + name + "  Passwort: " + pw, "secret");
+                }));
+            }
+            case "reset" -> {
+                if (account == null) { out.line("Benutzung: /webcraft account reset <name>", "err"); return; }
+                boolean had = accounts.reset(account);
+                out.line(had ? "Passwort von " + account + " gelöscht: beim nächsten Anmelden legt der Spieler ein neues fest."
+                        : account + " hat kein Passwort.", had ? "ok" : "err");
+            }
+            case "link" -> {
+                String mc = args.length > 3 ? args[3] : null;
+                if (name == null || mc == null) { out.line("Benutzung: /webcraft account link <webcraft-name> <minecraft-spieler>", "err"); return; }
+                java.util.UUID uuid = null;
+                String mcName = null;
+                for (var e : platform.minecraftPlayers().entrySet()) {
+                    if (e.getKey().equalsIgnoreCase(mc)) { mcName = e.getKey(); uuid = e.getValue(); }
+                }
+                if (uuid == null) {
+                    out.line("Den Minecraft-Spieler " + mc + " kennt der Server nicht (er muss einmal mit Minecraft da gewesen sein).", "err");
+                    return;
+                }
+                links.link(account, uuid, mcName);
+                platform.kick(account);
+                host.logger().info("WebCraft: linked " + account + " with " + mcName + " (" + uuid + ")");
+                out.line(account + " ist jetzt mit " + mcName + " verknüpft: gleicher Spieler, gleiche Items.", "ok");
+            }
+            case "unlink" -> {
+                if (account == null) { out.line("Benutzung: /webcraft account unlink <name>", "err"); return; }
+                boolean had = links.unlink(account) != null;
+                if (had) platform.kick(account);
+                out.line(had ? "Verknüpfung von " + account + " aufgehoben." : account + " ist nicht verknüpft.", had ? "ok" : "err");
+            }
+            default -> out.line("Benutzung: " + ACCOUNT_USAGE, "err");
+        }
+    }
+
+    /** Tab completion of /webcraft account ... (args[0] = "account"). */
+    public List<String> complete(String[] args) {
+        List<String> out = new java.util.ArrayList<>();
+        if (args.length == 2) out.addAll(List.of("create", "password", "reset", "link", "unlink", "list"));
+        else if (args.length == 3 && !args[1].equalsIgnoreCase("create") && !args[1].equalsIgnoreCase("list")) {
+            for (String n : accounts.names()) out.add(strip(n));
+            for (String n : platform.online()) out.add(strip(n));
+        } else if (args.length == 4 && args[1].equalsIgnoreCase("link")) {
+            out.addAll(platform.minecraftPlayers().keySet());
+        }
+        String start = args[args.length - 1].toLowerCase(java.util.Locale.ROOT);
+        out.removeIf(o -> !o.toLowerCase(java.util.Locale.ROOT).startsWith(start));
+        return new java.util.ArrayList<>(new java.util.TreeSet<>(out));
+    }
+
+    /** "wc_max" or "Max" -> "Max" (the name without the prefix). */
+    private String strip(String name) {
+        String p = platform.namePrefix();
+        return name.toLowerCase(java.util.Locale.ROOT).startsWith(p.toLowerCase(java.util.Locale.ROOT)) ? name.substring(p.length()) : name;
+    }
+
+    private String randomPassword() {
+        String chars = "abcdefghjkmnpqrstuvwxyz23456789";
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < 8; i++) b.append(chars.charAt(random.nextInt(chars.length())));
+        return b.toString();
+    }
+
     /** Handles an admin message (main thread). Returns false when it was none. */
     public boolean handle(WcSession s, String type, JsonObject json) {
         if (!type.startsWith("admin")) return false;

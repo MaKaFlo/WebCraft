@@ -1453,6 +1453,17 @@ public final class WcMod implements ModInitializer, WcHost {
                     .then(Commands.literal("kick").requires(admin)
                             .then(Commands.argument("name", StringArgumentType.word()).executes(this::kick)))
                     .then(Commands.literal("admin").requires(admin).executes(this::adminPage))
+                    .then(Commands.literal("account").requires(admin).executes(ctx -> account(ctx, ""))
+                            .then(Commands.argument("args", StringArgumentType.greedyString())
+                                    .suggests((ctx, b) -> {
+                                        String rest = b.getRemaining();
+                                        String[] parts = ("account " + rest + (rest.endsWith(" ") || rest.isEmpty() ? "x" : "")).split(" ", -1);
+                                        if (rest.endsWith(" ") || rest.isEmpty()) parts[parts.length - 1] = "";
+                                        var sb = b.createOffset(b.getStart() + rest.lastIndexOf(' ') + 1);
+                                        for (String o : this.admin.complete(parts)) sb.suggest(o);
+                                        return sb.buildFuture();
+                                    })
+                                    .executes(ctx -> account(ctx, StringArgumentType.getString(ctx, "args")))))
                     .then(Commands.literal("password").requires(admin)
                             .then(Commands.argument("name", StringArgumentType.word()).executes(this::resetPassword)))
                     .then(Commands.literal("whitelist").requires(admin)
@@ -1538,6 +1549,19 @@ public final class WcMod implements ModInitializer, WcHost {
             s.conn.close(1000, "relogin");
             handleDisconnect(s);
         });
+    }
+
+    /** /webcraft account ...: WebCraft accounts in game (create, password, reset, link, unlink, list). */
+    private int account(CommandContext<CommandSourceStack> ctx, String rest) {
+        String[] args = ("account " + rest.trim()).trim().split("\\s+");
+        var src = ctx.getSource();
+        admin.command(args, (text, kind) -> src.sendSystemMessage(Component.literal(text).withStyle(switch (kind) {
+            case "ok" -> ChatFormatting.GREEN;
+            case "err" -> ChatFormatting.RED;
+            case "secret" -> ChatFormatting.AQUA;
+            default -> ChatFormatting.GRAY;
+        })));
+        return 1;
     }
 
     /** Link to the admin page (accounts with name and password). */
