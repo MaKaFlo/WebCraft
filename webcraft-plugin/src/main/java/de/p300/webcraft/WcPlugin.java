@@ -278,6 +278,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                 case "sound" -> sounds.ask(s, str(json, "e"));
                 case "sfile" -> sounds.askFile(s, str(json, "h"));
                 case "beacon" -> { f.beacon(str(json, "p"), str(json, "s")); s.invDirty = true; }
+                case "glide" -> f.startGliding();
                 case "sign" -> {
                     String[] lines = new String[4];
                     com.google.gson.JsonArray l = json.has("l") && json.get("l").isJsonArray() ? json.getAsJsonArray("l") : new com.google.gson.JsonArray();
@@ -290,7 +291,8 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                 case "rename" -> { f.rename(str(json, "name")); s.invDirty = true; }
                 case "swing" -> p.swingMainHand();   // only the animation (digging), no click event
                 case "slot" -> f.selectSlot(Math.max(0, Math.min(8, integer(json, "i"))));
-                case "drop" -> f.drop(bool(json, "all"));
+                // The server assumes the client already took the item out (vanilla predicts drops): send the inventory again
+                case "drop" -> { f.drop(bool(json, "all")); s.invDirty = true; }
                 case "swap_hands" -> f.swapHands();
                 case "inv_open" -> {
                     f.openOwnInventory();
@@ -705,6 +707,15 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
             }
             JsonObject signs = WcSigns.take(s.signChanges, s.fake.handle().level());
             if (signs != null) s.send(signs);
+            // Elytra: the browser flies itself, the server decides when gliding starts and stops (ground, water, no elytra)
+            boolean gliding = s.fake.handle().isFallFlying();
+            if (gliding != s.gliding) {
+                s.gliding = gliding;
+                JsonObject g = new JsonObject();
+                g.addProperty("t", "glide");
+                g.addProperty("on", gliding);
+                s.send(g);
+            }
             if (!s.anims.isEmpty()) {
                 JsonArray list = new JsonArray();
                 int[] a;
@@ -1260,6 +1271,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
             if (byPlayer.containsKey(p.getUniqueId())) o.addProperty("wc", true);
             if (p.isSneaking()) o.addProperty("sn", true);
             if (p.isSwimming()) o.addProperty("sw", true);
+            if (p.isGliding()) o.addProperty("gl", true);
         } else if (name != null) {
             o.addProperty("n", name);
         }

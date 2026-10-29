@@ -559,6 +559,11 @@ public final class WcFakePlayer {
         listener().handleSelectTrade(new ServerboundSelectTradePacket(index));
     }
 
+    /** Jump in the air with an elytra on: start gliding (the server checks the elytra, water, ground ...). */
+    public void startGliding() {
+        listener().handlePlayerCommand(new ServerboundPlayerCommandPacket(handle(), ServerboundPlayerCommandPacket.Action.START_FALL_FLYING));
+    }
+
     /** Text typed into the sign editor (like the vanilla client's "Done"). */
     public void signUpdate(int x, int y, int z, boolean front, String[] lines) {
         listener().handleSignUpdate(new net.minecraft.network.protocol.game.ServerboundSignUpdatePacket(

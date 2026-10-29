@@ -573,7 +573,7 @@ class Entity {
 
   update(dt) {
     const t = this.exact ? 1 : 1 - Math.exp(-dt * 12);   // our own figure (F5) sits exactly where we are
-    const px = this.x, pz = this.z;
+    const px = this.x, py = this.y, pz = this.z;
     const d = this.target;
     this.x += (d.x - this.x) * t;
     this.y += (d.y - this.y) * t;
@@ -586,7 +586,12 @@ class Entity {
     const v = Math.hypot(this.x - px, this.z - pz) / Math.max(dt, 1e-3);
     this.speed += (Math.min(v, 6) - this.speed) * Math.min(1, dt * 8);
     this.walk += dt * this.speed * 2.4;
-    const swing = Math.sin(this.walk) * Math.min(1, this.speed / 4) * 0.8;
+    let swing = Math.sin(this.walk) * Math.min(1, this.speed / 4) * 0.8;
+    // Velocity in blocks per tick (elytra wings open wider the flatter you fly)
+    const k = Math.min(1, dt * 6);
+    this.vel ??= [0, 0, 0];
+    [this.x - px, this.y - py, this.z - pz].forEach((m, i) => { this.vel[i] += (m / Math.max(dt, 1e-3) / 20 - this.vel[i]) * k; });
+    if (d.gl) swing = 0;
 
     if (this.limbs?.legL) {
       this.limbs.legL.rotation.x = swing;
@@ -610,11 +615,39 @@ class Entity {
       } else if (!d.use) {
         this.limbs.armR.rotation.z = 0;
       }
-      this.limbs.body.rotation.x = d.sn ? 0.45 : 0;
-      // Swimming: lying flat, head forward, centered on the hitbox
+      this.limbs.body.rotation.x = d.sn && !d.gl ? 0.45 : 0;
+      // Swimming: lying flat, head forward, centered on the hitbox. Gliding: lying along where you look
       if (this.root) {
-        this.root.rotation.x = d.sw ? Math.PI / 2 : 0;
-        this.root.position.set(0, d.sw ? 0.3 : 0, d.sw ? -0.9 * this.headScale : 0);
+        const lie = d.gl ? Math.PI / 2 + Math.max(-1.2, Math.min(1.4, this.pitch * Math.PI / 180)) : d.sw ? Math.PI / 2 : 0;
+        this.root.rotation.x = lie;
+        this.root.position.set(0, d.sw || d.gl ? 0.3 : 0, d.sw || d.gl ? -0.9 * this.headScale : 0);
+      }
+      if (d.gl) {
+        // Arms along the body, a bit apart, legs straight (Minecraft's elytra pose)
+        this.limbs.armL.rotation.set(0, 0, -0.2);
+        this.limbs.armR.rotation.set(0, 0, 0.2);
+        this.limbs.legL.rotation.set(0, 0, -0.05);
+        this.limbs.legR.rotation.set(0, 0, 0.05);
+      } else if (this.wasGliding) {
+        for (const l of [this.limbs.armL, this.limbs.armR, this.limbs.legL, this.limbs.legR]) { l.rotation.y = 0; l.rotation.z = 0; }
+      }
+      this.wasGliding = !!d.gl;
+      if (this.limbs.wingL) {
+        // Minecraft's ElytraModel: folded on the back, spread out while gliding (less when diving), tucked in when sneaking
+        let rx = 0.2618, rz = -0.2618, ry = 0, wy = 0;
+        if (d.gl) {
+          const vy = d.vy ?? this.vel[1];
+          const len = Math.hypot(this.vel[0], vy, this.vel[2]);
+          const f = vy < 0 && len > 0 ? 1 - Math.pow(Math.min(1, -vy / len), 1.5) : 1;
+          rx = f * 0.349 + (1 - f) * rx;
+          rz = f * -Math.PI / 2 + (1 - f) * rz;
+        } else if (d.sn) {
+          rx = 0.698; rz = -0.785; ry = 0.087; wy = 3;
+        }
+        const w = Math.min(1, dt * 10), L = this.limbs.wingL, R = this.limbs.wingR;
+        L.rotation.x += (rx - L.rotation.x) * w; L.rotation.y += (ry - L.rotation.y) * w; L.rotation.z += (rz - L.rotation.z) * w;
+        R.rotation.x = L.rotation.x; R.rotation.y = -L.rotation.y; R.rotation.z = -L.rotation.z;
+        L.position.y = R.position.y = wy;
       }
     } else if (this.limbs?.legs) {
       this.limbs.legs.forEach((l, i) => { l.rotation.x = (i === 0 || i === 3 ? 1 : -1) * swing; });
@@ -654,7 +687,8 @@ class Entity {
       this.group.rotation.y = -this.yaw * Math.PI / 180;
       if (this.head) {
         this.head.rotation.y = (this.mcFrame ? 1 : -1) * (this.headYaw - this.yaw) * Math.PI / 180;
-        this.head.rotation.x = this.pitch * Math.PI / 180 - (d.sw && this.root ? Math.PI / 2 : 0);   // swimming: look ahead
+        // Swimming: look ahead; gliding: the head looks along the body, which already points where you look
+        this.head.rotation.x = d.gl && this.root ? -Math.PI / 2 : this.pitch * Math.PI / 180 - (d.sw && this.root ? Math.PI / 2 : 0);
       }
       if (this.bob) this.group.scale.y = 1 + Math.abs(Math.sin(this.walk)) * 0.15;
       if (this.moving) this.animateParts(dt);

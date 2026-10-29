@@ -262,6 +262,11 @@ const TROPICAL_A = ['kob', 'sunstreak', 'snooper', 'dasher', 'brinely', 'spotty'
 const TROPICAL_B = ['flopper', 'stripey', 'glitter', 'blockfish', 'betty', 'clayfish'];
 
 const MODELS = {
+  // Elytra on the back of a player (Minecraft's ElytraModel, 2 px behind the body); turned by the animation
+  elytra: { tw: 64, th: 32, parts: {
+    wingL: { pivot: [5, 0, 2], parent: 'body', order: 'ZYX', rot: [0.2618, 0, -0.2618], boxes: [[...L(22, 0), -10, 0, 0, 10, 20, 2]] },
+    wingR: { pivot: [-5, 0, 2], parent: 'body', order: 'ZYX', rot: [0.2618, 0, 0.2618], boxes: [[...L(22, 0), 0, 0, 0, 10, 20, 2, 0, true]] },
+  } },
   biped: { tw: 64, th: 64, parts: BIPED_PARTS(true), kind: 'biped' },
   biped32: { tw: 64, th: 32, parts: BIPED_PARTS(false), kind: 'biped' },
   biped_slim: { tw: 64, th: 64, parts: BIPED_PARTS(true, true), kind: 'biped' },
@@ -1068,6 +1073,8 @@ export function buildSkin(d, root, opts) {
     if (fur) addModel(MODELS.sheep_fur, fur, groups, frame, { color: d.col ?? 0xffffff });
   }
   if (model.kind === 'biped' && d.arm) addArmor(d.arm, groups, frame);
+  const wings = model.kind === 'biped' && d.arm?.[1] === 'elytra' && textureOf('entity/elytra');
+  if (wings) addModel(MODELS.elytra, wings, groups, frame);
   if (d.type === 'slime') addModel(MODELS.slime_outer, tex, groups, frame, { translucent: true });
 
   // Scale to the hitbox height (players always full size: their box shrinks while sneaking/swimming)
@@ -1086,7 +1093,8 @@ export function buildSkin(d, root, opts) {
   let limbs = null;
   if (model.kind === 'biped') {
     // Villagers keep their arms crossed: the animation moves stand-ins
-    limbs = { legL: g.leftLeg, legR: g.rightLeg, armL: g.leftArm ?? new THREE.Group(), armR: g.rightArm ?? new THREE.Group(), body: g.body };
+    limbs = { legL: g.leftLeg, legR: g.rightLeg, armL: g.leftArm ?? new THREE.Group(), armR: g.rightArm ?? new THREE.Group(), body: g.body,
+      wingL: g.wingL, wingR: g.wingR };
   } else if (model.kind === 'quad') {
     limbs = { legs: [g.legBackRight, g.legBackLeft, g.legFrontRight, g.legFrontLeft].filter(Boolean) };
   }

@@ -33,13 +33,17 @@ export class Player {
     this.canFly = false;   // creative / allowed by the server
     this.flying = false;
     this.swimming = false; // sprinting in water: lying, moves where you look
+    this.gliding = false;  // elytra
+    this.chest = null;     // item key in the chest armor slot (elytra?)
+    this.boostTicks = 0;   // firework rocket pushing while gliding
+    this.glideAcc = 0;     // time not yet used for elytra ticks
     this.kbx = 0; this.kbz = 0; // knockback, fades out
     this.frozen = false;   // dead or waiting for the world
   }
 
-  get height() { return this.swimming ? SWIM_HEIGHT : HEIGHT; }
+  get height() { return this.swimming || this.gliding ? SWIM_HEIGHT : HEIGHT; }
 
-  get eyeY() { return this.y + (this.swimming ? 0.4 : this.keys.has('ShiftLeft') ? EYE - 0.3 : EYE); }
+  get eyeY() { return this.y + (this.swimming || this.gliding ? 0.4 : this.keys.has('ShiftLeft') ? EYE - 0.3 : EYE); }
 
   setPosition(x, y, z) {
     this.x = x; this.y = y; this.z = z;
@@ -53,6 +57,53 @@ export class Player {
     this.kbx = vx;
     this.kbz = vz;
     if (vy > 0) this.onGround = false;
+  }
+
+  /** Jump in the air with an elytra on: gliding starts (like Minecraft's client, the server confirms it). */
+  canGlide() {
+    return this.chest === 'elytra' && !this.onGround && !this.flying && !this.gliding && !this.inLiquid && !this.frozen;
+  }
+
+  startGlide() {
+    this.gliding = true;
+    this.glideAcc = 0;
+  }
+
+  /** Firework rocket while gliding: about 1.3 s of push toward where you look. */
+  boost(ticks = 26) {
+    if (this.gliding) this.boostTicks = ticks;
+  }
+
+  /** One game tick (1/20 s) of Minecraft's elytra flight (LivingEntity.travelFallFlying), velocity in blocks/tick. */
+  glideTick() {
+    const yr = this.yaw * Math.PI / 180, pr = this.pitch * Math.PI / 180;
+    const lx = -Math.sin(yr) * Math.cos(pr), ly = -Math.sin(pr), lz = Math.cos(yr) * Math.cos(pr);
+    let mx = this.vx / 20, my = this.vy / 20, mz = this.vz / 20;
+    const horiz = Math.hypot(lx, lz);
+    const speedH = Math.hypot(mx, mz);
+    let c = Math.cos(pr);
+    c = c * c;   // look vector has length 1
+    my += 0.08 * (-1 + c * 0.75);
+    if (my < 0 && horiz > 0) {
+      const d = my * -0.1 * c;
+      mx += lx * d / horiz; my += d; mz += lz * d / horiz;
+    }
+    if (pr < 0 && horiz > 0) {
+      const d = speedH * -Math.sin(pr) * 0.04;
+      mx += -lx * d / horiz; my += d * 3.2; mz += -lz * d / horiz;
+    }
+    if (horiz > 0) {
+      mx += (lx / horiz * speedH - mx) * 0.1;
+      mz += (lz / horiz * speedH - mz) * 0.1;
+    }
+    mx *= 0.99; my *= 0.98; mz *= 0.99;
+    if (this.boostTicks > 0) {
+      this.boostTicks--;
+      mx += lx * 0.1 + (lx * 1.5 - mx) * 0.5;
+      my += ly * 0.1 + (ly * 1.5 - my) * 0.5;
+      mz += lz * 0.1 + (lz * 1.5 - mz) * 0.5;
+    }
+    this.vx = mx * 20; this.vy = my * 20; this.vz = mz * 20;
   }
 
   toggleFly() {
@@ -159,12 +210,28 @@ export class Player {
       wx *= Math.cos(pr); wz *= Math.cos(pr); wy = -Math.sin(pr);
       speed = SWIM;
     }
-    const accel = this.onGround ? 14 : this.inLiquid ? 6 : 8;
-    const t = Math.min(1, accel * dt);
-    this.vx += (wx * speed - this.vx) * t;
-    this.vz += (wz * speed - this.vz) * t;
+    // Elytra: pressing jump in the air starts gliding (main.js tells the server: glideStarted)
+    const jump = k.has('Space');
+    if (jump && !this.jumpHeld && this.canGlide()) { this.startGlide(); this.glideStarted = true; }
+    this.jumpHeld = jump;
+    // Elytra: stops on the ground, in water, when flying or without the elytra
+    if (this.gliding && (this.onGround || this.inLiquid || this.flying || this.chest !== 'elytra')) {
+      this.gliding = false;
+      this.boostTicks = 0;
+    }
+    if (!this.gliding) {
+      const accel = this.onGround ? 14 : this.inLiquid ? 6 : 8;
+      const t = Math.min(1, accel * dt);
+      this.vx += (wx * speed - this.vx) * t;
+      this.vz += (wz * speed - this.vz) * t;
+    }
 
-    if (this.flying) {
+    if (this.gliding) {
+      // Minecraft's flight model runs in whole ticks
+      this.glideAcc += dt;
+      while (this.glideAcc >= 0.05) { this.glideAcc -= 0.05; this.glideTick(); }
+      this.kbx = this.kbz = 0;
+    } else if (this.flying) {
       const up = (k.has('Space') ? 1 : 0) - (sneaking ? 1 : 0);
       this.vy += (up * 7.5 - this.vy) * Math.min(1, 10 * dt);
     } else if (this.swimming) {
@@ -179,7 +246,7 @@ export class Player {
       this.vy -= GRAVITY * dt;
       if (k.has('Space') && this.onGround) this.vy = JUMP_SPEED;
     }
-    this.vy = Math.max(this.vy, -60);
+    if (!this.gliding) this.vy = Math.max(this.vy, -60);
 
     // Sneaking keeps you from walking off edges
     let dx = (this.vx + this.kbx) * dt, dz = (this.vz + this.kbz) * dt;

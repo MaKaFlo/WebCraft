@@ -219,6 +219,17 @@ Headless tests: Playwright context with
 `DeviceOrientationEvent`s and `grantPermissions(['accelerometer','gyroscope','magnetometer'])` (scripts in
 `/home/user/srv`: `touch.cjs`, `padvr.cjs`).
 
+Elytra: `player.js` jump edge in the air with `chest === 'elytra'` (from `inv.arm[1]`) starts gliding (`glideStarted` →
+`glide` message → `WcFakePlayer.startGliding()` = `START_FALL_FLYING`); the server sends `glide` {on} when its
+`isFallFlying()` changes (`WcSession.gliding`), the browser gives up after 1 s without confirmation. Flight =
+Minecraft's `travelFallFlying` per 1/20 s tick (`glideTick`, velocity in blocks/tick), firework rocket while gliding =
+`player.boost()` (26 ticks of the rocket's push) plus `use` for the server. Height 0.6 while gliding. Entity JSON `gl`;
+`entities.js` lays the body along the pitch, `skins.js MODELS.elytra` (`entity/elytra`, Faithful
+`equipment/wings/elytra`) on the body when `arm[1]` is elytra, wing angles like `ElytraModel` (spread by velocity).
+
+Drops: vanilla predicts Q drops on the client, so `ServerPlayer.drop` only updates the remote slot and sends nothing;
+`drop` therefore sets `invDirty` (else a ghost item stayed in the hotbar).
+
 Weather: the `time` message also carries `rain`, `thunder` (0..1) and `snow`/`dry` for the player's biome
 (`WcWeather`). Lightning bolts are sent as entities.
 
@@ -242,7 +253,7 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
 - Binary: byte 0 = type (1 = chunk), rest zlib: int32 cx, int32 cz, uint8 sections, per section
   int8 sectionY + 4096 × uint16 LE palette ids, index = (y*16+z)*16+x.
 - Server → client `t`: `welcome world pal tp vel stats inv items menu ents anim blocks unload chat notice
-  dead dig_info board tab pack error time fx skin lang snd sound boss signs sign_edit`. Names: `items.js setNames()` (setting `lang`, default
+  dead dig_info board tab pack error time fx skin lang snd sound boss signs sign_edit glide`. Names: `items.js setNames()` (setting `lang`, default
   `de`, cached in localStorage `wc.lang.de_de`), used by `prettyName()` everywhere.
 - `time` (every second): `rain`, `thunder`, `snow`, `dry` (weather) and `v` = full world clock ticks (`World.getFullTime()` / `Level.getDefaultClockTime()`);
   the browser runs it on and stops when two values are equal (`doDaylightCycle` off).
@@ -263,7 +274,7 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
 - `skin` (answer to client `skin` {h}): `h` texture hash, `png` base64 (missing when not available).
 - Client → server `t`: `hello move input tp_ok slot click close inv_open drop swap_hands use use_on
   dig_start dig_stop dig_abort attack punch swing interact release button trade rename creative
-  respawn resync items chat pack_upload status kick reload beacon skin lang sound sfile sign` (`beacon`: `p`/`s` effect keys; `hello` has
+  respawn resync items chat pack_upload status kick reload beacon skin lang sound sfile sign glide` (`beacon`: `p`/`s` effect keys; `hello` has
   `name`, `pw`, `register` and optional `skin` = Minecraft account name).
 - Skins (`WcSkins`): the login looks the account up at Mojang (api.mojang.com + sessionserver `?unsigned=false`,
   async, cached in `skins/profiles/`), the fake player's `GameProfile` gets the signed `textures` property, so

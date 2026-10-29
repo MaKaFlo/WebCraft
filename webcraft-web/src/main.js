@@ -107,6 +107,7 @@ let ws = null;
 let connected = false;
 let myName = '';
 let dead = false;
+let serverGliding = false, glideAskedAt = 0;   // elytra state from the server
 let chatOpen = false;
 let leaving = false;
 
@@ -282,6 +283,12 @@ function connect(url, name) {
           signs.blockChanged(x, y, z);
         }
         break;
+      case 'glide':
+        // The server decides about gliding (no elytra, broken, water ...)
+        serverGliding = !!msg.on;
+        if (!msg.on) player.gliding = false;
+        else if (!player.gliding) player.startGlide();
+        break;
       case 'signs':
         signs.message(msg);
         break;
@@ -380,6 +387,7 @@ function connect(url, name) {
       case 'inv':
         inventory.updateHotbar(msg);
         mods.setArmor(msg.arm);
+        player.chest = msg.arm?.[1]?.k ?? null;
         break;
       case 'menu':
         inventory.updateMenu(msg);
@@ -1098,10 +1106,15 @@ function frame(now) {
     hurtTilt = Math.max(0, hurtTilt - dt);
     camera.rotation.z = (dead ? 0.4 : Math.sin(hurtTilt / 0.35 * Math.PI) * 0.06) + (stereoOn && touch?.gyroOn ? touch.roll : 0);
     if (view && !dead) placeThirdPersonCamera();
+    // Elytra: tell the server when gliding starts; give up when it does not agree within a second
+    if (player.glideStarted) { player.glideStarted = false; glideAskedAt = performance.now(); send({ t: 'glide' }); }
+    if (player.gliding && !serverGliding && performance.now() - glideAskedAt > 1000) player.gliding = false;
     entities.showSelf(view && !dead ? {
       i: -2, type: 'player', x: player.x, y: player.y, z: player.z, yaw: player.yaw, pitch: player.pitch, body: player.yaw,
       w: 0.6, h: 1.8, skin: mySkin || undefined, slim: mySlim || undefined, hand: inventory.selectedItem()?.k,
-      sn: (player.keys.has('ShiftLeft') && !player.flying) || undefined, use: interaction.using || undefined,
+      sn: (player.keys.has('ShiftLeft') && !player.flying && !player.gliding) || undefined, use: interaction.using || undefined,
+      gl: player.gliding || undefined, sw: player.swimming || undefined, vy: player.vy / 20,
+      arm: player.chest === 'elytra' ? [null, 'elytra', null, null] : undefined,
       n: mods.on('ownname') ? myName : undefined, wc: true,
     } : null);
     entities.showHitboxes = settings.hitboxes;

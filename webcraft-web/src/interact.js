@@ -281,6 +281,13 @@ export class Interaction {
     if (this.using) return;            // still eating / drawing the bow
     const t = this.target;
     const item = this.inventory.selectedItem();
+    // Firework rocket while gliding with the elytra: a push forward (the server fires the rocket too)
+    if (item?.k === 'firework_rocket' && this.player.gliding) {
+      this.send({ t: 'use' });
+      this.onSwing();
+      this.player.boost();
+      return;
+    }
     // Right click on a mob: trade, feed, ride, shear, put a name tag on ...
     const te = this.targetEntity;
     if (te) {
