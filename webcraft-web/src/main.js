@@ -393,6 +393,8 @@ function connect(url, name) {
         break;
       case 'error':
         showLoginError(msg.msg);
+        // Account linked or unlinked: log in again by itself (the server then picks the right account)
+        if (msg.relogin) setTimeout(() => { if (!connected && !ui.play.disabled) ui.play.click(); }, 1500);
         break;
     }
   }

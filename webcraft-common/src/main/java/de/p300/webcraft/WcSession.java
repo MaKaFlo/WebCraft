@@ -19,6 +19,8 @@ public final class WcSession {
     public final WebSocket conn;
 
     public String name;              // full name incl. prefix, null until logged in
+    public int loginTries;           // waits for the linked Minecraft player to leave
+    public String account;           // WebCraft account (prefix + typed name); differs from name when linked to a Java account
     public boolean helloSeen;        // login is running (skin lookup, pre-login event)
     /** Signed skin of the Minecraft account the player chose in the login form, or null (Steve). */
     public volatile com.mojang.authlib.properties.Property skin;

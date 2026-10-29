@@ -55,6 +55,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
     private int port;
     private String worldName;
     private String namePrefix;
+    WcLinks links;
     private int maxPlayers;
     private int viewDistance;
     private int chunksPerTick;
@@ -90,6 +91,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         textures.load();
         blockLog = new WcBlockLog(new File(getDataFolder(), "blocklog.csv"), getLogger());
         skins = new WcSkins(new File(getDataFolder(), "skins").toPath(), getLogger());
+        links = new WcLinks(new File(getDataFolder(), "links.json").toPath(), getLogger());
         WcAssets assets = new WcAssets(new File(getDataFolder(), "assets").toPath(), getLogger());
         lang = new WcLang(assets, mojangAssets);
         sounds = new WcSounds(assets, mojangAssets, new File(getDataFolder(), "sounds.zip").toPath());
@@ -290,8 +292,16 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         // Creative single player is an own player (own inventory, own world): another name prefix. Survival single
         // player is the normal player on the normal world, only without the others.
         boolean ownWorld = single && creative;
-        String fullName = (ownWorld ? singlePlayer.prefix : namePrefix) + rawName;
         String accountName = namePrefix + rawName;   // bans and the whitelist count for both
+        // Linked with a Minecraft account (/webcraft link): play as that account (same player, same items)
+        WcLinks.Account linked = ownWorld ? null : links.of(accountName);
+        String fullName = linked != null ? linked.name() : (ownWorld ? singlePlayer.prefix : namePrefix) + rawName;
+        UUID uuid = linked != null ? linked.uuid() : WcFakePlayer.uuidFor(fullName);
+        if (linked != null) {
+            Player java = Bukkit.getPlayer(uuid);
+            // Like Minecraft: the newest login wins (the Java client is closed; its data is saved on quit)
+            if (java != null && sessionOf(java) == null) java.kick(Component.text("Du hast dich mit WebCraft eingeloggt."));
+        }
         // Same WebCraft name logged in again (second tab, or the old connection died without closing, e.g. a
         // laptop going to sleep): like Minecraft, the new login wins and the old one is closed.
         WcSession old = findSession(fullName);
@@ -303,11 +313,11 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
             fail(s, "WebCraft is full right now, try again later");
             return;
         }
-        if (Bukkit.getPlayerExact(fullName) != null) {
+        if (linked == null && Bukkit.getPlayerExact(fullName) != null) {
             fail(s, "Name is already in use");
             return;
         }
-        OfflinePlayer account = Bukkit.getOfflinePlayer(WcFakePlayer.uuidFor(accountName));
+        OfflinePlayer account = Bukkit.getOfflinePlayer(linked != null ? uuid : WcFakePlayer.uuidFor(accountName));
         if (account.isBanned()) {
             fail(s, "You are banned from this server");
             return;
@@ -316,21 +326,23 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
             fail(s, "Not on the whitelist. Ask an admin: /webcraft whitelist " + rawName);
             return;
         }
-        boolean firstJoin = !Bukkit.getOfflinePlayer(WcFakePlayer.uuidFor(fullName)).hasPlayedBefore() && !ownWorld;
+        boolean firstJoin = !Bukkit.getOfflinePlayer(uuid).hasPlayedBefore() && !ownWorld && linked == null;
         if (!joining.add(fullName.toLowerCase())) {
             fail(s, "Name is already in use");
             return;
         }
         s.name = fullName;
+        s.account = accountName;
 
         // Like a real login: plugins (permissions like LuckPerms, bans, maintenance ...) load their data in
         // AsyncPlayerPreLoginEvent, which must run off the main thread. Then the join goes on here.
         java.net.InetAddress ip = s.conn.getRemoteSocketAddress() == null ? java.net.InetAddress.getLoopbackAddress()
                 : s.conn.getRemoteSocketAddress().getAddress();
-        UUID uuid = WcFakePlayer.uuidFor(fullName);
         Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
-            // The skin of the Minecraft account the player picked (signed by Mojang, so everybody sees it)
-            if (skinName != null && !skinName.isBlank()) s.skin = skins.lookup(skinName.trim());
+            // The skin of the Minecraft account the player picked (signed by Mojang, so everybody sees it);
+            // linked players have the skin of their Minecraft account
+            String skinOf = skinName != null && !skinName.isBlank() ? skinName.trim() : linked != null ? linked.name() : null;
+            if (skinOf != null) s.skin = skins.lookup(skinOf);
             org.bukkit.event.player.AsyncPlayerPreLoginEvent pre = new org.bukkit.event.player.AsyncPlayerPreLoginEvent(fullName, ip, uuid);
             try {
                 Bukkit.getPluginManager().callEvent(pre);
@@ -339,7 +351,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
             }
             Bukkit.getScheduler().runTask(this, () -> {
                 joining.remove(fullName.toLowerCase());
-                finishLogin(s, fullName, firstJoin, pre, single, creative);
+                finishLogin(s, fullName, uuid, firstJoin, pre, single, creative);
             });
         });
     }
@@ -360,7 +372,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         Bukkit.getScheduler().runTaskAsynchronously(this, () -> s.send(skins.message(hash, skins.picture(hash))));
     }
 
-    private void finishLogin(WcSession s, String fullName, boolean firstJoin, org.bukkit.event.player.AsyncPlayerPreLoginEvent pre,
+    private void finishLogin(WcSession s, String fullName, UUID uuid, boolean firstJoin, org.bukkit.event.player.AsyncPlayerPreLoginEvent pre,
                              boolean single, boolean creative) {
         if (s.closed) return;
         if (pre.getLoginResult() != org.bukkit.event.player.AsyncPlayerPreLoginEvent.Result.ALLOWED) {
@@ -368,14 +380,21 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
             fail(s, msg == null || msg.isBlank() ? "Login refused by the server" : msg);
             return;
         }
-        if (Bukkit.getPlayerExact(fullName) != null) {
+        Player before = Bukkit.getPlayer(uuid);
+        if (before != null && sessionOf(before) == null && s.account != null && links.of(s.account) != null && s.loginTries++ < 20) {
+            // The linked Minecraft player is still leaving: wait a moment
+            before.kick(Component.text("Du hast dich mit WebCraft eingeloggt."));
+            Bukkit.getScheduler().runTaskLater(this, () -> finishLogin(s, fullName, uuid, firstJoin, pre, single, creative), 5L);
+            return;
+        }
+        if (Bukkit.getPlayerExact(fullName) != null || before != null) {
             fail(s, "Name is already in use");
             return;
         }
         try {
             // Single player: the own world is loaded first, so a position saved there is found again
             World start = single && creative ? singlePlayer.world(fullName, World.Environment.NORMAL) : joinWorld();
-            s.fake = WcFakePlayer.join(this, s, fullName, start, s.conn.getRemoteSocketAddress());
+            s.fake = WcFakePlayer.join(this, s, fullName, uuid, start, s.conn.getRemoteSocketAddress());
         } catch (WcFakePlayer.LoginDenied e) {
             fail(s, e.getMessage());
             return;
@@ -1274,9 +1293,47 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
 
     // ------------------------------------------------------------------ /webcraft command
 
+    private static final List<String> ADMIN_SUBS = List.of("status", "kick", "reload");
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
+        boolean admin = sender.hasPermission("webcraft.admin");
+        List<String> options = new ArrayList<>();
+        if (args.length == 1) {
+            if (sender.hasPermission("webcraft.link")) options.add("link");
+            if (admin) options.addAll(ADMIN_SUBS);
+        } else if (args.length == 2 && args[0].equalsIgnoreCase("link") && sender.hasPermission("webcraft.link")) {
+            options.add("delete");
+        } else if (args.length == 2 && args[0].equalsIgnoreCase("kick") && admin) {
+            for (WcSession s : sessions.values()) if (s.name != null) options.add(s.name);
+        }
+        String start = args[args.length - 1].toLowerCase();
+        options.removeIf(o -> !o.toLowerCase().startsWith(start));
+        return options;
+    }
+
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        String sub = args.length > 0 ? args[0].toLowerCase() : "status";
+        String sub = args.length > 0 ? args[0].toLowerCase() : (sender.hasPermission("webcraft.admin") ? "status" : "link");
+        // "/webcraft ABC123" from WebCraft = "/webcraft link ABC123"
+        if (args.length == 1 && WcLinks.isCode(args[0]) && sender instanceof Player p && sessionOf(p) != null) {
+            args = new String[] {"link", args[0]};
+            sub = "link";
+        }
+        if (sub.equals("link")) {
+            if (!sender.hasPermission("webcraft.link")) {
+                sender.sendMessage(Component.text("Dafür hast du keine Berechtigung.", NamedTextColor.RED));
+            } else if (!(sender instanceof Player p)) {
+                sender.sendMessage(Component.text("Nur für Spieler.", NamedTextColor.RED));
+            } else {
+                link(p, args.length > 1 ? args[1] : null);
+            }
+            return true;
+        }
+        if (!sender.hasPermission("webcraft.admin")) {
+            sender.sendMessage(Component.text("Benutzung: /webcraft link [delete|<Code>]", NamedTextColor.RED));
+            return true;
+        }
         switch (sub) {
             case "status" -> {
                 sender.sendMessage(Component.text("WebCraft bridge on port " + port + ", "
@@ -1315,9 +1372,88 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                 startServer();
                 sender.sendMessage(Component.text("WebCraft bridge reloaded (port " + port + ")", NamedTextColor.GREEN));
             }
-            default -> sender.sendMessage(Component.text("Usage: /webcraft [status|kick <name>|reload]", NamedTextColor.RED));
+            default -> sender.sendMessage(Component.text("Usage: /webcraft [status|kick <name>|reload|link]", NamedTextColor.RED));
         }
         return true;
+    }
+
+    /** /webcraft link [delete|code]: from Minecraft it gives a code, from WebCraft it takes one. */
+    private void link(Player p, String arg) {
+        WcSession s = sessionOf(p);
+        if (arg != null && arg.equalsIgnoreCase("delete")) {
+            if (s != null) {
+                if (s.account == null || links.unlink(s.account) == null) {
+                    p.sendMessage(Component.text("Dein WebCraft-Account ist mit keinem Minecraft-Account verknüpft.", NamedTextColor.RED));
+                    return;
+                }
+                relogin(s, "Verknüpfung aufgehoben. Du spielst wieder als " + s.account + ".");
+            } else {
+                List<String> gone = links.unlink(p.getUniqueId());
+                if (gone.isEmpty()) p.sendMessage(Component.text("Dein Account ist mit keinem WebCraft-Account verknüpft.", NamedTextColor.RED));
+                else p.sendMessage(Component.text("Verknüpfung mit " + String.join(", ", gone) + " aufgehoben.", NamedTextColor.GREEN));
+            }
+            return;
+        }
+        if (s == null) {
+            // Minecraft (Java) player: show a code for WebCraft
+            if (arg != null) {
+                p.sendMessage(Component.text("Den Code tippst du in WebCraft ein, nicht hier.", NamedTextColor.RED));
+                return;
+            }
+            List<String> already = links.linkedTo(p.getUniqueId());
+            if (!already.isEmpty()) {
+                p.sendMessage(Component.text("Schon verknüpft mit " + String.join(", ", already)
+                        + ". Aufheben: /webcraft link delete", NamedTextColor.YELLOW));
+                return;
+            }
+            String code = links.newCode(p.getUniqueId(), p.getName());
+            String cmd = "/webcraft link " + code;
+            p.sendMessage(Component.text("Dein WebCraft-Code: ", NamedTextColor.GOLD)
+                    .append(Component.text(code, NamedTextColor.AQUA, net.kyori.adventure.text.format.TextDecoration.BOLD)
+                            .clickEvent(net.kyori.adventure.text.event.ClickEvent.copyToClipboard(cmd))
+                            .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(Component.text("Klicken zum Kopieren")))));
+            p.sendMessage(Component.text("Tippe in WebCraft in den Chat: " + cmd + " (10 Minuten gültig). Danach sind beide "
+                    + "ein Account: gleiche Items, gleicher Ort. Aufheben: /webcraft link delete", NamedTextColor.GRAY));
+            return;
+        }
+        // WebCraft player: take the code
+        if (s.account == null || (singlePlayer != null && singlePlayer.isSingle(s.name))) {
+            p.sendMessage(Component.text("Im Einzelspieler-Kreativmodus geht das nicht.", NamedTextColor.RED));
+            return;
+        }
+        WcLinks.Account now = links.of(s.account);
+        if (now != null) {
+            p.sendMessage(Component.text("Schon verknüpft mit " + now.name() + ". Aufheben: /webcraft link delete", NamedTextColor.YELLOW));
+            return;
+        }
+        if (arg == null) {
+            p.sendMessage(Component.text("Tippe in Minecraft /webcraft link, dann hier /webcraft link <Code>.", NamedTextColor.YELLOW));
+            return;
+        }
+        WcLinks.Account a = links.redeem(arg, s.account);
+        if (a == null) {
+            p.sendMessage(Component.text("Der Code stimmt nicht oder ist abgelaufen.", NamedTextColor.RED));
+            return;
+        }
+        getLogger().info(s.account + " is now linked with " + a.name() + " (" + a.uuid() + ")");
+        Player java = Bukkit.getPlayer(a.uuid());
+        if (java != null && sessionOf(java) == null) {
+            java.sendMessage(Component.text("Dein Account ist jetzt mit WebCraft (" + s.account + ") verknüpft.", NamedTextColor.GREEN));
+        }
+        relogin(s, "Verknüpft mit " + a.name() + "! Du wirst neu verbunden ...");
+    }
+
+    /** Closes a session with a message; the browser logs in again by itself. */
+    private void relogin(WcSession s, String message) {
+        JsonObject err = new JsonObject();
+        err.addProperty("t", "error");
+        err.addProperty("msg", message);
+        err.addProperty("relogin", true);
+        s.send(err);
+        Bukkit.getScheduler().runTask(this, () -> {
+            s.conn.close(1000, "relogin");
+            handleDisconnect(s);
+        });
     }
 
     // ------------------------------------------------------------------ small helpers

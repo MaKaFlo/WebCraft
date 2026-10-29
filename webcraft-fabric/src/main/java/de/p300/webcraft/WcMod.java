@@ -111,6 +111,7 @@ public final class WcMod implements ModInitializer, WcHost {
     private volatile MinecraftServer server;
     private BlockPalette palette;
     private WcSkins skins;
+    private WcLinks links;
     private WcLang lang;
     private WcSounds sounds;
     private WcServer socket;
@@ -135,6 +136,10 @@ public final class WcMod implements ModInitializer, WcHost {
         ServerLifecycleEvents.SERVER_STOPPING.register(s -> stop());
         ServerTickEvents.END_SERVER_TICK.register(s -> tick());
         CommandRegistrationCallback.EVENT.register((dispatcher, context, selection) -> registerCommands(dispatcher));
+        // Minecraft players linked with WebCraft: keep their name current (names can change)
+        net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.JOIN.register((handler, sender, srv) -> {
+            if (links != null && !byPlayer.containsKey(handler.player.getUUID())) links.seen(handler.player.getUUID(), handler.player.getGameProfile().name());
+        });
         PlayerBlockBreakEvents.AFTER.register((level, player, pos, state, blockEntity) -> {
             if (player instanceof ServerPlayer sp) {
                 logBlock(sp, "break", pos, state);
@@ -151,6 +156,7 @@ public final class WcMod implements ModInitializer, WcHost {
         textures.load();
         blockLog = new WcBlockLog(new File(dataFolder, "blocklog.csv"), logger);
         skins = new WcSkins(new File(dataFolder, "skins").toPath(), logger);
+        links = new WcLinks(new File(dataFolder, "links.json").toPath(), logger);
         WcAssets assets = new WcAssets(new File(dataFolder, "assets").toPath(), logger);
         lang = new WcLang(assets, mojangAssets);
         sounds = new WcSounds(assets, mojangAssets, new File(dataFolder, "sounds.zip").toPath());
@@ -299,7 +305,10 @@ public final class WcMod implements ModInitializer, WcHost {
                 String name = str(json, "name"), skin = str(json, "skin");
                 // Skin of the chosen Minecraft account first (asks Mojang, so not on the server thread)
                 java.util.concurrent.CompletableFuture.runAsync(() -> {
-                    if (skin != null && !skin.isBlank()) s.skin = skins.lookup(skin.trim());
+                    // Linked with a Minecraft account: that account's skin
+                    WcLinks.Account linked = name == null ? null : links.of(namePrefix + name);
+                    String skinOf = skin != null && !skin.isBlank() ? skin.trim() : linked != null ? linked.name() : null;
+                    if (skinOf != null) s.skin = skins.lookup(skinOf);
                 }).whenComplete((ok, err) -> server.execute(() -> {
                     if (!s.closed) login(s, name);
                 }));
@@ -457,7 +466,22 @@ public final class WcMod implements ModInitializer, WcHost {
             fail(s, "Name must be 3-13 characters: letters, digits or _");
             return;
         }
-        String fullName = namePrefix + rawName;
+        String accountName = namePrefix + rawName;
+        // Linked with a Minecraft account (/webcraft link): play as that account (same player, same items)
+        WcLinks.Account linked = links.of(accountName);
+        String fullName = linked != null ? linked.name() : accountName;
+        UUID uuid = linked != null ? linked.uuid() : WcFakePlayer.uuidFor(fullName);
+        if (linked != null) {
+            ServerPlayer java = server.getPlayerList().getPlayer(uuid);
+            if (java != null && !byPlayer.containsKey(uuid)) {
+                // Like Minecraft: the newest login wins; try again when the Java player is gone
+                java.connection.disconnect(Component.literal("Du hast dich mit WebCraft eingeloggt."));
+                if (s.loginTries++ < 20) {
+                    later(5, () -> { if (!s.closed) login(s, rawName); });
+                    return;
+                }
+            }
+        }
         // Same WebCraft name logged in again (second tab, or the old connection died without closing):
         // like Minecraft, the new login wins and the old one is closed.
         WcSession old = findSession(fullName);
@@ -470,11 +494,11 @@ public final class WcMod implements ModInitializer, WcHost {
             return;
         }
         PlayerList players = server.getPlayerList();
-        if (players.getPlayerByName(fullName) != null) {
+        if (players.getPlayerByName(fullName) != null || players.getPlayer(uuid) != null) {
             fail(s, "Name is already in use");
             return;
         }
-        NameAndId id = new NameAndId(WcFakePlayer.uuidFor(fullName), fullName);
+        NameAndId id = new NameAndId(linked != null ? uuid : WcFakePlayer.uuidFor(accountName), linked != null ? fullName : accountName);
         if (players.getBans().isBanned(id)) {
             fail(s, "You are banned from this server");
             return;
@@ -485,8 +509,9 @@ public final class WcMod implements ModInitializer, WcHost {
         }
 
         s.name = fullName;
+        s.account = accountName;
         try {
-            s.fake = WcFakePlayer.join(this, s, fullName, joinLevel(), s.conn.getRemoteSocketAddress());
+            s.fake = WcFakePlayer.join(this, s, fullName, uuid, joinLevel(), s.conn.getRemoteSocketAddress());
         } catch (Exception e) {
             logger.log(java.util.logging.Level.SEVERE, "WebCraft: could not create player " + fullName, e);
             fail(s, "Server error while joining, see server log");
@@ -1332,16 +1357,100 @@ public final class WcMod implements ModInitializer, WcHost {
 
     private void registerCommands(CommandDispatcher<CommandSourceStack> dispatcher) {
         for (String root : new String[] {"webcraft", "wc"}) {
+            java.util.function.Predicate<CommandSourceStack> admin = Commands.hasPermission(Commands.LEVEL_GAMEMASTERS)::test;
             dispatcher.register(Commands.literal(root)
-                    .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
-                    .executes(this::status)
-                    .then(Commands.literal("status").executes(this::status))
-                    .then(Commands.literal("reload").executes(this::reload))
-                    .then(Commands.literal("kick")
+                    .executes(ctx -> admin.test(ctx.getSource()) ? status(ctx) : link(ctx, null))
+                    // Everybody: link the Minecraft account with WebCraft
+                    .then(Commands.literal("link").executes(ctx -> link(ctx, null))
+                            .then(Commands.literal("delete").executes(ctx -> link(ctx, "delete")))
+                            .then(Commands.argument("code", StringArgumentType.word()).executes(ctx -> link(ctx, StringArgumentType.getString(ctx, "code")))))
+                    .then(Commands.literal("status").requires(admin).executes(this::status))
+                    .then(Commands.literal("reload").requires(admin).executes(this::reload))
+                    .then(Commands.literal("kick").requires(admin)
                             .then(Commands.argument("name", StringArgumentType.word()).executes(this::kick)))
-                    .then(Commands.literal("whitelist")
+                    .then(Commands.literal("whitelist").requires(admin)
                             .then(Commands.argument("name", StringArgumentType.word()).executes(this::whitelist))));
         }
+    }
+
+    /** /webcraft link [delete|code]: from Minecraft it gives a code, from WebCraft it takes one. */
+    private int link(CommandContext<CommandSourceStack> ctx, String arg) {
+        ServerPlayer p = ctx.getSource().getPlayer();
+        if (p == null) {
+            ctx.getSource().sendFailure(Component.literal("Nur für Spieler."));
+            return 0;
+        }
+        WcSession s = byPlayer.get(p.getUUID());
+        if (arg != null && arg.equalsIgnoreCase("delete")) {
+            if (s != null) {
+                if (s.account == null || links.unlink(s.account) == null) {
+                    p.sendSystemMessage(Component.literal("Dein WebCraft-Account ist mit keinem Minecraft-Account verknüpft.").withStyle(ChatFormatting.RED));
+                    return 0;
+                }
+                relogin(s, "Verknüpfung aufgehoben. Du spielst wieder als " + s.account + ".");
+            } else {
+                List<String> gone = links.unlink(p.getUUID());
+                if (gone.isEmpty()) p.sendSystemMessage(Component.literal("Dein Account ist mit keinem WebCraft-Account verknüpft.").withStyle(ChatFormatting.RED));
+                else p.sendSystemMessage(Component.literal("Verknüpfung mit " + String.join(", ", gone) + " aufgehoben.").withStyle(ChatFormatting.GREEN));
+            }
+            return 1;
+        }
+        if (s == null) {
+            // Minecraft (Java) player: show a code for WebCraft
+            if (arg != null) {
+                p.sendSystemMessage(Component.literal("Den Code tippst du in WebCraft ein, nicht hier.").withStyle(ChatFormatting.RED));
+                return 0;
+            }
+            List<String> already = links.linkedTo(p.getUUID());
+            if (!already.isEmpty()) {
+                p.sendSystemMessage(Component.literal("Schon verknüpft mit " + String.join(", ", already)
+                        + ". Aufheben: /webcraft link delete").withStyle(ChatFormatting.YELLOW));
+                return 0;
+            }
+            String code = links.newCode(p.getUUID(), p.getGameProfile().name());
+            String cmd = "/webcraft link " + code;
+            p.sendSystemMessage(Component.literal("Dein WebCraft-Code: ").withStyle(ChatFormatting.GOLD)
+                    .append(Component.literal(code).withStyle(st -> st.withColor(ChatFormatting.AQUA).withBold(true)
+                            .withClickEvent(new net.minecraft.network.chat.ClickEvent.CopyToClipboard(cmd))
+                            .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(Component.literal("Klicken zum Kopieren"))))));
+            p.sendSystemMessage(Component.literal("Tippe in WebCraft in den Chat: " + cmd + " (10 Minuten gültig). Danach sind beide "
+                    + "ein Account: gleiche Items, gleicher Ort. Aufheben: /webcraft link delete").withStyle(ChatFormatting.GRAY));
+            return 1;
+        }
+        WcLinks.Account now = links.of(s.account);
+        if (now != null) {
+            p.sendSystemMessage(Component.literal("Schon verknüpft mit " + now.name() + ". Aufheben: /webcraft link delete").withStyle(ChatFormatting.YELLOW));
+            return 0;
+        }
+        if (arg == null) {
+            p.sendSystemMessage(Component.literal("Tippe in Minecraft /webcraft link, dann hier /webcraft link <Code>.").withStyle(ChatFormatting.YELLOW));
+            return 0;
+        }
+        WcLinks.Account a = links.redeem(arg, s.account);
+        if (a == null) {
+            p.sendSystemMessage(Component.literal("Der Code stimmt nicht oder ist abgelaufen.").withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        logger.info(s.account + " is now linked with " + a.name() + " (" + a.uuid() + ")");
+        ServerPlayer java = server.getPlayerList().getPlayer(a.uuid());
+        if (java != null && !byPlayer.containsKey(a.uuid())) {
+            java.sendSystemMessage(Component.literal("Dein Account ist jetzt mit WebCraft (" + s.account + ") verknüpft.").withStyle(ChatFormatting.GREEN));
+        }
+        relogin(s, "Verknüpft mit " + a.name() + "! Du wirst neu verbunden ...");
+        return 1;
+    }
+
+    /** Closes a session with a message; the browser logs in again by itself. */
+    private void relogin(WcSession s, String message) {
+        JsonObject err = new JsonObject();
+        err.addProperty("t", "error");
+        err.addProperty("msg", message);
+        err.addProperty("relogin", true);
+        s.send(err);
+        server.execute(() -> {
+            s.conn.close(1000, "relogin");
+            handleDisconnect(s);
+        });
     }
 
     private int status(CommandContext<CommandSourceStack> ctx) {

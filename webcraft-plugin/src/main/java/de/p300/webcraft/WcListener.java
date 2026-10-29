@@ -49,6 +49,12 @@ public final class WcListener implements Listener {
 
     // ---- block changes (the actual new block is read one tick later)
 
+    /** Minecraft players linked with WebCraft: keep their name current (names can change). */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onJoin(org.bukkit.event.player.PlayerJoinEvent e) {
+        if (plugin.sessionOf(e.getPlayer()) == null) plugin.links.seen(e.getPlayer().getUniqueId(), e.getPlayer().getName());
+    }
+
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlace(BlockPlaceEvent e) {
         check(e.getBlock());

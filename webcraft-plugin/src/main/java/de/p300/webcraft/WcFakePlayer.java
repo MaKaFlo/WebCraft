@@ -91,11 +91,11 @@ public final class WcFakePlayer {
     }
 
     /** Creates the player and lets it join the server like a normal login. */
-    public static WcFakePlayer join(WcPlugin plugin, WcSession session, String name, World world, SocketAddress address) {
+    public static WcFakePlayer join(WcPlugin plugin, WcSession session, String name, UUID uuid, World world, SocketAddress address) {
         WcFakePlayer fake = new WcFakePlayer(plugin, session);
         MinecraftServer server = ((CraftServer) Bukkit.getServer()).getServer();
         ServerLevel level = ((CraftWorld) world).getHandle();
-        GameProfile profile = WcSkins.profile(uuidFor(name), name, session.skin);
+        GameProfile profile = WcSkins.profile(uuid, name, session.skin);
         // Like a real client with the server's view distance. The default (2) is too small: Paper then
         // gives the player almost no ticking chunks, so mobs around WebCraft players freeze and can't be killed.
         ClientInformation def = ClientInformation.createDefault();

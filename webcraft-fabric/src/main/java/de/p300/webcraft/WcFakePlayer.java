@@ -89,10 +89,10 @@ public final class WcFakePlayer {
     }
 
     /** Creates the player and lets it join the server like a normal login. */
-    public static WcFakePlayer join(WcMod mod, WcSession session, String name, ServerLevel level, SocketAddress address) {
+    public static WcFakePlayer join(WcMod mod, WcSession session, String name, UUID uuid, ServerLevel level, SocketAddress address) {
         MinecraftServer server = mod.server();
         WcFakePlayer fake = new WcFakePlayer(mod, session, name);
-        GameProfile profile = WcSkins.profile(uuidFor(name), name, session.skin);
+        GameProfile profile = WcSkins.profile(uuid, name, session.skin);
         // Like a real client with the server's view distance, so the chunks around the player tick
         ClientInformation def = ClientInformation.createDefault();
         int view = Math.max(4, Math.min(12, server.getPlayerList().getViewDistance()));

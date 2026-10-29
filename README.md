@@ -2,7 +2,7 @@
 
 Ein Block-Spiel im Browser, das sich mit einem **Minecraft-Server** verbindet: **Paper** (als Plugin) oder **Fabric** (als Mod, damit auch für Vanilla). WebCraft-Spieler sind auf dem Server **echte Spieler**: Sie stehen in der Tab-Liste, bekommen Schaden, sterben, benutzen Befehle und Menüs von Plugins und Mods. Für den Server gibt es keinen Unterschied zu einem Minecraft-Spieler. So können Leute ohne Minecraft-Account mit Freunden auf dem Server spielen.
 
-Version 0.27.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
+Version 0.28.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
 
 ## Aufbau
 
@@ -132,6 +132,16 @@ Wenn Webseite und Plugin auf verschiedenen Domains laufen, in `config.yml` unter
 | `Esc` | Spielmenü, Einstellungen (auch Lautstärke), Textur-Studio |
 
 Im Inventar: Maus über ein Item zeigt seinen Namen. Shift+Klick verschiebt, `1`-`9` legt das Item unter der Maus auf die Hotbar. Im Kreativmodus: rechts im Inventar alle Items mit Suche. Klick legt 1 Stück in den gewählten Hotbar-Platz, Shift+Klick einen ganzen Stapel, `Entf` leert den Platz unter der Maus.
+
+## Accounts verknüpfen (Minecraft + WebCraft)
+
+Wer Minecraft (Java) hat, kann seinen WebCraft-Account damit verknüpfen. Danach sind beide **ein Account**: gleiche Items, gleicher Ort, gleiche Rechte, gleicher Skin.
+
+1. In Minecraft: `/webcraft link` (oder `/wc link`) zeigt einen Code (10 Minuten gültig, Klick kopiert den Befehl).
+2. In WebCraft in den Chat: `/webcraft link <Code>` (oder kurz `/webcraft <Code>`). WebCraft verbindet sich neu, jetzt als dein Minecraft-Spieler.
+3. Aufheben geht auf beiden Seiten mit `/webcraft link delete`. In WebCraft spielst du dann wieder mit deinem alten `wc_`-Spieler.
+
+Es ist immer nur eine Seite gleichzeitig online: wer sich neu einloggt, wirft die andere Seite raus (wie in Minecraft). Gespeichert in `plugins/WebCraft/links.json` (Fabric: `config/webcraft/links.json`).
 
 ## Befehle (für OPs)
 

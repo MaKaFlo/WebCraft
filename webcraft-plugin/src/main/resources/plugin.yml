@@ -5,14 +5,16 @@ api-version: '26.3'
 description: Lets players of the WebCraft browser game join this server.
 commands:
   webcraft:
-    description: Show WebCraft status, kick a WebCraft player or reload the config.
+    description: Link your account with WebCraft (/webcraft link), admins also status, kick and reload.
     aliases: [wc]
-    usage: /webcraft [status|kick <name>|reload]
-    permission: webcraft.admin
+    usage: /webcraft [link [delete|<code>]|status|kick <name>|reload]
 permissions:
   webcraft.admin:
     description: Use /webcraft admin commands.
     default: op
+  webcraft.link:
+    description: Link a Minecraft account with a WebCraft account (/webcraft link).
+    default: true
   webcraft.textures:
     description: Upload the WebCraft texture pack for everyone from the texture studio.
     default: op
