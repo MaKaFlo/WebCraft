@@ -2,7 +2,7 @@
 
 Ein Block-Spiel im Browser, das sich mit einem **Minecraft-Server** verbindet: **Paper** (als Plugin) oder **Fabric** (als Mod, damit auch für Vanilla). WebCraft-Spieler sind auf dem Server **echte Spieler**: Sie stehen in der Tab-Liste, bekommen Schaden, sterben, benutzen Befehle und Menüs von Plugins und Mods. Für den Server gibt es keinen Unterschied zu einem Minecraft-Spieler. So können Leute ohne Minecraft-Account mit Freunden auf dem Server spielen.
 
-Version 0.33.2 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
+Version 0.34.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
 
 ## Aufbau
 
@@ -141,6 +141,19 @@ Jedes WebCraft-Konto hat ein Passwort. Beim ersten Anmelden (auch bei Konten, di
 - Gespeichert wird nur ein Hash (PBKDF2) in `plugins/WebCraft/passwords.json` (Fabric: `config/webcraft/passwords.json`).
 - Abschalten: `passwords: false` in der config.yml (Fabric: `passwords=false`).
 
+## Konten im Spiel verwalten (nur OPs)
+
+Alles direkt im Spiel oder in der Konsole, ohne Website:
+
+- `/webcraft account create <name> [passwort]`: neues WebCraft-Konto (kommt auf die Whitelist, falls an). Ohne Passwort würfelt der Server eins aus und zeigt es nur dir.
+- `/webcraft account password <name> [passwort]`: neues Passwort (ohne Angabe ausgewürfelt).
+- `/webcraft account reset <name>`: Passwort löschen, der Spieler legt beim nächsten Anmelden ein neues fest.
+- `/webcraft account link <name> <minecraft-spieler>`: mit einem Minecraft-Spieler verknüpfen, der schon auf dem Server war (gleiche Items, gleicher Ort).
+- `/webcraft account unlink <name>`: Verknüpfung lösen.
+- `/webcraft account list`: alle Konten, mit Verknüpfung und wer online ist.
+
+Tipp: Passwort lieber weglassen und auswürfeln lassen, getippte Befehle stehen im Server-Log.
+
 ## Admin-Seite (Spieler anlegen)
 
 Nur OPs (Recht `webcraft.admin`): `/webcraft admin` zeigt einen Admin-Code (8 Zeichen, 30 Minuten gültig, nicht weitergeben). Auf der WebCraft-Anmeldeseite unten auf **🔑 Admin** klicken und den Code eintippen. In WebCraft selbst öffnet `/webcraft admin` die Admin-Seite direkt. Mit `web-url` in der config.yml (Adresse deiner WebCraft-Seite) gibt es zusätzlich einen Klick-Link. 10 falsche Codes sperren die Admin-Seite für 10 Minuten.
@@ -166,6 +179,7 @@ Es ist immer nur eine Seite gleichzeitig online: wer sich neu einloggt, wirft di
 - `/webcraft status`: wer ist über WebCraft online, Chunks, Tracking
 - `/webcraft kick <name>`: WebCraft-Spieler rauswerfen (normales `/kick` und `/ban` gehen auch)
 - `/webcraft reload`: Config und `texturen.zip` neu laden
+- `/webcraft account ...`: Konten anlegen, Passwörter, verknüpfen (siehe oben)
 - `/webcraft admin`: Link zur Admin-Seite (Spieler mit Name und Passwort anlegen, mit Minecraft-Accounts verknüpfen)
 - `/webcraft password <name>`: Passwort eines WebCraft-Kontos löschen (vergessen), beim nächsten Anmelden wird ein neues festgelegt
 - `/webcraft whitelist <name>` (nur Fabric): WebCraft-Spieler auf die Whitelist setzen
