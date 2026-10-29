@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-10-29, version 0.32.0 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
+_Last update: 2026-10-29, version 0.33.0 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
 
 ## Current state
 
@@ -10,6 +10,9 @@ _Last update: 2026-10-29, version 0.32.0 (main). Tag pushes are refused by this 
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- 0.33.0 (friend's report): inventory icons in 3D with the real shape (`icons3d.js`), cauldron model (hollow, water/lava/
+  powder snow; was a full box with see-through sides), bed model from Faithful's per-side pictures, fence and fence gate
+  models. Tested headless (world + inventory screenshots).
 - 0.32.0: trident and spear have their own right click animations (first person and for others), enchanting table shows
   the German enchantment name, level and lapis cost (also as tooltip), item tooltips list the enchantments. Tested headless.
 - 0.31.1: Q drop made complete: instant prediction in the hotbar, holding Q repeats, Shift+Q stack, inventory resent

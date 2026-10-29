@@ -208,7 +208,7 @@ public final class BlockPalette {
 
     private static final java.util.regex.Pattern STATE_DRAWN = java.util.regex.Pattern.compile(
             "(sticky_)?piston(_head)?|repeater|comparator|redstone_wire|observer|dispenser|dropper|hopper|(powered_|detector_|activator_)?rail"
-                    + "|redstone_lamp|daylight_detector|lever|(\\w+_)?(wall_)?torch|\\w+_sign|end_rod|(\\w+_)?lightning_rod|(\\w+_)?lantern");
+                    + "|redstone_lamp|daylight_detector|lever|(\\w+_)?(wall_)?torch|\\w+_sign|end_rod|(\\w+_)?lightning_rod|(\\w+_)?lantern|\\w*cauldron|\\w+_bed|\\w+_fence(_gate)?");
 
     private static <T extends Comparable<T>> String propValue(BlockState state, net.minecraft.world.level.block.state.properties.Property<T> prop) {
         return prop.getName(state.getValue(prop));

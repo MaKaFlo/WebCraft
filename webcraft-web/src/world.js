@@ -589,10 +589,11 @@ export class World {
               // Light from the cell the face looks into (the block's own cell is dark when it stops sky light)
               const nx = lx + Math.round(q.n[0]), ny = ly + Math.round(q.n[1]), nz = lz + Math.round(q.n[2]);
               if (q.cull && P.occluding[idAt(nx, ny, nz)]) continue;
-              const sh = Math.abs(q.n[1]) > 0.5 ? (q.n[1] > 0 ? 1 : 0.55) : Math.abs(q.n[0]) > 0.5 ? 0.8 : 0.68;
+              const sh = q.glow ? 1 : Math.abs(q.n[1]) > 0.5 ? (q.n[1] > 0 ? 1 : 0.55) : Math.abs(q.n[0]) > 0.5 ? 0.8 : 0.68;
               const k = q.tile >= 0 ? sh * (0.97 + (noise - 1) * 0.3) : sh;
-              const cv = tint ? [tint[0] * k, tint[1] * k, tint[2] * k, 1] : [k, k, k, 1];
-              const own = L ? lightCurve(Math.max(lvl(nx, ny, nz), lvl(lx, ly, lz))) : 0;
+              const tq = q.tint || tint;
+              const cv = tq ? [tq[0] * k, tq[1] * k, tq[2] * k, 1] : [k, k, k, 1];
+              const own = L ? lightCurve(q.glow ? 15 : Math.max(lvl(nx, ny, nz), lvl(lx, ly, lz))) : 0;
               const os = skyFlat === undefined ? lightCurve(Math.max(slv(nx, ny, nz), slv(lx, ly, lz))) : skyFlat;
               const pts = q.p.map((v) => [lx + v[0], ly + v[1], lz + v[2]]);
               const uvs = q.uv.map((v) => uvOf(q.tile, v[0], v[1]));

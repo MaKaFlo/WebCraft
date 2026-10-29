@@ -228,6 +228,64 @@ function rod(name, p) {
   return { elements: els, up: f, north: across(f) };
 }
 
+function cauldron(name, p) {
+  // Minecraft's cauldron: 2 px walls, floor at 4 px, short feet in the corners; the inside has its own picture
+  const side = 'block/cauldron_side', inner = 'block/cauldron_inner', top = 'block/cauldron_top';
+  const wall = (f, t, inFace) => ({ f, t, faces: { ...allFaces(side, { up: { t: top }, down: { t: 'block/cauldron_bottom' } }), [inFace]: { t: inner } } });
+  const els = [
+    wall([0, 3, 0], [2, 16, 16], 'east'), wall([14, 3, 0], [16, 16, 16], 'west'),
+    wall([2, 3, 0], [14, 16, 2], 'south'), wall([2, 3, 14], [14, 16, 16], 'north'),
+    { f: [2, 3, 2], t: [14, 4, 14], faces: { up: { t: inner }, down: { t: 'block/cauldron_bottom' } } },
+  ];
+  for (const [x, z] of [[0, 0], [12, 0], [0, 12], [12, 12]]) els.push({ f: [x, 0, z], t: [x + 4, 3, z + 4], faces: allFaces(side) });
+  // Water (blue like Minecraft's water), lava or powder snow at the level of the block state
+  const level = name === 'lava_cauldron' ? 3 : Number(p.level) || 0;
+  if (level > 0) {
+    const y = name === 'lava_cauldron' ? 15 : 6 + 3 * level;
+    const tex = name === 'water_cauldron' ? 'block/water_still' : name === 'lava_cauldron' ? 'block/lava_still' : 'block/powder_snow';
+    els.push({ ...flat(2, 2, 14, 14, y, tex), tint: name === 'water_cauldron' ? [0.25, 0.46, 0.89] : null, glow: name === 'lava_cauldron' });
+  }
+  return { elements: els, up: UP, north: NORTH };
+}
+
+function bed(name, p) {
+  // Faithful/Minecraft pictures per side of a bed facing north (head part north, foot south); legs are drawn in them
+  const c = name.slice(0, -4), part = p.part === 'head' ? 'head' : 'foot';
+  const t = (side) => `block/${c}_bed_${part}_${side}`;
+  const faces = { up: { t: t('up') }, east: { t: t('east'), uv: [0, 7, 16, 16] }, west: { t: t('west'), uv: [0, 7, 16, 16] } };
+  if (part === 'foot') faces.south = { t: t('south'), uv: [0, 7, 16, 16] };
+  else faces.north = { t: `block/${c}_bed_foot_south`, uv: [0, 7, 16, 16] };
+  return { elements: [{ f: [0, 0, 0], t: [16, 9, 16], faces }], up: UP, north: DIR[p.facing] || NORTH };
+}
+
+function fenceGate(p) {
+  // Minecraft's fence gate: two posts and bars; open bars swing to the side the gate looks to; 3 px lower in a wall
+  const t = '#side';
+  const box = (f, to) => ({ f, t: to, faces: allFaces(t) });
+  const els = [box([0, 5, 7], [2, 16, 9]), box([14, 5, 7], [16, 16, 9])];
+  if (p.open === 'true') {
+    els.push(box([0, 6, 1], [2, 15, 3]), box([14, 6, 1], [16, 15, 3]),
+      box([0, 6, 3], [2, 9, 7]), box([0, 12, 3], [2, 15, 7]), box([14, 6, 3], [16, 9, 7]), box([14, 12, 3], [16, 15, 7]));
+  } else {
+    els.push(box([6, 6, 7], [8, 15, 9]), box([8, 6, 7], [10, 15, 9]),
+      box([2, 6, 7], [6, 9, 9]), box([2, 12, 7], [6, 15, 9]), box([10, 6, 7], [14, 9, 9]), box([10, 12, 7], [14, 15, 9]));
+  }
+  if (p.in_wall === 'true') for (const e of els) { e.f = [e.f[0], e.f[1] - 3, e.f[2]]; e.t = [e.t[0], e.t[1] - 3, e.t[2]]; }
+  return { elements: els, up: UP, north: DIR[p.facing] || NORTH };
+}
+
+function fence(p) {
+  // Minecraft's fence: a post and two bars to every side it connects to
+  const t = '#side';
+  const box = (f, to) => ({ f, t: to, faces: allFaces(t) });
+  const els = [box([6, 0, 6], [10, 16, 10])];
+  if (p.north === 'true') els.push(box([7, 12, 0], [9, 15, 6]), box([7, 6, 0], [9, 9, 6]));
+  if (p.south === 'true') els.push(box([7, 12, 10], [9, 15, 16]), box([7, 6, 10], [9, 9, 16]));
+  if (p.west === 'true') els.push(box([0, 12, 7], [6, 15, 9]), box([0, 6, 7], [6, 9, 9]));
+  if (p.east === 'true') els.push(box([10, 12, 7], [16, 15, 9]), box([10, 6, 7], [16, 9, 9]));
+  return { elements: els, up: UP, north: NORTH };
+}
+
 /** Model of a block state, or null to draw it the usual way. */
 export function blockModel(name, p) {
   if (!p) p = {};
@@ -269,6 +327,10 @@ export function blockModel(name, p) {
     return { elements: [s], up: UP, north: DIR[p.facing] || NORTH };
   }
   if (/_sign$/.test(name) && !/hanging/.test(name)) return sign(name, p);
+  if (/cauldron$/.test(name)) return cauldron(name, p);
+  if (/_fence_gate$/.test(name)) return fenceGate(p);
+  if (/_fence$/.test(name)) return fence(p);
+  if (/_bed$/.test(name) && name !== 'straw_bed') return bed(name, p);
   if (/^(\w+_)?lantern$/.test(name) && !/^(sea|jack_o)_lantern$/.test(name)) return lantern(p);
   if (name === 'end_rod' || /lightning_rod$/.test(name)) return rod(name, p);
   return null;
@@ -316,6 +378,7 @@ export function bakeModel(m) {
     return [0.5 + X[0] * x + U[0] * y + Z[0] * z, 0.5 + X[1] * x + U[1] * y + Z[1] * z, 0.5 + X[2] * x + U[2] * y + Z[2] * z];
   };
   const out = [];
+  let el = null;
   const push = (pts, uvRect, r, tex, rot, onEdge) => {
     let corners = CORNER_UV.map(([a, b]) => [a, b]);
     for (let k = 0; k < ((r || 0) / 90) % 4; k++) corners = [corners[3], corners[0], corners[1], corners[2]];
@@ -332,9 +395,9 @@ export function bakeModel(m) {
     if (onEdge) {
       for (const [s, d] of Object.entries(FACE_DIRS)) if (d[0] * n[0] + d[1] * n[1] + d[2] * n[2] > 0.99) cull = s;
     }
-    out.push({ p, uv, tex, n, cull });
+    out.push({ p, uv, tex, n, cull, tint: el.tint || null, glow: !!el.glow });
   };
-  for (const el of m.elements) {
+  for (el of m.elements) {
     if (el.q) { push(el.q, el.uv, el.r, el.t, el.rot, false); continue; }
     for (const [side, face] of Object.entries(el.faces)) {
       const fc = boxFace(el.f, el.t, side);

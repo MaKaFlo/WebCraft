@@ -1,6 +1,7 @@
 // Item icons and names for the hotbar and inventory (drawn by code, no Minecraft textures).
 import { KIND_AIR, KIND_LIQUID, KIND_CROSS } from './palette.js';
 import { atlas, TILE_PX } from './textures.js';
+import { drawBlockIcon, wants3d, FLAT_ICON } from './icons3d.js';
 
 const TINTS = [
   [/^wooden_/, '#a07a4a'], [/^stone_/, '#8f8f8f'], [/^iron_/, '#dcdcdc'], [/^golden_/, '#f2c94c'],
@@ -150,10 +151,13 @@ export function iconCanvas(palette, key) {
   if (itemTile >= 0) {
     // Own item picture from the texture pack
     atlas.drawTileTo(ctx, itemTile, 0, 0, size, size);
-  } else if (id !== undefined && palette.kind[id] === KIND_CROSS) {
+  } else if (id !== undefined && (palette.kind[id] === KIND_CROSS || FLAT_ICON.test(key))) {
     // Plants, torches ...: the flat picture
     const rgb = [palette.rgb[id * 3], palette.rgb[id * 3 + 1], palette.rgb[id * 3 + 2]];
     ctx.drawImage(faceCanvas(palette.tileSide[id], rgb, palette.packed[id] & 2), 0, 0, size, size);
+  } else if (id !== undefined && palette.kind[id] !== KIND_AIR && (wants3d(palette, id) || /_bed$/.test(key))
+      && drawBlockIcon(ctx, palette, key, size)) {
+    // Fence gates, walls, stairs, beds, anvils ...: their real shape in 3D
   } else if (id !== undefined && palette.kind[id] !== KIND_AIR) {
     // Little isometric cube with the block textures
     const rgb = [palette.rgb[id * 3], palette.rgb[id * 3 + 1], palette.rgb[id * 3 + 2]];
