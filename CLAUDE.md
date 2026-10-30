@@ -243,7 +243,9 @@ Minecraft 26 kicks a second position packet in the same tick ("Invalid move play
 its position right before those actions (`main.js ACTIONS`). `world.setBlock` ignores unchanged ids (server
 confirmations re-meshed sections, lag while building). Chunks meshed with a missing neighbour (`incomplete`, edge of the
 view) are meshed again when it arrives (their border drew air there: water edges sank, a gap between chunks).
-Sneaking: the eye height glides (`player.eyeH`, crouch eye 1.27 like Minecraft).
+Floating kick: Minecraft kicks a player whose last move was in the air with no blocks around after 80 ticks
+("Flying is not enabled"). The browser stops sending moves when its tab is hidden or the menu is open, so while no move
+came for 10 ticks `WcFakePlayer.notFloating()` resets `aboveGroundTickCount` (reflection). Sneaking: the eye height glides (`player.eyeH`, crouch eye 1.27 like Minecraft).
 
 Inventory drag: holding a button while carrying an item collects slots (`inventory.js dragOver`, same item or empty, not
 result slots, at most the carried count); on release one slot = normal `pickup` click, more = `click` mode `drag`

@@ -172,10 +172,14 @@ public final class WcFakePlayer {
             if (!movedThisTick) {
                 ServerboundMovePlayerPacket move = pendingMove;
                 pendingMove = null;
-                if (move != null) listener().handleMovePlayer(move);
+                if (move != null) {
+                    listener().handleMovePlayer(move);
+                    lastMoveTick = ticks;
+                }
             }
             listener().handleClientTickEnd(ServerboundClientTickEndPacket.INSTANCE);
             movedThisTick = false;
+            if (ticks - lastMoveTick > SILENT_TICKS) notFloating();
             listener().tick();
             ticks++;
             if (pendingStopAt >= 0 && (ticks >= pendingStopAt || digDone())) flushPendingStop();
@@ -267,6 +271,8 @@ public final class WcFakePlayer {
 
     private static final java.lang.reflect.Field AWAITING_POS = field("awaitingPositionFromClient");
     private static final java.lang.reflect.Field AWAITING_ID = field("awaitingTeleport");
+    private static final java.lang.reflect.Field ABOVE_GROUND = field("aboveGroundTickCount");
+    private static final java.lang.reflect.Field ABOVE_GROUND_VEHICLE = field("aboveGroundVehicleTickCount");
 
     private static java.lang.reflect.Field field(String name) {
         try {
@@ -371,6 +377,22 @@ public final class WcFakePlayer {
         pendingMove = null;
         movedThisTick = true;
         listener().handleMovePlayer(move);
+        lastMoveTick = ticks;
+    }
+
+    // A browser that sends no moves (tab in the background, game menu, a long frame) leaves the player where its last
+    // move was, often in the air after a jump. The server counts that as floating and kicks after 4 s ("Flying is not
+    // enabled on this server"). A real client keeps ticking and falls; ours simply isn't running, so while it is
+    // silent the floating counters are kept at zero. With moves coming in the normal check applies.
+    private static final int SILENT_TICKS = 10;
+    private long lastMoveTick;
+
+    private void notFloating() {
+        try {
+            ABOVE_GROUND.setInt(listener(), 0);
+            ABOVE_GROUND_VEHICLE.setInt(listener(), 0);
+        } catch (IllegalAccessException ignored) {
+        }
     }
 
     private boolean movedThisTick;   // a position packet went to the server since the last tick end

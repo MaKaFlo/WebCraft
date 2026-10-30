@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-10-30, version 0.36.0 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
+_Last update: 2026-10-30, version 0.36.1 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
 
 ## Current state
 
@@ -10,6 +10,12 @@ _Last update: 2026-10-30, version 0.36.0 (main). Tag pushes are refused by this 
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- 0.36.1: kick "Flying is not enabled on this server" fixed: a browser that sends no moves (tab in the background,
+  game menu, long frame) after a jump was kicked after 4 s on servers with allow-flight=false. While no move came for
+  10 ticks the floating counters are reset (`WcFakePlayer.notFloating`); hovering with moves still kicks. Tests:
+  `/home/user/srv/float.mjs`, `hover.mjs`, `spam.mjs`. Owner's server showed no WebCraft line in the log at all with
+  0.36.0 (jar not picked up by Paper, likely downloaded as .zip); release jar tested fine locally. Deliver the page
+  always as `webcraft.html`. Local jars had stale `WcWorlds` classes from an old target/classes (now cleaned).
 - License check (2026-10-30): Faithful license point 4 forbids using it as a substitute for Minecraft's graphics where
   the originals aren't allowed (browser players may not own Minecraft). Owner keeps Faithful and asks Faithful for
   permission (English request text written). If they say no: built-in Pixel Perfection CE, Faithful as server pack.
