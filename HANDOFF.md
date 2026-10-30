@@ -151,7 +151,7 @@ _Last update: 2026-10-30, version 0.36.1 (main). Tag pushes are refused by this 
 ## Repository
 
 - GitHub: `https://github.com/MaKaFlo/WebCraft` (old URL `https://github.com/MaKaFlo/webcraft` still redirects;
-  the local `origin` still has the old URL, changing it was blocked by a permission rule).
+  the local `origin` was switched to the new URL on 2026-10-30).
 
 ## Local paths (session container, may be gone)
 
