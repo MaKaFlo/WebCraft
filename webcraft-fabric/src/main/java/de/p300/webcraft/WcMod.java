@@ -476,16 +476,16 @@ public final class WcMod implements ModInitializer, WcHost {
                 case "creative" -> {
                     int slot = integer(json, "slot");
                     String key = str(json, "k");
-                    if (slot < 5 || slot > 45) return;
+                    if ((slot < 5 || slot > 45) && slot != -1) return; // -1 = mouse cursor
                     if (key == null || key.isEmpty()) {
-                        f.creativeSet(slot, null);
+                        if (slot == -1) f.creativeCarry(null); else f.creativeSet(slot, null);
                     } else {
                         Identifier id = Identifier.tryParse(key);
                         Optional<Holder.Reference<Item>> item = id == null ? Optional.empty() : BuiltInRegistries.ITEM.get(id);
                         if (item.isEmpty() || item.get().value() == net.minecraft.world.item.Items.AIR) return;
                         ItemStack stack = new ItemStack(item.get().value(), 1);
                         stack.setCount(Math.max(1, Math.min(stack.getMaxStackSize(), integer(json, "c"))));
-                        f.creativeSet(slot, stack);
+                        if (slot == -1) f.creativeCarry(stack); else f.creativeSet(slot, stack);
                     }
                     s.invDirty = true;
                 }

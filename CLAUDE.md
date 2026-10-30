@@ -249,6 +249,10 @@ Inventory drag: holding a button while carrying an item collects slots (`invento
 result slots, at most the carried count); on release one slot = normal `pickup` click, more = `click` mode `drag`
 (`QUICK_CRAFT`, btn = phase 0/1/2 | type << 2, start and end with slot -999). Test: `/home/user/srv/drag.cjs`.
 
+Creative item list (`inventory.js renderPicker`): `creative` {slot: -1, k, c} puts the item on the server menu's carried
+stack (`creativeCarry`, refused without `hasInfiniteMaterials`), so placing it uses the normal clicks; `k: ''` clears it.
+Slots 5-45 still go through `ServerboundSetCreativeModeSlotPacket`. Test: `/home/user/srv/creative.cjs`.
+
 Drops: vanilla predicts Q drops on the client, so `ServerPlayer.drop` only updates the remote slot and sends nothing;
 `drop` therefore sets `invDirty` (else a ghost item stayed in the hotbar); `swap_hands` too. The browser predicts the drop
 like the vanilla client (`main.js dropItem` → `inventory.predictDrop`, also touch/pad), holding Q repeats.

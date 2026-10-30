@@ -471,6 +471,14 @@ public final class WcFakePlayer {
         listener().handleSetCreativeModeSlot(new ServerboundSetCreativeModeSlotPacket((short) slot, nms));
     }
 
+    /** Creative mode: put any item on the mouse cursor (like the creative tab of the vanilla client). */
+    public void creativeCarry(ItemStack item) {
+        if (!handle().hasInfiniteMaterials()) return;
+        net.minecraft.world.item.ItemStack stack = item == null
+                ? net.minecraft.world.item.ItemStack.EMPTY : CraftItemStack.asNMSCopy(item);
+        handle().containerMenu.setCarried(stack);
+    }
+
     public void openOwnInventory() {
         listener().handlePlayerCommand(new ServerboundPlayerCommandPacket(handle(), ServerboundPlayerCommandPacket.Action.OPEN_INVENTORY));
     }

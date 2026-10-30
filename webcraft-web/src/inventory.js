@@ -491,7 +491,7 @@ export class Inventory {
     const box = document.createElement('div');
     box.className = 'creative';
     box.innerHTML = '<h3>Kreativ-Items</h3><input class="creative-search" placeholder="Suchen (z. B. diamant, sword) ..." autocomplete="off">'
-      + '<div class="creative-help">Klick: 1 Stück in den gewählten Hotbar-Platz · Shift+Klick: ganzer Stapel · Entf: Platz unter der Maus leeren</div>'
+      + '<div class="creative-help">Klick: Item an die Maus nehmen, dann auf einen Platz legen · Shift+Klick: ganzer Stapel · Klick hier mit Item an der Maus: wegwerfen · Entf: Platz unter der Maus leeren</div>'
       + '<div class="creative-grid"></div>';
     const input = box.querySelector('input');
     input.value = this.search;
@@ -524,7 +524,12 @@ export class Inventory {
       el.addEventListener('mousedown', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        this.send({ t: 'creative', slot: 36 + this.selected, k, c: e.shiftKey || e.button === 1 ? 64 : 1 });
+        // Like Minecraft's creative tab: the item goes onto the mouse, a click on a slot puts it there.
+        // Clicking the list while carrying something else throws that away, the same item adds one.
+        const carried = this.menu?.carried;
+        const full = e.shiftKey || e.button === 1;
+        if (carried && carried.k !== k) this.send({ t: 'creative', slot: -1, k: '' });
+        else this.send({ t: 'creative', slot: -1, k, c: full ? 64 : (carried ? (carried.c ?? 1) + 1 : 1) });
       });
       g.appendChild(el);
     }

@@ -312,14 +312,14 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                 case "creative" -> {
                     int slot = integer(json, "slot");
                     String key = str(json, "k");
-                    if (slot < 5 || slot > 45) return;
+                    if ((slot < 5 || slot > 45) && slot != -1) return; // -1 = mouse cursor
                     if (key == null || key.isEmpty()) {
-                        f.creativeSet(slot, null);
+                        if (slot == -1) f.creativeCarry(null); else f.creativeSet(slot, null);
                     } else {
                         org.bukkit.Material m = org.bukkit.Material.matchMaterial(key);
                         if (m == null || !m.isItem() || m.isAir()) return;
                         int count = Math.max(1, Math.min(m.getMaxStackSize(), integer(json, "c")));
-                        f.creativeSet(slot, new ItemStack(m, count));
+                        if (slot == -1) f.creativeCarry(new ItemStack(m, count)); else f.creativeSet(slot, new ItemStack(m, count));
                     }
                     s.invDirty = true;
                 }
