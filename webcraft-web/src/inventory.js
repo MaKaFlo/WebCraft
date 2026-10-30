@@ -136,6 +136,7 @@ export class Inventory {
       if (e.target === screenEl) this.clickSlot(-999, e.button === 2 ? 1 : 0, 'pickup');
     });
     screenEl.addEventListener('contextmenu', (e) => e.preventDefault());
+    document.addEventListener('mouseup', () => this.endDrag());
 
     this.cursorEl = document.createElement('img');
     this.cursorEl.className = 'cursor-item';
@@ -180,6 +181,34 @@ export class Inventory {
 
   clickSlot(slot, btn, mode) {
     this.send({ t: 'click', slot, btn, mode });
+  }
+
+  /** Drag with the button held: add a slot that can take the carried item (like Minecraft's client). */
+  dragOver(index, el) {
+    const d = this.drag;
+    const carried = this.menu?.carried;
+    if (!carried || d.slots.includes(index) || el.closest('.result')) return;
+    const it = this.menu.slots[index];
+    if (it && it.k !== carried.k) return;
+    if (d.slots.length >= (carried.c ?? 1)) return;
+    d.slots.push(index);
+    el.classList.add('dragged');
+  }
+
+  /** Mouse released: one slot = normal click, more = QUICK_CRAFT (start, every slot, end). */
+  endDrag() {
+    const d = this.drag;
+    if (!d) return;
+    this.drag = null;
+    for (const el of this.slotEls.values()) el.classList.remove('dragged');
+    if (d.slots.length === 1) {
+      this.clickSlot(d.slots[0], d.btn, 'pickup');
+    } else if (d.slots.length > 1) {
+      const type = d.btn << 2;
+      this.clickSlot(-999, type, 'drag');
+      for (const s of d.slots) this.clickSlot(s, type | 1, 'drag');
+      this.clickSlot(-999, type | 2, 'drag');
+    }
   }
 
   /** Keys while the screen is open: 1-9 swaps the hovered slot with the hotbar, Q throws it. */
@@ -252,9 +281,20 @@ export class Inventory {
       el.addEventListener('mousedown', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        this.clickSlot(index, e.button === 2 ? 1 : 0, e.shiftKey ? 'quick' : 'pickup');
+        const btn = e.button === 2 ? 1 : 0;
+        // Carrying an item: wait for the release, the mouse may drag it over more slots
+        if (!e.shiftKey && e.button !== 1 && this.menu?.carried && !this.drag) {
+          this.drag = { btn, slots: [] };
+          this.dragOver(index, el);
+          return;
+        }
+        if (this.drag) return;
+        this.clickSlot(index, btn, e.shiftKey ? 'quick' : 'pickup');
       });
-      el.addEventListener('mouseenter', () => { this.hoverSlot = index; });
+      el.addEventListener('mouseenter', () => {
+        this.hoverSlot = index;
+        if (this.drag) this.dragOver(index, el);
+      });
       el.addEventListener('mouseleave', () => { if (this.hoverSlot === index) this.hoverSlot = -1; });
       this.slotEls.set(index, el);
       return el;
@@ -701,6 +741,7 @@ export class Inventory {
     this.open = open;
     this.screen.hidden = !open;
     this.hoverSlot = -1;
+    this.drag = null;
     this.tipTarget = null;
     this.refreshTip();
     if (notify) this.send({ t: open ? 'inv_open' : 'close' });

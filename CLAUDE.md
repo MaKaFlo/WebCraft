@@ -245,6 +245,10 @@ confirmations re-meshed sections, lag while building). Chunks meshed with a miss
 view) are meshed again when it arrives (their border drew air there: water edges sank, a gap between chunks).
 Sneaking: the eye height glides (`player.eyeH`, crouch eye 1.27 like Minecraft).
 
+Inventory drag: holding a button while carrying an item collects slots (`inventory.js dragOver`, same item or empty, not
+result slots, at most the carried count); on release one slot = normal `pickup` click, more = `click` mode `drag`
+(`QUICK_CRAFT`, btn = phase 0/1/2 | type << 2, start and end with slot -999). Test: `/home/user/srv/drag.cjs`.
+
 Drops: vanilla predicts Q drops on the client, so `ServerPlayer.drop` only updates the remote slot and sends nothing;
 `drop` therefore sets `invDirty` (else a ghost item stayed in the hotbar); `swap_hands` too. The browser predicts the drop
 like the vanilla client (`main.js dropItem` → `inventory.predictDrop`, also touch/pad), holding Q repeats.

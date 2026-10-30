@@ -463,6 +463,7 @@ public final class WcFakePlayer {
             case "quick" -> ContainerInput.QUICK_MOVE;
             case "swap" -> ContainerInput.SWAP;      // button = hotbar slot 0-8, or 40 for offhand
             case "throw" -> ContainerInput.THROW;
+            case "drag" -> ContainerInput.QUICK_CRAFT; // button = phase (0 start, 1 slot, 2 end) | type << 2
             default -> ContainerInput.PICKUP;
         };
         listener().handleContainerClick(new ServerboundContainerClickPacket(menu.containerId, menu.getStateId(),

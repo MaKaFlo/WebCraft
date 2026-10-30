@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-10-29, version 0.35.1 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
+_Last update: 2026-10-30, version 0.35.2 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
 
 ## Current state
 
@@ -10,6 +10,9 @@ _Last update: 2026-10-29, version 0.35.1 (main). Tag pushes are refused by this 
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- 0.35.2 (friend's report): drag the carried stack over slots with a button held (right = one each, left = split
+  evenly), like Minecraft (`inventory.js dragOver/endDrag` → `click` mode `drag` = `QUICK_CRAFT`). Tested on Paper with
+  real mouse events (2x2 grid, chest-less); Fabric compiled only.
 - 0.35.1: kick "Invalid move player packet received" when hitting/digging/placing while moving (0.35.0's flushMove sent
   a second position in one tick; now at most one). Checked: old jar kicked in the spam test, new one not. Open: "lag when
   jumping up blocks while standing at them" not reproduced, asked the owner what exactly happens.
