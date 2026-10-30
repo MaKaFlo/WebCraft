@@ -10,7 +10,7 @@ import { Hud } from './hud.js';
 import { TabList } from './tablist.js';
 import { Sidebar } from './sidebar.js';
 import { Hand, useKind, drawnPicture } from './hand.js';
-import { sounds, Music, setVolume, setMusicVolume, unlockAudio } from './sounds.js';
+import { sounds, Music, Ambience, setVolume, setMusicVolume, unlockAudio } from './sounds.js';
 import { pack } from './pack.js';
 import { clearIconCache, setNames } from './items.js';
 import { Studio } from './studio.js';
@@ -96,6 +96,7 @@ const border = new Border(scene);
 setVolume(settings.vol / 100);
 setMusicVolume(settings.music / 100);
 const music = new Music();
+const ambience = new Ambience();
 let worldEnv = 'NORMAL', gameMode = 'SURVIVAL';
 let myEntityId = -1;
 let eatTimer = 0;
@@ -1202,6 +1203,7 @@ function frame(now) {
     otherSteps();
     rainSound(dt);
     music.update(dt, musicKind());
+    ambienceUpdate(dt);
 
     if (!ui.loading.hidden && player.groundLoaded() && world.dirty.size < 20) ui.loading.hidden = true;
     checkMissingChunks(dt);
@@ -1345,6 +1347,22 @@ function rainSound(dt) {
   else sounds.play('weather.rain', x + 0.5, top, z + 0.5, 0.2 * weather.rain, 1);
 }
 
+let darkT = 0, inDark = false;
+/** Under water (camera in water) and the cave mood (overworld, no sky and hardly any light around). */
+function ambienceUpdate(dt) {
+  const P = world.palette;
+  if (!P) return;
+  const id = world.getId(Math.floor(camera.position.x), Math.floor(camera.position.y), Math.floor(camera.position.z));
+  const underwater = P.kind[id] === KIND_LIQUID && P.names[id] === 'water';
+  darkT -= dt;
+  if (darkT <= 0) {
+    darkT = 0.5;
+    const l = world.hasSky ? world.lightAt(player.x, player.eyeY, player.z) : null;
+    inDark = !!l && l.sky === 0 && l.block < 4;
+  }
+  ambience.update(dt, underwater && !dead, inDark && !dead);
+}
+
 function musicKind() {
   if (worldEnv === 'NETHER') return 'music.nether.nether_wastes';
   if (worldEnv === 'THE_END') return 'music.end';
@@ -1356,6 +1374,10 @@ function blockSound(x, y, z, old, id) {
   const u = interaction.lastUseOn;
   if (!u || old === id || performance.now() - u.at > 1500) return;
   const P = world.palette;
+  if (u.played) return;
+  // Once per click: the water flowing away after a bucket fill must not play it again
+  const at = u.x === undefined ? null : (x === u.x && y === u.y && z === u.z) || (x === u.x + u.face[0] && y === u.y + u.face[1] && z === u.z + u.face[2]);
+  if (itemSound(u.item, x, y, z, P.names[old] || 'air', P.names[id] || 'air', P.lit[old], P.lit[id], at)) { u.played = true; return; }
   if (x === u.x && y === u.y && z === u.z && P.useSound[id] && P.names[old] === P.names[id]) {
     const [e, v, p] = P.useSound[id];
     sounds.play(e, x + 0.5, y + 0.5, z + 0.5, v, p * (0.9 + Math.random() * 0.1));
@@ -1367,6 +1389,35 @@ function blockSound(x, y, z, old, id) {
   if (placed && id && P.names[old] !== P.names[id] && P.kind[id] !== KIND_LIQUID) {
     sounds.block(P, id, 2, x, y, z);
   }
+}
+
+/** Buckets and tools: the vanilla client plays these itself (the server sends them to the others only). */
+function itemSound(item, x, y, z, was, now, litWas, litNow, atClick) {
+  if (!item) return false;
+  const liquid = (n) => n === 'water' || n === 'lava';
+  let e = null, pitch = 1;
+  if (item === 'bucket') {
+    if (liquid(was) && !liquid(now)) e = was === 'lava' ? 'item.bucket.fill_lava' : 'item.bucket.fill';
+  } else if (item === 'water_bucket' || item === 'lava_bucket') {
+    const want = item === 'water_bucket' ? 'water' : 'lava';
+    // Also into flowing water: then only the state changes, so it has to be the clicked place
+    if (now === want && (was !== want || atClick)) e = want === 'lava' ? 'item.bucket.empty_lava' : 'item.bucket.empty';
+  } else if (item === 'flint_and_steel' || item === 'fire_charge') {
+    if ((now.endsWith('fire') && !was.endsWith('fire')) || (was === now && litNow && !litWas)) {
+      e = 'item.flintandsteel.use';
+      pitch = 0.8 + Math.random() * 0.4;
+    }
+  } else if (item.endsWith('_hoe')) {
+    if (now === 'farmland' || ((was === 'coarse_dirt' || was === 'rooted_dirt') && now === 'dirt')) e = 'item.hoe.till';
+  } else if (item.endsWith('_shovel')) {
+    if (now === 'dirt_path') e = 'item.shovel.flatten';
+    else if (was === now && litWas && !litNow) e = 'block.fire.extinguish';
+  } else if (item.endsWith('_axe')) {
+    if (now.startsWith('stripped_') || (was !== now && was.includes('copper'))) e = 'item.axe.strip';
+  }
+  if (!e) return false;
+  sounds.play(e, x + 0.5, y + 0.5, z + 0.5, 1, pitch);
+  return true;
 }
 
 let missingTime = 0;
@@ -1420,4 +1471,4 @@ function updateHud() {
 }
 
 // Handy for debugging in the browser console: wc.player, wc.world
-window.wc = { get state() { return { connected, chatOpen, dead, view }; }, signs, player, world, entities, renderer, scene, camera, inventory, interaction, send, hud, sidebar, studio, pack, hand, sky, particles, weather, sounds, mods };
+window.wc = { get state() { return { connected, chatOpen, dead, view }; }, signs, player, world, entities, renderer, scene, camera, inventory, interaction, send, hud, sidebar, studio, pack, hand, sky, particles, weather, sounds, ambience, mods };

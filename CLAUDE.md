@@ -302,6 +302,9 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
   gates/buttons/levers (palette `us` = sound of the state, played when the clicked block changes), rain, thunder,
   music (`Music`, 10-20 min pauses), `animateTick` sounds in `particles.js` (40 % of Minecraft's chances, we sample
   denser). `sounds.js`: Web Audio, PannerNode linear over 16 x volume, IndexedDB `wc-sounds` (hash → ogg).
+  Own tool/bucket sounds come from the block change after our click (`main.js itemSound`, `lastUseOn.item`).
+  `Ambience` (made with oscillators/noise, no files): master → `muffle` low pass (450 Hz under water) → output,
+  under water rumble + bubbles, cave mood (overworld, `lightAt` sky 0 and block < 4) → eerie sound every 2-6 min.
 - `signs` {l: [{x, y, z, f: {l: [4 lines], c: dye color, g: glow}, b: {...}}]} (`WcSigns`): all signs with every chunk (sent after
   the chunk) and changed ones per tick (captured `ClientboundBlockEntityDataPacket` of sign types); an entry without `f` = gone.
   `sign_edit` {x, y, z, front} from a captured `ClientboundOpenSignEditorPacket`; the browser answers `sign` {x, y, z, front, l}

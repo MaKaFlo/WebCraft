@@ -314,7 +314,7 @@ export class Interaction {
         if (this.intersectsPlayer(px, py, pz) && !this.isInteractive(P.names[t.id])) return;
       }
       this.send({ t: 'use_on', x: t.x, y: t.y, z: t.z, face: faceIndex(t.face), hx: t.hit[0], hy: t.hit[1], hz: t.hit[2] });
-      this.lastUseOn = { x: t.x, y: t.y, z: t.z, face: t.face, at: performance.now() };   // sounds of what the server changes
+      this.lastUseOn = { x: t.x, y: t.y, z: t.z, face: t.face, item: item?.k, at: performance.now() };   // sounds of what the server changes
       // Snowballs, eggs, pearls ... fly off with an arm swing, also when you look at a block
       if (item && THROWN.test(item.k) && !this.isInteractive(P.names[t.id])) {
         this.send({ t: 'use' });
@@ -341,6 +341,7 @@ export class Interaction {
     if (item && !this.using) {
       this.using = true;
       this.send({ t: 'use' });
+      this.lastUseOn = { item: item.k, at: performance.now() };   // a bucket filled from water further away
     } else if (!item && off) {
       // Empty main hand: the server uses the item in the off hand (food, potion, shield ...)
       this.send({ t: 'use' });

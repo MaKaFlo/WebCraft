@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-10-30, version 0.36.1 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
+_Last update: 2026-10-30, version 0.37.0 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
 
 ## Current state
 
@@ -10,6 +10,11 @@ _Last update: 2026-10-30, version 0.36.1 (main). Tag pushes are refused by this 
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- 0.37.0 (owner's pick from the idea list: more sounds): own bucket fill/empty, flint and steel, hoe, shovel (path,
+  campfire out), axe (strip, copper) sounds (`main.js itemSound`, from the block change after the click, once per click);
+  under water everything is muffled (low pass on the master) with a made rumble and bubbles, dark caves build a mood
+  and play a made eerie sound every 2-6 min (`sounds.js Ambience`, Web Audio only, no files). Tested headless
+  (`/home/user/srv/sndtest.cjs`), not heard by a human yet. Not done: biome music (no free tracks).
 - 0.36.1: kick "Flying is not enabled on this server" fixed: a browser that sends no moves (tab in the background,
   game menu, long frame) after a jump was kicked after 4 s on servers with allow-flight=false. While no move came for
   10 ticks the floating counters are reset (`WcFakePlayer.notFloating`); hovering with moves still kicks. Tests:

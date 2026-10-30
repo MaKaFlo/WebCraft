@@ -9,6 +9,7 @@ const LATE_MS = 1500;   // a sound whose file arrives later than this is dropped
 let ctx = null;
 let master = null;
 let musicGain = null;
+let muffle = null;   // low pass on everything, closed under water
 let volume = 0.6;
 let musicVolume = 0.5;
 
@@ -18,7 +19,11 @@ function audio() {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
       master = ctx.createGain();
       master.gain.value = volume;
-      master.connect(ctx.destination);
+      muffle = ctx.createBiquadFilter();
+      muffle.type = 'lowpass';
+      muffle.frequency.value = 22000;
+      master.connect(muffle);
+      muffle.connect(ctx.destination);
       musicGain = ctx.createGain();
       musicGain.gain.value = musicVolume;
       musicGain.connect(master);
@@ -307,5 +312,198 @@ export class Music {
     if (this.current?.source) { try { this.current.source.stop(); } catch (e) { /* not started */ } }
     this.current = null;
     this.wait = 20 + Math.random() * 60;
+  }
+}
+
+// ---------------------------------------------------------------- ambience (made here, no files)
+
+/** One second of brown noise (random walk), the raw material of the made sounds below. */
+let noiseBuf = null;
+function noise(a) {
+  if (noiseBuf) return noiseBuf;
+  noiseBuf = a.createBuffer(1, a.sampleRate * 2, a.sampleRate);
+  const d = noiseBuf.getChannelData(0);
+  let v = 0;
+  for (let i = 0; i < d.length; i++) {
+    v = (v + (Math.random() * 2 - 1) * 0.02) * 0.998;
+    d[i] = v * 3.5;
+  }
+  return noiseBuf;
+}
+
+/** A gain that rises to `peak` and fades out again (seconds from now). */
+function envelope(a, peak, attack, hold, release) {
+  const g = a.createGain();
+  const t = a.currentTime;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(peak, t + attack);
+  g.gain.setValueAtTime(peak, t + attack + hold);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + attack + hold + release);
+  return g;
+}
+
+/**
+ * Like Minecraft's ambient sounds of the player's surroundings: under water everything is muffled, with a low rumble
+ * and bubbles now and then; in dark caves a "mood" builds up and plays an eerie sound every few minutes.
+ * Minecraft's own files may not go to the browsers, so these are made with Web Audio.
+ */
+export class Ambience {
+  constructor() {
+    this.under = false;
+    this.loop = null;
+    this.bubbleT = 2;
+    this.mood = 0;
+    this.moodTime = 180;
+  }
+
+  /** Every frame. underwater: the camera is in water; dark: deep in a cave without light. */
+  update(dt, underwater, dark) {
+    const a = ctx;
+    if (!a || !muffle) return;
+    if (underwater !== this.under) {
+      this.under = underwater;
+      muffle.frequency.setTargetAtTime(underwater ? 450 : 22000, a.currentTime, underwater ? 0.05 : 0.2);
+      if (underwater) this.startLoop(a); else this.stopLoop(a);
+    }
+    if (volume <= 0) return;
+    if (underwater) {
+      this.bubbleT -= dt;
+      if (this.bubbleT <= 0) {
+        this.bubbleT = 1.5 + Math.random() * 6;
+        this.bubbles(a, 2 + Math.floor(Math.random() * 5));
+      }
+    }
+    // Minecraft fills its mood in about 5 minutes of darkness and plays a cave sound when it is full
+    if (dark) this.mood += dt / this.moodTime;
+    else this.mood = Math.max(0, this.mood - dt / 600);
+    if (this.mood >= 1) {
+      this.mood = 0;
+      this.moodTime = 120 + Math.random() * 240;
+      this.caveSound(a);
+    }
+  }
+
+  startLoop(a) {
+    if (this.loop) return;
+    const src = a.createBufferSource();
+    src.buffer = noise(a);
+    src.loop = true;
+    const lp = a.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 260;
+    const g = a.createGain();
+    g.gain.setValueAtTime(0.0001, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.5, a.currentTime + 0.6);
+    // Slow swell like moving water
+    const lfo = a.createOscillator();
+    lfo.frequency.value = 0.15;
+    const depth = a.createGain();
+    depth.gain.value = 0.2;
+    lfo.connect(depth).connect(g.gain);
+    src.connect(lp).connect(g).connect(master);
+    src.start();
+    lfo.start();
+    this.loop = { src, lfo, g };
+  }
+
+  stopLoop(a) {
+    const l = this.loop;
+    if (!l) return;
+    this.loop = null;
+    l.g.gain.cancelScheduledValues(a.currentTime);
+    l.g.gain.setTargetAtTime(0.0001, a.currentTime, 0.2);
+    l.src.stop(a.currentTime + 1);
+    l.lfo.stop(a.currentTime + 1);
+  }
+
+  /** A few bubbles rising: short sine chirps going up. They bypass the muffle so they stay clear. */
+  bubbles(a, n) {
+    for (let i = 0; i < n; i++) {
+      const at = a.currentTime + i * (0.04 + Math.random() * 0.12);
+      const o = a.createOscillator();
+      const f = 350 + Math.random() * 500;
+      o.frequency.setValueAtTime(f, at);
+      o.frequency.exponentialRampToValueAtTime(f * (1.6 + Math.random()), at + 0.06);
+      const g = a.createGain();
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.exponentialRampToValueAtTime(0.08 * volume, at + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + 0.08);
+      o.connect(g).connect(a.destination);
+      o.start(at);
+      o.stop(at + 0.1);
+    }
+  }
+
+  /** One of a few eerie cave sounds, from somewhere to the side. */
+  caveSound(a) {
+    const pan = a.createStereoPanner();
+    pan.pan.value = Math.random() * 1.6 - 0.8;
+    // A long echo for all of them
+    const delay = a.createDelay(2);
+    delay.delayTime.value = 0.35 + Math.random() * 0.3;
+    const fb = a.createGain();
+    fb.gain.value = 0.45;
+    delay.connect(fb).connect(delay);
+    const out = a.createGain();
+    out.gain.value = 0.7;
+    pan.connect(out);
+    delay.connect(out);
+    out.connect(master);
+    setTimeout(() => { out.disconnect(); fb.disconnect(); }, 15000);   // the echo loop would live on otherwise
+    const into = (node) => { node.connect(pan); node.connect(delay); };
+    const kind = Math.floor(Math.random() * 3);
+    const t = a.currentTime;
+    if (kind === 0) {
+      // Deep groan: two detuned low tones sliding down
+      const env = envelope(a, 0.35, 1.2, 1.5, 2.5);
+      for (const f of [62, 65.5]) {
+        const o = a.createOscillator();
+        o.type = 'sawtooth';
+        o.frequency.setValueAtTime(f, t);
+        o.frequency.exponentialRampToValueAtTime(f * 0.7, t + 5);
+        o.connect(env);
+        o.start(t);
+        o.stop(t + 5.5);
+      }
+      const lp = a.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 300;
+      into(env.connect(lp));
+    } else if (kind === 1) {
+      // Wind through a far tunnel: noise through a slowly moving band
+      const src = a.createBufferSource();
+      src.buffer = noise(a);
+      src.loop = true;
+      const bp = a.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.Q.value = 8;
+      bp.frequency.setValueAtTime(250, t);
+      bp.frequency.exponentialRampToValueAtTime(700, t + 2.5);
+      bp.frequency.exponentialRampToValueAtTime(180, t + 6);
+      const env = envelope(a, 1.2, 1.5, 2, 2.5);
+      src.connect(bp).connect(env);
+      into(env);
+      src.start(t);
+      src.stop(t + 6.5);
+    } else {
+      // Something shifting far away: a few dull knocks
+      for (let i = 0; i < 3 + Math.floor(Math.random() * 3); i++) {
+        const at = t + i * (0.3 + Math.random() * 0.5);
+        const o = a.createOscillator();
+        o.frequency.setValueAtTime(110 + Math.random() * 40, at);
+        o.frequency.exponentialRampToValueAtTime(45, at + 0.25);
+        const g = a.createGain();
+        g.gain.setValueAtTime(0.0001, at);
+        g.gain.exponentialRampToValueAtTime(0.5, at + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, at + 0.3);
+        const lp = a.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = 400;
+        o.connect(g).connect(lp);
+        into(lp);
+        o.start(at);
+        o.stop(at + 0.35);
+      }
+    }
   }
 }
