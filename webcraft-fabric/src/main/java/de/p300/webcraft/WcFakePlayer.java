@@ -167,10 +167,15 @@ public final class WcFakePlayer {
         if (removed) return;
         try {
             // Like a real client: at most one position update per tick, then "tick end"
-            ServerboundMovePlayerPacket move = pendingMove;
-            pendingMove = null;
-            if (move != null) listener().handleMovePlayer(move);
+            // Minecraft 26 kicks a second position packet in the same tick ("Invalid move player packet"): when an
+            // action already sent the position this tick (flushMove), the newest one waits for the next tick
+            if (!movedThisTick) {
+                ServerboundMovePlayerPacket move = pendingMove;
+                pendingMove = null;
+                if (move != null) listener().handleMovePlayer(move);
+            }
             listener().handleClientTickEnd(ServerboundClientTickEndPacket.INSTANCE);
+            movedThisTick = false;
             listener().tick();
             ticks++;
             if (pendingStopAt >= 0 && (ticks >= pendingStopAt || digDone())) flushPendingStop();
@@ -362,9 +367,13 @@ public final class WcFakePlayer {
     /** The position the browser sent last goes to the server before an action (else it checks the old one). */
     private void flushMove() {
         ServerboundMovePlayerPacket move = pendingMove;
+        if (move == null || movedThisTick) return;
         pendingMove = null;
-        if (move != null) listener().handleMovePlayer(move);
+        movedThisTick = true;
+        listener().handleMovePlayer(move);
     }
+
+    private boolean movedThisTick;   // a position packet went to the server since the last tick end
 
     /** Right click into the air: eat, drink, throw, draw a bow ... */
     public void useItem() {

@@ -237,7 +237,9 @@ Minecraft's `travelFallFlying` per 1/20 s tick (`glideTick`, velocity in blocks/
 Off hand and actions: `WcFakePlayer.useOn/useItem` try the main hand, then the off hand when nothing changed
 (`useState`: the clicked block and its neighbour, open screen, main hand item, using an item), like the vanilla client's
 hand loop. `flushMove()` applies the newest `move` before use/dig/attack (moves were only applied at the next tick, so a
-block placed under you while building up was refused as "inside the player" and vanished); the browser also sends
+block placed under you while building up was refused as "inside the player" and vanished), but only once per tick:
+Minecraft 26 kicks a second position packet in the same tick ("Invalid move player packet received", `movedThisTick`;
+`/home/user/srv/spam.mjs` sends moves + actions as fast as possible and must not be kicked); the browser also sends
 its position right before those actions (`main.js ACTIONS`). `world.setBlock` ignores unchanged ids (server
 confirmations re-meshed sections, lag while building). Chunks meshed with a missing neighbour (`incomplete`, edge of the
 view) are meshed again when it arrives (their border drew air there: water edges sank, a gap between chunks).
