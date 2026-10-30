@@ -10,6 +10,10 @@ _Last update: 2026-10-30, version 0.36.0 (main). Tag pushes are refused by this 
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- License check (2026-10-30): Faithful license point 4 forbids using it as a substitute for Minecraft's graphics where
+  the originals aren't allowed (browser players may not own Minecraft). Owner keeps Faithful and asks Faithful for
+  permission (English request text written). If they say no: built-in Pixel Perfection CE, Faithful as server pack.
+  Also open: PPCE credit/license file missing inside texturen.zip, repo LICENSE should say assets have own licenses.
 - 0.36.0 (friend's wish): creative item list puts the item on the mouse (server-side carried, `creative` slot -1 →
   `WcFakePlayer.creativeCarry`, only with infinite materials), then any slot / drag / right click like normal items;
   shift = full stack, clicking the list with another item throws it away. Tested on Paper; Fabric compiled only.
