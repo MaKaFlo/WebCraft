@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { dimUnlit } from './sky.js';
 import { blockMesh, itemModel } from './models.js';
 import { MOBS } from './mobs.js';
-import { buildSkin, hasSkin, skinLoaded } from './skins.js';
+import { buildSkin, hasSkin, skinLoaded, shieldModel } from './skins.js';
 
 const SKIN = 0xd8a27a;
 const HUMANOID = {
@@ -72,7 +72,7 @@ const JOBS = {
 };
 
 /** What makes a mob look different (rebuild the model when it changes). */
-const lookKey = (d) => [d.n, d.var, d.col, d.col2, d.sheared ? 1 : 0, d.hand, (d.arm || []).join(','), d.skin ? d.skin + (skinLoaded(d.skin) ? '+' : '') : ''].join('|');
+const lookKey = (d) => [d.n, d.var, d.col, d.col2, d.sheared ? 1 : 0, d.hand, d.off, (d.arm || []).join(','), d.skin ? d.skin + (skinLoaded(d.skin) ? '+' : '') : ''].join('|');
 
 // Extra parts for animals, so a cow, a pig and a horse don't all look the same
 const ANIMAL_EXTRAS = {
@@ -294,6 +294,30 @@ class Entity {
     }
   }
 
+  /** side 'L'/'R': that arm holds its shield in front of the body; null: shields back at the side. */
+  blockPose(side) {
+    if (!this.shields || !this.limbs) return;
+    for (const k of ['L', 'R']) {
+      const sh = this.shields[k];
+      if (!sh) continue;
+      if (k !== side) {
+        if (sh.raised) (k === 'L' ? this.limbs.armL : this.limbs.armR).rotation.y = 0;
+        sh.raised = false;
+        sh.shield.rotation.set(0, sh.rest, 0);
+        sh.shield.position.copy(sh.restPos);
+        continue;
+      }
+      const arm = k === 'L' ? this.limbs.armL : this.limbs.armR;
+      sh.raised = true;
+      arm.rotation.set(-0.94, k === 'L' ? -0.52 : 0.52, 0);
+      // Undo the arm's turn inside the hold group, so the picture faces the front
+      const q = new THREE.Quaternion().setFromEuler(arm.rotation).invert();
+      const flip = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI);
+      sh.shield.quaternion.copy(flip).multiply(q).multiply(flip);
+      sh.shield.position.set(k === 'L' ? -0.06 : 0.06, 0.1, 0.12);
+    }
+  }
+
   /** Textured mob with Minecraft proportions (skins.js). */
   buildSkinned(d) {
     const root = new THREE.Group();
@@ -310,22 +334,36 @@ class Entity {
       this.limbs.armR.rotation.x = -1.4;
       this.armsForward = true;
     }
-    // The item in the hand (the arm is in model pixels and upside down: turn back and scale to blocks)
-    if (d.hand && this.palette && r.rightArm) {
+    // The items in both hands (the arm is in model pixels and upside down: turn back and scale to blocks)
+    this.shields = {};
+    const held = (key, arm, left) => {
+      if (!key || !this.palette || !arm) return;
       const hold = new THREE.Group();
-      hold.position.set(-1, 10, -1);
+      hold.position.set(left ? 1 : -1, 10, -1);
       hold.rotation.x = Math.PI;
       hold.scale.setScalar(16);
-      const it = itemModel(this.palette, d.hand, 0.28, 0.5);
-      if (it.userData.flat) {
-        it.rotation.set(0, Math.PI / 2, Math.PI / 2);
-        it.position.set(0, 0.17, 0.2);
+      const shield = key === 'shield' && shieldModel();
+      if (shield) {
+        // At the outer side of the arm, picture to the front (+z in the hold group) and a little outward
+        shield.position.set(left ? 0.1 : -0.1, 0.1, 0.05);
+        shield.rotation.y = left ? 0.3 : -0.3;
+        hold.add(shield);
+        this.shields[left ? 'L' : 'R'] = { shield, hold, arm, rest: shield.rotation.y, restPos: shield.position.clone() };
       } else {
-        it.position.set(0, 0, 0.1);
+        const it = itemModel(this.palette, key, 0.28, 0.5);
+        if (it.userData.flat) {
+          it.rotation.set(0, Math.PI / 2, Math.PI / 2);
+          it.position.set(0, 0.17, 0.2);
+          if (left) it.scale.z = -1;   // mirrored in the left hand
+        } else {
+          it.position.set(0, 0, 0.1);
+        }
+        hold.add(it);
       }
-      hold.add(it);
-      r.rightArm.add(hold);
-    }
+      arm.add(hold);
+    };
+    held(d.hand, r.rightArm, false);
+    held(d.off, r.leftArm, true);
     if (d.n) {
       this.tag = nameTag(d.n, !!d.wc);
       this.tag.position.y = (d.type === 'player' ? 1.8 : this.h) + 0.35;
@@ -600,8 +638,10 @@ class Entity {
         this.limbs.armL.rotation.x = -swing;
         this.limbs.armR.rotation.x = swing;
       }
-      // Eating / drinking / bow: right arm up in front of the face, a little bobbing
-      if (d.use && this.swingT <= 0) {
+      // Shield raised: the arm forward and inward, the shield turned to face the front (Minecraft's BLOCK pose)
+      const blocking = d.use && (d.uo ? d.off : d.hand) === 'shield';
+      this.blockPose(blocking ? (d.uo ? 'L' : 'R') : null);
+      if (!blocking && d.use && this.swingT <= 0) {
         if (d.hand === 'trident') {
           // Trident ready to throw: arm up over the head (Minecraft's THROW_TRIDENT pose)
           this.limbs.armR.rotation.x = -2.9;

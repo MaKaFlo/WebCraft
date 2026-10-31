@@ -1098,7 +1098,27 @@ export function buildSkin(d, root, opts) {
   } else if (model.kind === 'quad') {
     limbs = { legs: [g.legBackRight, g.legBackLeft, g.legFrontRight, g.legFrontLeft].filter(Boolean) };
   }
-  return { limbs, head: g.head, scale: k, rightArm: g.rightArm, frame };
+  return { limbs, head: g.head, scale: k, rightArm: g.rightArm, leftArm: g.leftArm, frame };
+}
+
+/**
+ * Minecraft's shield (ShieldModel: plate 12x22x1 with the picture in front, handle 2x6x6 behind it, entity/shield
+ * of the pack). In blocks, centered on the plate, picture side facing +z, handle toward -z. basic: unlit material
+ * (the first-person hand scene has no lights). Null when the pack has no shield picture.
+ */
+export function shieldModel(basic = false) {
+  const tex = textureOf('entity/shield');
+  if (!tex) return null;
+  const mat = basic ? new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5 }) : material(tex);
+  mat.userData.keepMap = true;
+  const model = new THREE.Group();
+  model.rotation.x = Math.PI;    // model space (y down, front -z) -> ours
+  model.scale.setScalar(1 / 16);
+  for (const b of [[0, 0, -6, -11, -2, 12, 22, 1], [26, 0, -1, -3, -1, 2, 6, 6]]) model.add(new THREE.Mesh(boxGeometry(b, 64, 64), mat));
+  const g = new THREE.Group();
+  g.add(model);
+  g.userData.shield = true;
+  return g;
 }
 
 function addArmor(keys, groups, frame) {

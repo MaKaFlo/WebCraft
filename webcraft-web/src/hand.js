@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { dimUnlit } from './sky.js';
 import { itemModel } from './models.js';
-import { firstPersonArm } from './skins.js';
+import { firstPersonArm, shieldModel } from './skins.js';
 
 const SWING_TIME = 0.28;
 const ROOT_POS = [0.56, -0.52, -0.72], ROOT_YAW = 0.12;   // where the hand sits without swing or bob
@@ -59,6 +59,14 @@ export class Hand {
     this.arm = arm;
     this.itemHolder = new THREE.Group();
     this.root.add(arm, this.itemHolder);
+    // The off hand: its item on the left, like Minecraft (no arm when it is empty)
+    this.offRoot = new THREE.Group();
+    this.scene.add(this.offRoot);
+    this.offKey = null;
+    this.offModel = null;
+    this.offEquipT = 0;
+    this.blocking = null;       // 'R' / 'L': that hand holds its shield up
+    this.blockT = 0;
     this.itemKey = null;
     this.itemModel = null;
     this.swingT = 0;
@@ -117,17 +125,62 @@ export class Hand {
       this.arm.position.set(-0.02, -0.05, 0.1);
       return;
     }
+    const m = this.heldModel(this.shownKey ?? this.itemKey, false);
+    this.itemModel = m;
+    this.itemHolder.add(m);
+  }
+
+  /** The model of a held item, placed for the right hand (left: mirrored for the off hand). */
+  heldModel(key, left) {
+    const shield = key === 'shield' && shieldModel(true);
+    if (shield) {
+      // Low at the side, picture toward you, turned a little inward
+      shield.scale.setScalar(0.62);
+      shield.position.set(left ? -0.02 : 0.02, -0.08, 0);
+      shield.rotation.y = left ? 0.35 : -0.35;
+      return shield;
+    }
     // Minecraft's "firstperson_righthand" display: items and tools turned -90 deg around y and 25 deg around z,
     // moved by (1.13, 3.2, 1.13)/16 and scaled 0.68; blocks turned 45 deg and scaled 0.4 (models are 1 block big)
-    const m = itemModel(this.palette, this.shownKey ?? this.itemKey, 0.4, 0.68);
+    const m = itemModel(this.palette, key, 0.4, 0.68);
     if (m.userData.flat) {
       m.rotation.set(0, -Math.PI / 2, 25 * Math.PI / 180);
       m.position.set(1.13 / 16, 3.2 / 16, 1.13 / 16);
     } else {
       m.rotation.set(0, Math.PI / 4, 0);
     }
-    this.itemModel = m;
-    this.itemHolder.add(m);
+    if (left) {
+      // Mirror image of the right hand
+      const g = new THREE.Group();
+      g.add(m);
+      g.scale.x = -1;
+      return g;
+    }
+    return m;
+  }
+
+  /** The item in the off hand (null: nothing shown on the left). */
+  setOffItem(palette, key) {
+    if (key === this.offKey && palette === this.palette) return;
+    if (key !== this.offKey) this.offEquipT = 0.2;
+    this.offKey = key;
+    if (this.offModel) {
+      this.offRoot.remove(this.offModel);
+      this.offModel.traverse((o) => {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material && !o.material.userData.shared && !o.material.userData.keepMap) { o.material.map?.dispose(); o.material.dispose(); }
+      });
+      this.offModel = null;
+    }
+    if (!key || !palette) return;
+    this.palette = palette;
+    this.offModel = this.heldModel(key, true);
+    this.offRoot.add(this.offModel);
+  }
+
+  /** 'R' or 'L' while that hand's shield is raised, else null. */
+  setBlocking(side) {
+    this.blocking = side;
   }
 
   /** Own skin (texture hash from the server, null: Steve); the arm is rebuilt once its picture is there. */
@@ -197,6 +250,20 @@ export class Hand {
     const s2 = Math.sin(Math.sqrt(p) * Math.PI);
     this.root.position.set(ROOT_POS[0] + bx - s2 * 0.18, ROOT_POS[1] + by + s2 * 0.12 - this.equipT * 1.2, ROOT_POS[2] - s * 0.12);
     this.root.rotation.set(-s * 0.9, ROOT_YAW + s2 * 0.5, s * 0.25);
+    // Shield up: it moves in front of you within 0.1 s and down again when you let go
+    this.blockT = Math.max(0, Math.min(1, this.blockT + (this.blocking ? dt : -dt) / 0.1));
+    this.offEquipT = Math.max(0, this.offEquipT - dt);
+    const bl = this.blocking === 'L' || (!this.blocking && this.lastBlock === 'L') ? this.blockT : 0;
+    const br = this.blocking === 'R' || (!this.blocking && this.lastBlock === 'R') ? this.blockT : 0;
+    if (this.blocking) this.lastBlock = this.blocking;
+    this.offRoot.position.set(-ROOT_POS[0] - bx + 0.26 * bl, ROOT_POS[1] + by - this.offEquipT * 1.2 + 0.2 * bl, ROOT_POS[2] + 0.1 * bl);
+    this.offRoot.rotation.set(0, -ROOT_YAW - 0.35 * bl, 0);
+    if (br) {
+      this.root.position.x -= 0.26 * br;
+      this.root.position.y += 0.2 * br;
+      this.root.position.z += 0.1 * br;
+      this.root.rotation.y += 0.35 * br;
+    }
     if (this.using) {
       this.useT += dt;
       const k = Math.min(1, this.useT / 0.2);           // move the item to the mouth first

@@ -146,7 +146,8 @@ Important details learned the hard way:
 - Entity JSON (in `WcPlugin`): `i` id, `type`, `x y z yaw pitch body`, `w h`, `n` name, `hand` main hand
   item key, `arm` armor keys, `use` hand raised, `var` variant (`variantOf()`: cat/wolf/frog/cow/pig/
   chicken keys, villager profession, fox/axolotl/parrot/horse/llama/rabbit/mooshroom types), `col` sheep
-  wool RGB (tropical fish: `col` body, `col2` pattern color, `var` pattern name), `sheared`, `baby`, projectiles `proj, k, vx vy vz`, block displays/text displays.
+  wool RGB (tropical fish: `col` body, `col2` pattern color, `var` pattern name), `sheared`, `baby`, `off` off hand item,
+  `uo` (the raised hand is the off hand: shield/food there), projectiles `proj, k, vx vy vz`, block displays/text displays.
 
 ## Fabric mod (`webcraft-fabric/src/main/java/de/p300/webcraft`)
 

@@ -1148,7 +1148,8 @@ function frame(now) {
     if (player.gliding && !serverGliding && performance.now() - glideAskedAt > 1000) player.gliding = false;
     entities.showSelf(view && !dead ? {
       i: -2, type: 'player', x: player.x, y: player.y, z: player.z, yaw: player.yaw, pitch: player.pitch, body: player.yaw,
-      w: 0.6, h: 1.8, skin: mySkin || undefined, slim: mySlim || undefined, hand: inventory.selectedItem()?.k,
+      w: 0.6, h: 1.8, skin: mySkin || undefined, slim: mySlim || undefined, hand: inventory.selectedItem()?.k, off: inventory.off?.k,
+      uo: shieldHand() === 'L' || undefined,
       sn: (player.keys.has('ShiftLeft') && !player.flying && !player.gliding) || undefined, use: interaction.using || undefined,
       gl: player.gliding || undefined, sw: player.swimming || undefined, vy: player.vy / 20,
       arm: player.chest === 'elytra' ? [null, 'elytra', null, null] : undefined,
@@ -1173,6 +1174,8 @@ function frame(now) {
     hand.setUsing(kind);
     const heldKey = inventory.selectedItem()?.k ?? null;
     hand.setItem(world.palette, heldKey, kind === 'bow' ? drawnPicture(heldKey, hand.useT) : heldKey);
+    hand.setOffItem(world.palette, inventory.off?.k ?? null);
+    hand.setBlocking(shieldHand());
     if (kind === 'eat' || kind === 'drink') {
       eatTimer -= dt;
       if (eatTimer <= 0 && hand.useT > 0.25) {
@@ -1345,6 +1348,14 @@ function rainSound(dt) {
   const roof = weather.top(Math.floor(player.x), Math.floor(player.z), player.y);
   if (top > player.y + 1 && top > roof) sounds.play('weather.rain.above', x + 0.5, top, z + 0.5, 0.1 * weather.rain, 0.5);
   else sounds.play('weather.rain', x + 0.5, top, z + 0.5, 0.2 * weather.rain, 1);
+}
+
+/** 'R' / 'L' while right click holds up a shield (main hand first, the off hand when the main hand has no use). */
+function shieldHand() {
+  if (!interaction.using) return null;
+  const main = inventory.selectedItem()?.k;
+  if (main === 'shield') return 'R';
+  return !useKind(main) && inventory.off?.k === 'shield' ? 'L' : null;
 }
 
 let darkT = 0, inDark = false;

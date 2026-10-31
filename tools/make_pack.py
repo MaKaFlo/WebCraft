@@ -29,7 +29,8 @@ CATS = ('tabby', 'black', 'red', 'siamese', 'british_shorthair', 'calico', 'pers
 PROFESSIONS = ('armorer', 'butcher', 'cartographer', 'cleric', 'farmer', 'fisherman', 'fletcher', 'leatherworker', 'librarian',
                'mason', 'nitwit', 'shepherd', 'toolsmith', 'weaponsmith')
 ENTITY_FILES = {
-    'steve': ['player/wide/steve', 'steve'], 'elytra': ['equipment/wings/elytra', 'elytra'], 'zombie': 'zombie/zombie', 'husk': 'zombie/husk', 'drowned': 'zombie/drowned',
+    'steve': ['player/wide/steve', 'steve'], 'elytra': ['equipment/wings/elytra', 'elytra'],
+    'shield': ['shield/shield_base_nopattern', 'shield_base_nopattern'], 'zombie': 'zombie/zombie', 'husk': 'zombie/husk', 'drowned': 'zombie/drowned',
     'zombie_villager': ['zombie/zombie_villager'], 'skeleton': 'skeleton/skeleton', 'stray': 'skeleton/stray',
     'wither_skeleton': 'skeleton/wither_skeleton', 'creeper': 'creeper/creeper', 'cow': 'cow/cow',
     'mooshroom': 'cow/red_mooshroom', 'brown_mooshroom': 'cow/brown_mooshroom', 'pig': 'pig/pig',

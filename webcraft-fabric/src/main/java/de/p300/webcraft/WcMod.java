@@ -1303,7 +1303,10 @@ public final class WcMod implements ModInitializer, WcHost {
             o.addProperty("body", round(le.yBodyRot));
             if (le.hurtTime > 0) o.addProperty("hurt", true);
             if (le.isDeadOrDying()) o.addProperty("dead", true);
-            if (le.isUsingItem()) o.addProperty("use", true);   // eating, drinking, drawing a bow ...
+            if (le.isUsingItem()) {
+                o.addProperty("use", true);   // eating, drinking, drawing a bow, a shield up ...
+                if (le.getUsedItemHand() == net.minecraft.world.InteractionHand.OFF_HAND) o.addProperty("uo", true);
+            }
             String variant = variantOf(e);
             if (variant != null) o.addProperty("var", variant);
             if (e instanceof Sheep sheep) {
@@ -1317,6 +1320,8 @@ public final class WcMod implements ModInitializer, WcHost {
             if (le.isBaby()) o.addProperty("baby", true);
             String hand = itemKey(le.getItemBySlot(EquipmentSlot.MAINHAND));
             if (hand != null) o.addProperty("hand", hand);
+            String off = itemKey(le.getItemBySlot(EquipmentSlot.OFFHAND));
+            if (off != null) o.addProperty("off", off);
             // Armor, so you can see who is wearing what
             EquipmentSlot[] armor = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
             JsonArray arm = new JsonArray();

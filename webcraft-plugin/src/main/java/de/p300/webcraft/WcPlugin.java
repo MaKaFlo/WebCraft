@@ -1235,7 +1235,10 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
             o.addProperty("body", round(le.getBodyYaw()));
             if (le.getNoDamageTicks() > le.getMaximumNoDamageTicks() / 2) o.addProperty("hurt", true);
             if (le.isDead() || le.getHealth() <= 0) o.addProperty("dead", true);
-            if (le.isHandRaised()) o.addProperty("use", true);   // eating, drinking, drawing a bow ...
+            if (le.isHandRaised()) {
+                o.addProperty("use", true);   // eating, drinking, drawing a bow, a shield up ...
+                if (le.getHandRaised() == org.bukkit.inventory.EquipmentSlot.OFF_HAND) o.addProperty("uo", true);
+            }
             String variant = variantOf(e);
             if (variant != null) o.addProperty("var", variant);
             if (e instanceof org.bukkit.entity.Sheep sheep) {
@@ -1251,6 +1254,8 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                 org.bukkit.inventory.EntityEquipment eq = le.getEquipment();
                 ItemStack hand = eq.getItemInMainHand();
                 if (!hand.getType().isAir()) o.addProperty("hand", hand.getType().getKey().getKey());
+                ItemStack off = eq.getItemInOffHand();
+                if (!off.getType().isAir()) o.addProperty("off", off.getType().getKey().getKey());
                 // Armor, so you can see who is wearing what
                 ItemStack[] armor = {eq.getHelmet(), eq.getChestplate(), eq.getLeggings(), eq.getBoots()};
                 JsonArray arm = new JsonArray();

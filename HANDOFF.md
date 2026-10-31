@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-10-30, version 0.37.0 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
+_Last update: 2026-10-31, version 0.38.0 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
 
 ## Current state
 
@@ -10,6 +10,13 @@ _Last update: 2026-10-30, version 0.37.0 (main). Tag pushes are refused by this 
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- 0.38.0 (friend's report: shields in the off hand not shown): entity JSON `off` (off hand item) and `uo` (the raised
+  hand is the off hand); others hold items in both hands, shields as a 3D model (`skins.js shieldModel`, Faithful
+  `entity/shield` added to texturen.zip + `ENTITY_FILES`) at the side, raised in front while blocking
+  (`Entity.blockPose`); first person shows the off hand item on the left (`hand.js setOffItem`), the shield comes up
+  while right click holds it (`main.js shieldHand`, main hand first). Tested headless with a bot (`shield.cjs`, face
+  direction checked numerically). Shield inventory icon is still the emoji. Seen in tests: a player teleported onto
+  blocks placed in the same moment can fall through them (stale chunk data), not fixed.
 - 0.37.0 (owner's pick from the idea list: more sounds): own bucket fill/empty, flint and steel, hoe, shovel (path,
   campfire out), axe (strip, copper) sounds (`main.js itemSound`, from the block change after the click, once per click);
   under water everything is muffled (low pass on the master) with a made rumble and bubbles, dark caves build a mood
