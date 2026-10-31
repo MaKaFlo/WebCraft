@@ -25,7 +25,21 @@
     <maven.main.skip>true</maven.main.skip>
   </properties>
 
+  <repositories>
+    <!-- Simple Voice Chat API (compile only; the plugin itself is on the server or not) -->
+    <repository>
+      <id>maxhenkel</id>
+      <url>https://maven.maxhenkel.de/repository/public</url>
+    </repository>
+  </repositories>
+
   <dependencies>
+    <dependency>
+      <groupId>de.maxhenkel.voicechat</groupId>
+      <artifactId>voicechat-api</artifactId>
+      <version>2.5.0</version>
+      <scope>provided</scope>
+    </dependency>
     <dependency>
       <groupId>org.java-websocket</groupId>
       <artifactId>Java-WebSocket</artifactId>

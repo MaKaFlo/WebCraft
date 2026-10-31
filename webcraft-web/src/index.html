@@ -393,6 +393,45 @@
   .inv-title { margin: 0 0 10px; font-size: 17px; }
   #inventory .slot { background: #c9c2b0; border-color: #8b8676; cursor: pointer; }
   #inventory .slot:hover { background: #ded8c6; }
+  /* Voice chat: menu (V), icon bottom left, first-join tutorial */
+  #voice-menu { position: fixed; inset: 0; z-index: 60; display: flex; overflow: auto; background: rgba(0, 0, 0, 0.55); }
+  #voice-menu[hidden] { display: none; }
+  #voice-menu .vcard { margin: auto; width: min(560px, calc(100vw - 32px)); background: #2b2b33; color: #eee; border: 3px solid #111;
+    box-shadow: 6px 6px 0 #111; padding: 16px 18px; font: 14px ui-monospace, monospace; }
+  #voice-menu h2 { margin: 0 0 8px; font-size: 18px; }
+  #voice-menu h3 { margin: 14px 0 6px; font-size: 15px; }
+  #voice-menu label { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 6px 0; }
+  #voice-menu select, #voice-menu input[type=text], #voice-menu input[type=password] { background: #1c1c22; color: #eee; border: 2px solid #555; padding: 4px; font: inherit; min-width: 0; }
+  #voice-menu label select { max-width: 60%; }
+  #voice-menu button { background: #4a4a55; color: #fff; border: 2px solid #111; padding: 5px 10px; font: inherit; cursor: pointer; }
+  #voice-menu button.on { background: #2e7d32; }
+  #voice-menu button.vbig { display: block; width: 100%; padding: 10px; font-size: 16px; background: #2e7d32; margin: 10px 0; }
+  #voice-menu button.vclose { display: block; margin: 14px auto 0; }
+  #voice-menu .vrow { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+  #voice-menu .vcreate input { flex: 1 1 140px; }
+  #voice-menu .vhint { color: #aaa; font-size: 12px; margin: 4px 0; }
+  #voice-menu .verr { color: #ff8a80; margin: 6px 0; }
+  #voice-menu .vmeter { position: relative; height: 10px; background: #111; border: 2px solid #555; margin: 8px 0; }
+  #voice-menu .vmeter i { position: absolute; left: 0; top: 0; bottom: 0; background: #66bb6a; width: 0; }
+  #voice-menu .vmeter b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #ffeb3b; }
+  #voice-menu .vgroup { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 6px; border-bottom: 1px solid #444; }
+  #voice-menu .vgroup.mine { background: #33402f; }
+  #voice-menu .vgroup small { color: #aaa; }
+  #voice-hud { position: fixed; left: 10px; bottom: 74px; z-index: 6; display: flex; gap: 6px; align-items: center; pointer-events: none;
+    font: 13px ui-monospace, monospace; color: #fff; text-shadow: 1px 1px 0 #000; }
+  #voice-hud[hidden] { display: none; }
+  #voice-hud .vi { font-size: 22px; filter: drop-shadow(1px 1px 0 #000); }
+  #voice-hud .vi.off { opacity: 0.4; }
+  #voice-hud .vi.talk { filter: drop-shadow(0 0 6px #66ff66); }
+  #voice-hud .vg { background: rgba(0, 0, 0, 0.45); padding: 2px 6px; }
+  #tutorial { position: fixed; left: 50%; top: 18%; transform: translateX(-50%); z-index: 55; width: min(420px, calc(100vw - 32px));
+    background: #2b2b33; color: #eee; border: 3px solid #111; box-shadow: 6px 6px 0 #111; padding: 14px 16px; font: 14px ui-monospace, monospace; }
+  #tutorial h3 { margin: 0 0 6px; }
+  #tutorial button { background: #2e7d32; color: #fff; border: 2px solid #111; padding: 6px 14px; font: inherit; cursor: pointer; margin-top: 6px; }
+  #tutorial small { float: right; margin-top: 12px; color: #aaa; }
+  #talk-btn { position: fixed; right: 18px; bottom: 210px; z-index: 7; width: 58px; height: 58px; border-radius: 50%; font-size: 26px;
+    background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(255, 255, 255, 0.5); color: #fff; touch-action: none; }
+  #talk-btn.down { background: rgba(46, 125, 50, 0.8); }
   #inventory .slot.dragged { background: #f2ecd8; box-shadow: inset 0 0 0 2px #fff; }
   .inv-top { display: flex; align-items: center; gap: 14px; }
   .grid { display: grid; gap: 2px; }
@@ -565,6 +604,7 @@
         <button type="button" class="mbtn" id="m-textures">Textur-Studio</button>
         <button type="button" class="mbtn" id="m-packs">Texturpakete ...</button>
       </div>
+      <button type="button" class="mbtn" id="m-voice">🎙️ Sprachchat ... (V)</button>
       <button type="button" class="mbtn" id="m-mods">Mods ...</button>
       <button type="button" class="mbtn danger" id="m-leave">Verbindung trennen</button>
     </div>

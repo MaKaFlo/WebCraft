@@ -136,6 +136,7 @@ public final class WcMod implements ModInitializer, WcHost {
 
     @Override
     public void onInitialize() {
+        WcVoice.instance = new WcVoice();   // Simple Voice Chat finds us through the "voicechat" entrypoint (WcVoiceSvc)
         ServerLifecycleEvents.SERVER_STARTED.register(this::start);
         ServerLifecycleEvents.SERVER_STOPPING.register(s -> stop());
         ServerTickEvents.END_SERVER_TICK.register(s -> tick());
@@ -685,10 +686,25 @@ public final class WcMod implements ModInitializer, WcHost {
 
     // ------------------------------------------------------------------ per-tick work
 
+    /** Voice chat: where all players are, and which browser plays which player. */
+    private void voicePositions() {
+        WcVoice voice = WcVoice.instance;
+        if (voice == null) return;
+        List<WcVoice.PlayerInfo> all = new ArrayList<>();
+        for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+            all.add(new WcVoice.PlayerInfo(p.getUUID(), p.getId(), p.level().dimension().identifier().toString(), p.getX(), p.getY(), p.getZ(),
+                    p.getGameProfile().name()));
+        }
+        Map<WcSession, java.util.UUID> mine = new java.util.HashMap<>();
+        for (WcSession s : sessions.values()) if (s.fake != null && !s.fake.isRemoved()) mine.put(s, s.fake.handle().getUUID());
+        voice.update(all, mine);
+    }
+
     private void tick() {
         if (server == null) return;
         tickCounter++;
         runLater();
+        if (tickCounter % 4 == 0) voicePositions();
         if (sessions.isEmpty()) {
             pendingBlocks.clear();
             return;

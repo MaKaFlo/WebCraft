@@ -31,6 +31,7 @@ import { BossBars } from './bossbar.js';
 import { MotionBlur } from './motionblur.js';
 import { Signs } from './signs.js';
 import { startAdmin } from './admin.js';
+import { VoiceChat } from './voice.js';
 
 const SKIES = {
   NORMAL: 0x9fc9ff,
@@ -115,6 +116,21 @@ let leaving = false;
 function send(obj) {
   if (connected && ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
 }
+
+/** Names of keys for the voice menu and the tutorial. */
+function keyName(code) {
+  const names = { CapsLock: 'Feststelltaste', Space: 'Leertaste', ShiftLeft: 'Shift', ControlLeft: 'Strg', AltLeft: 'Alt', Backquote: '^', Tab: 'Tab' };
+  return names[code] || code.replace(/^Key|^Digit/, '');
+}
+
+// Voice chat (V opens its menu, like Simple Voice Chat)
+const voice = new VoiceChat({
+  send,
+  sendBinary: (b) => { if (connected && ws && ws.readyState === WebSocket.OPEN) ws.send(b); },
+  entityPos: (id) => (id === myEntityId ? player : entities.map.get(id)) || null,
+  onMenu: (open) => { if (open) unlockPointer(); else lockPointer(); },
+  keyName,
+});
 
 const inventory = new Inventory({
   hotbarEl: $('hotbar'),
@@ -228,6 +244,7 @@ function connect(url, name) {
     // Chunks are decompressed in parallel, but applied strictly in arrival order
     // Sound files (type 2) don't need the order of the other messages
     if (typeof ev.data !== 'string' && new Uint8Array(ev.data, 0, 1)[0] === 2) { sounds.onFile(ev.data); return; }
+    if (typeof ev.data !== 'string' && new Uint8Array(ev.data, 0, 1)[0] === 3) { voice.onPacket(ev.data); return; }
     const ready = typeof ev.data === 'string' ? ev.data : decodeChunk(ev.data);
     messageChain = messageChain.then(() => ready).then(handleMessage).catch((e) => console.error(e));
   };
@@ -269,6 +286,11 @@ function connect(url, name) {
         world.viewDistance = msg.viewDistance;
         setWorld(msg);
         enterGame();
+        voice.connect();
+        setTimeout(() => voice.tutorial(showTutorial), 4000);
+        break;
+      case 'voice':
+        voice.onState(msg);
         break;
       case 'world':
         world.clear();
@@ -627,6 +649,7 @@ function enterGame() {
 }
 
 function resetGame() {
+  voice.disconnect();
   tablist.show(false);
   world.clear();
   signs.clear();
@@ -697,7 +720,7 @@ document.addEventListener('keyup', (e) => {
 }, true);
 
 function lockPointer() {
-  if (dead || inventory.open || chatOpen || !ui.pause.hidden || studio.isOpen) return;
+  if (dead || inventory.open || chatOpen || !ui.pause.hidden || studio.isOpen || voice.menuOpen) return;
   if (touch || pad.recent) { ui.resume.hidden = true; return; }   // phones and controllers play without a mouse
   if (escDown) { lockAfterEsc = true; return; }
   // After Esc the browser only allows this on the next click; then we ask for that click
@@ -743,6 +766,7 @@ $('m-settings').addEventListener('click', () => { syncSettingsUi(); showMenu('me
 $('m-keys').addEventListener('click', () => showMenu('menu-keys'));
 const modrinth = new ModrinthPacks($('menu-packs'));
 $('m-packs').addEventListener('click', () => { showMenu('menu-packs'); modrinth.open(); });
+$('m-voice').addEventListener('click', () => { ui.pause.hidden = true; voice.setMenu(true); });
 $('m-mods').addEventListener('click', () => { mods.renderMenu($('mods-list'), player); showMenu('menu-mods'); });
 // "Fertig" goes back to the main menu, or to the login when the page was opened there
 for (const b of ui.pause.querySelectorAll('[data-back]')) b.addEventListener('click', () => { if (connected) showMenu(); else ui.pause.hidden = true; });
@@ -869,6 +893,20 @@ const touch = isTouch ? new TouchControls({
   drop: () => dropItem(false),
 }) : null;
 
+// Voice chat on phones: hold the microphone button to talk
+const talkBtn = touch ? document.createElement('button') : null;
+if (talkBtn) {
+  talkBtn.id = 'talk-btn';
+  talkBtn.type = 'button';
+  talkBtn.textContent = '🎙️';
+  talkBtn.hidden = true;
+  const set = (down) => (ev) => { ev.preventDefault(); ev.stopPropagation(); talkBtn.classList.toggle('down', down); voice.setTalkButton(down); };
+  talkBtn.addEventListener('pointerdown', set(true));
+  for (const n of ['pointerup', 'pointercancel', 'pointerleave']) talkBtn.addEventListener(n, set(false));
+  document.body.appendChild(talkBtn);
+}
+entities.talking = (id) => (id === -2 ? voice.sending : voice.isTalking(id));
+
 // Game controllers (also on phones over Bluetooth)
 const pad = new GamepadControls({
   player, interaction, inventory, settings, sendInput, menuEl: ui.pause,
@@ -920,7 +958,7 @@ document.addEventListener('pointerlockchange', () => {
     ui.resume.hidden = true;
   } else if (expectUnlock) {
     expectUnlock = false;
-  } else if (connected && !chatOpen && !inventory.open && !dead && !studio.isOpen) {
+  } else if (connected && !chatOpen && !inventory.open && !dead && !studio.isOpen && !voice.menuOpen) {
     showMenu();            // Esc pressed while playing
   }
   document.body.classList.toggle('chat-visible', !locked);
@@ -937,20 +975,21 @@ document.addEventListener('mousemove', (e) => {
 let lastWPress = 0, lastSpacePress = 0;
 const normKey = (code) => (code === 'ShiftRight' ? 'ShiftLeft' : code);
 
-// Mods: keys held for zoom (C), freelook (Alt) and snaplook (V); F2 screenshot; Shift as a switch (toggle sneak)
+// Mods: keys held for zoom (C), freelook (Alt) and snaplook (X); F2 screenshot; Shift as a switch (toggle sneak)
 let snapView = null, shotWanted = false;
 document.addEventListener('keydown', (e) => {
-  if (!connected || chatOpen || inventory.open || !ui.pause.hidden || studio.isOpen) return;
+  if (!connected || chatOpen || inventory.open || !ui.pause.hidden || studio.isOpen || voice.menuOpen) return;
   if (e.code === 'F2' && mods.on('screenshot')) { e.preventDefault(); shotWanted = true; return; }
   if (e.code === 'AltLeft' || e.code === 'AltRight') e.preventDefault();   // the browser's menu bar must not open
   if (e.repeat) return;
   mods.held.add(e.code);
-  if (e.code === 'KeyV' && mods.on('snaplook') && snapView === null) { snapView = view; view = 2; }
+  if (e.code === 'KeyX' && mods.on('snaplook') && snapView === null) { snapView = view; view = 2; }
   if (e.code === 'KeyB' && mods.on('waypoints') && !f3Down) showNotice('📍 ' + mods.addWaypoint(player).name + ' gesetzt');
 }, true);
 document.addEventListener('keyup', (e) => {
   mods.held.delete(e.code);
-  if (e.code === 'KeyV' && snapView !== null) { view = snapView; snapView = null; }
+  if (e.code === 'KeyX' && snapView !== null) { view = snapView; snapView = null; }
+  voice.keyUp(e);
 }, true);
 window.addEventListener('blur', () => mods.held.clear());
 
@@ -978,6 +1017,13 @@ document.addEventListener('keydown', (e) => {
     if (e.code === 'Escape') { e.preventDefault(); studio.close(); }
     return;
   }
+  // Voice menu: V or Esc closes it, a key for push to talk is being chosen
+  if (voice.menuOpen) {
+    const typing = e.target?.tagName === 'INPUT' && e.target.type !== 'range';
+    if (voice.waitKey) { e.preventDefault(); voice.keyDown(e); return; }
+    if (e.code === 'Escape' || (e.code === 'KeyV' && !typing)) { e.preventDefault(); voice.setMenu(false); }
+    return;
+  }
   if (!connected || chatOpen || dead) return;
   if (inventory.open) {
     if (e.code === 'KeyE' || e.code === 'Escape') { e.preventDefault(); inventory.setOpen(false); return; }
@@ -986,6 +1032,7 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.code === 'KeyT' || e.code === 'Enter') { e.preventDefault(); openChat(); return; }
   if (e.code === 'Slash') { e.preventDefault(); openChat('/'); return; }
+  if ((isLocked() || touch || pad.recent) && !inventory.open && voice.keyDown(e)) { e.preventDefault(); return; }
   if (!isLocked()) return;
   if (e.code === 'Space') e.preventDefault();
   if (e.code.startsWith('Digit') && e.code !== 'Digit0') { inventory.select(Number(e.code.slice(5)) - 1); return; }
@@ -1116,7 +1163,9 @@ function frame(now) {
     world.processDirty(8, player.x, player.y, player.z);
     entities.update(dt);
     signs.update();
-    const playing = connected && !dead && !inventory.open && !chatOpen && ui.pause.hidden && !studio.isOpen;
+    const playing = connected && !dead && !inventory.open && !chatOpen && ui.pause.hidden && !studio.isOpen && !voice.menuOpen;
+    voice.update(camera);
+    if (talkBtn) talkBtn.hidden = !playing || !voice.s.enabled || voice.s.mode !== 'ptt' || stereoOn;
     touch?.update(playing, connected && (inventory.open || chatOpen));
     pad.poll(dt, { playing, overlay: inventory.open || chatOpen, menu: !ui.pause.hidden, dead });
     interaction.update(dt, (isLocked() || ((touch || pad.recent) && playing)) && !dead);
@@ -1482,4 +1531,19 @@ function updateHud() {
 }
 
 // Handy for debugging in the browser console: wc.player, wc.world
-window.wc = { get state() { return { connected, chatOpen, dead, view }; }, signs, player, world, entities, renderer, scene, camera, inventory, interaction, send, hud, sidebar, studio, pack, hand, sky, particles, weather, sounds, ambience, mods };
+/** First join: a few cards one after the other (voice chat tutorial). */
+function showTutorial(steps) {
+  let i = 0;
+  const box = document.createElement('div');
+  box.id = 'tutorial';
+  document.body.appendChild(box);
+  const next = () => {
+    if (i >= steps.length) { box.remove(); return; }
+    const [title, text] = steps[i];
+    box.innerHTML = `<h3>${title}</h3><p>${text}</p><button type="button">${i + 1 < steps.length ? 'Weiter' : 'Verstanden'}</button><small>${i + 1} / ${steps.length}</small>`;
+    box.querySelector('button').addEventListener('click', () => { i++; next(); });
+  };
+  next();
+}
+
+window.wc = { get state() { return { connected, chatOpen, dead, view }; }, signs, player, world, entities, renderer, scene, camera, inventory, interaction, send, hud, sidebar, studio, pack, hand, sky, particles, weather, sounds, ambience, voice, mods };

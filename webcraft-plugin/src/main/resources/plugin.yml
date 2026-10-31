@@ -2,6 +2,7 @@ name: WebCraft
 version: '${project.version}'
 main: de.p300.webcraft.WcPlugin
 api-version: '26.3'
+softdepend: [voicechat]
 description: Lets players of the WebCraft browser game join this server.
 commands:
   webcraft:

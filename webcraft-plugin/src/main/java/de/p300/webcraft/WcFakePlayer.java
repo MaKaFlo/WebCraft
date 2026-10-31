@@ -118,7 +118,8 @@ public final class WcFakePlayer {
         conn.address = address instanceof InetSocketAddress ? address : new InetSocketAddress("127.0.0.1", 0);
         fake.connection = conn;
 
-        CommonListenerCookie cookie = new CommonListenerCookie(profile, 0, info, false, "webcraft", Set.of(), new KeepAlive());
+        // The channel set must be changeable: plugins register their channels on join (Simple Voice Chat, ...)
+        CommonListenerCookie cookie = new CommonListenerCookie(profile, 0, info, false, "webcraft", new java.util.HashSet<>(), new KeepAlive());
         fake.bukkit = sp.getBukkitEntity();
         try (ProblemReporter.ScopedCollector reporter = new ProblemReporter.ScopedCollector(LOG)) {
             Optional<ValueInput> input = data.map(tag -> TagValueInput.create(reporter, server.registryAccess(), tag));

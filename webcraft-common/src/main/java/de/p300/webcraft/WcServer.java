@@ -60,6 +60,8 @@ public final class WcServer extends WebSocketServer {
         WcSession session = conn.getAttachment();
         if (session == null) return;
         session.closed = true;
+        WcVoice voice = WcVoice.instance;
+        if (voice != null) voice.leave(session);
         host.runSync(() -> host.handleDisconnect(session));
     }
 
@@ -77,12 +79,23 @@ public final class WcServer extends WebSocketServer {
         } catch (Exception e) {
             return; // ignore garbage
         }
+        // Voice chat state and groups don't need the server thread
+        String t = json.has("t") ? json.get("t").getAsString() : "";
+        if (t.equals("voice") || t.equals("vgroup")) {
+            WcVoice voice = WcVoice.instance;
+            if (voice != null) voice.handle(session, json);
+            return;
+        }
         host.runSync(() -> host.handleMessage(session, json));
     }
 
     @Override
     public void onMessage(WebSocket conn, ByteBuffer message) {
-        // Clients do not send binary data in this version.
+        // Type 3: an Opus frame of the microphone (voice chat), handled right here, not on the server thread
+        WcSession session = conn.getAttachment();
+        WcVoice voice = WcVoice.instance;
+        if (session == null || voice == null || message.remaining() < 1 || message.remaining() > 1500) return;
+        if (message.get() == 3) voice.mic(session, message);
     }
 
     @Override

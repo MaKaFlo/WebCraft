@@ -847,11 +847,35 @@ export class Entities {
     const all = this.self ? [...this.map.values(), this.self] : this.map.values();
     for (const e of all) {
       e.update(dt);
+      if (this.talking) this.talkIcon(e, this.talking(e.target?.i));
       e.lightT = (e.lightT ?? 0) - dt;
       if (e.lightT <= 0) { e.lightT = 0.3 + Math.random() * 0.1; this.light(e); }
       if (this.showHitboxes) this.hitbox(e);
       else if (e.hitbox) e.hitbox.visible = false;
     }
+  }
+
+  /** Voice chat: a speaker icon over the head while someone talks (like Simple Voice Chat). */
+  talkIcon(e, on) {
+    if (!on && !e.talk) return;
+    if (!e.talk) {
+      if (!Entities.talkTexture) {
+        const c = document.createElement('canvas');
+        c.width = c.height = 64;
+        const g = c.getContext('2d');
+        g.font = '48px sans-serif';
+        g.textAlign = 'center';
+        g.textBaseline = 'middle';
+        g.fillText('🔊', 32, 36);
+        Entities.talkTexture = new THREE.CanvasTexture(c);
+      }
+      e.talk = new THREE.Sprite(new THREE.SpriteMaterial({ map: Entities.talkTexture, depthTest: false }));
+      e.talk.scale.set(0.4, 0.4, 1);
+      e.talk.renderOrder = 11;
+    }
+    if (e.talk.parent !== e.group) e.group.add(e.talk);   // the group is rebuilt when the look changes
+    e.talk.visible = on;
+    e.talk.position.y = (e.target?.h || e.h || 1.8) + (e.tag ? 0.75 : 0.4);
   }
 
   /** Like Minecraft's F3+B: a white box around every entity and a blue line where it looks. */

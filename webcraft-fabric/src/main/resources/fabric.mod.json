@@ -7,12 +7,16 @@
 	"license": "Apache-2.0",
 	"environment": "server",
 	"entrypoints": {
-		"main": ["de.p300.webcraft.WcMod"]
+		"main": ["de.p300.webcraft.WcMod"],
+		"voicechat": ["de.p300.webcraft.WcVoiceSvc"]
 	},
 	"depends": {
 		"fabricloader": ">=0.20.1",
 		"minecraft": "~26.3",
 		"java": ">=25",
 		"fabric-api": "*"
+	},
+	"suggests": {
+		"voicechat": "*"
 	}
 }

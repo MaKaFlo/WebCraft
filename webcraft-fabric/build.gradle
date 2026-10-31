@@ -8,6 +8,8 @@ base {
 
 repositories {
 	mavenCentral()
+	// Simple Voice Chat API (compile only)
+	maven { url = 'https://maven.maxhenkel.de/repository/public' }
 }
 
 sourceSets {
@@ -27,6 +29,9 @@ dependencies {
 	// WebSocket server for the browsers, packed into the mod jar (slf4j comes with Minecraft)
 	implementation("org.java-websocket:Java-WebSocket:1.6.0") { exclude group: 'org.slf4j' }
 	include("org.java-websocket:Java-WebSocket:1.6.0") { exclude group: 'org.slf4j' }
+
+	// Voice chat through Simple Voice Chat when the server has it (WcVoiceSvc)
+	compileOnly "de.maxhenkel.voicechat:voicechat-api:2.5.0"
 }
 
 processResources {

@@ -29,7 +29,7 @@ export const MODS = [
   { id: 'fullbright', name: 'Fullbright (alles hell)', group: 'Sicht' },
   { id: 'zoom', name: 'Zoom (C halten)', group: 'Sicht', def: true },
   { id: 'freelook', name: 'Freelook (Alt halten)', group: 'Sicht' },
-  { id: 'snaplook', name: 'Snaplook: nach hinten schauen (V halten)', group: 'Sicht' },
+  { id: 'snaplook', name: 'Snaplook: nach hinten schauen (X halten)', group: 'Sicht' },
   { id: 'nohurtcam', name: 'Kein Wackeln bei Schaden', group: 'Sicht' },
   { id: 'noweather', name: 'Kein Regen und Schnee', group: 'Sicht' },
   { id: 'timechanger', name: 'Tageszeit', group: 'Sicht', def: null,
@@ -298,7 +298,7 @@ class Mods {
 
   zooming() { return this.on('zoom') && this.held.has('KeyC'); }
   freelooking() { return this.on('freelook') && (this.held.has('AltLeft') || this.held.has('AltRight')); }
-  snapping() { return this.on('snaplook') && this.held.has('KeyV'); }
+  snapping() { return this.on('snaplook') && this.held.has('KeyX'); }
 
   /** Mouse movement while freelook is held turns only the camera. Returns true when it was used. */
   look(dx, dy, sens) {

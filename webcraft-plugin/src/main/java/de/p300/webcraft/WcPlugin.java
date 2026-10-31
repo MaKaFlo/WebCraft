@@ -138,6 +138,15 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
             getServer().getPluginManager().registerEvents(singlePlayer, this);
         }
         Bukkit.getScheduler().runTaskTimer(this, this::tick, 1L, 1L);
+        WcVoice.instance = new WcVoice();
+        // Simple Voice Chat: our players talk through it (softdepend, so it is enabled before us)
+        if (getServer().getPluginManager().isPluginEnabled("voicechat")) {
+            try {
+                WcVoiceBukkit.register(this);
+            } catch (Throwable t) {
+                getLogger().warning("Could not connect to Simple Voice Chat: " + t);
+            }
+        }
         startServer();
     }
 
@@ -666,8 +675,23 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
 
     // ------------------------------------------------------------------ per-tick work
 
+    /** Voice chat: where all players are, and which browser plays which player. */
+    private void voicePositions() {
+        WcVoice voice = WcVoice.instance;
+        if (voice == null) return;
+        List<WcVoice.PlayerInfo> all = new ArrayList<>();
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            Location l = p.getLocation();
+            all.add(new WcVoice.PlayerInfo(p.getUniqueId(), p.getEntityId(), l.getWorld().getName(), l.getX(), l.getY(), l.getZ(), p.getName()));
+        }
+        Map<WcSession, java.util.UUID> mine = new java.util.HashMap<>();
+        for (WcSession s : sessions.values()) if (s.fake != null && !s.fake.isRemoved()) mine.put(s, s.fake.bukkit().getUniqueId());
+        voice.update(all, mine);
+    }
+
     private void tick() {
         tickCounter++;
+        if (tickCounter % 4 == 0) voicePositions();
         if (sessions.isEmpty()) {
             pendingBlocks.clear();
             return;
