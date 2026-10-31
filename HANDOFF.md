@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-10-31, version 0.38.0 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
+_Last update: 2026-10-31, version 0.39.0 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
 
 ## Current state
 
@@ -10,6 +10,14 @@ _Last update: 2026-10-31, version 0.38.0 (main). Tag pushes are refused by this 
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- 0.39.0 (owner's wishes): **voice chat** (V menu like Simple Voice Chat: on/off, mute, deafen, push to talk key or
+  voice activation, input/output device, volumes, groups with password and type; first-join tutorial; 🔊 over talking
+  heads; touch 🎙️ button) through the server's Simple Voice Chat (`WcVoiceSvc`) or built in without it; **locator
+  bar** (`wp`, dots over the XP bar); **clickable chat** (run/suggest command, link, copy, hover text). Tested on Paper
+  with SVC 2.6.24 and two headless browsers with a fake mic (proximity + group across 300 blocks, 1:1 frames; without
+  SVC too), locator dot direction, chat click ran the command. Not tested: real microphones/ears, a Java client with
+  the mod, Fabric (compiled only), Safari (needs WebCodecs audio). Fixed on the way: fake players had an immutable
+  plugin channel set (SVC's join crashed, other plugins could too).
 - 0.38.0 (friend's report: shields in the off hand not shown): entity JSON `off` (off hand item) and `uo` (the raised
   hand is the off hand); others hold items in both hands, shields as a 3D model (`skins.js shieldModel`, Faithful
   `entity/shield` added to texturen.zip + `ENTITY_FILES`) at the side, raised in front while blocking

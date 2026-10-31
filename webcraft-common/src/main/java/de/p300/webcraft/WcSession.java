@@ -142,6 +142,22 @@ public final class WcSession {
         send(m);
     }
 
+    /**
+     * A chat line with its formatting: `p` = parts {x text, c color, b/i/u/s/o styles, k [action, value] for a click
+     * (run, suggest, url, copy), h hover text}, so "click here to buy" works like in Minecraft.
+     */
+    public void chat(net.minecraft.network.chat.Component text) {
+        if (text == null) return;
+        String plain = text.getString();
+        if (plain.isBlank()) return;
+        JsonObject m = new JsonObject();
+        m.addProperty("t", "chat");
+        m.addProperty("msg", plain);
+        com.google.gson.JsonArray parts = WcChat.parts(text);
+        if (WcChat.styled(parts)) m.add("p", parts);
+        send(m);
+    }
+
     public void notice(String text) {
         if (text == null || text.isBlank()) return;
         JsonObject m = new JsonObject();

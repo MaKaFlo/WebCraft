@@ -96,6 +96,8 @@
   .chat-line { align-self: flex-start; background: rgba(20, 18, 34, 0.55); color: #fff; font-size: 14px; padding: 3px 8px; transition: opacity 1s; }
   .chat-line.sys { color: #ffb347; }
   .chat-line.old { opacity: 0; }
+  .chat-click { cursor: pointer; }
+  body.chat-visible .chat-click:hover { text-decoration: underline; background: rgba(255, 255, 255, 0.15); }
   body.chat-visible .chat-line.old { opacity: 1; }
   #sign-editor { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 12px; background: rgba(0, 0, 0, 0.45); font-family: "WebCraft Pixel", monospace; }
@@ -362,6 +364,14 @@
   @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
   #xp { position: fixed; left: 50%; bottom: 66px; transform: translateX(-50%); width: 478px; height: 5px; background: rgba(0,0,0,0.55); pointer-events: none; }
   #xp-bar { height: 100%; width: 0; background: #7fdc3f; }
+  /* Locator bar: dots of the other players over the experience bar */
+  #locator { position: fixed; left: 50%; bottom: 64px; transform: translateX(-50%); width: 478px; height: 9px; pointer-events: none; z-index: 5; }
+  #locator[hidden] { display: none; }
+  .loc-dot { position: absolute; top: 50%; transform: translateY(-50%); border-radius: 2px; box-shadow: 0 0 0 1px #000; }
+  .loc-dot[hidden] { display: none; }
+  .loc-dot[data-dir=up]::after, .loc-dot[data-dir=down]::after { position: absolute; left: 50%; transform: translateX(-50%); font-size: 8px; color: #fff; text-shadow: 1px 1px 0 #000; }
+  .loc-dot[data-dir=up]::after { content: '▲'; bottom: 100%; }
+  .loc-dot[data-dir=down]::after { content: '▼'; top: 100%; }
   #xp-level { position: fixed; left: 50%; bottom: 68px; transform: translateX(-50%); color: #7fdc3f; font-weight: 700; font-size: 15px; text-shadow: 2px 2px 0 #000; pointer-events: none; }
   #damage-flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; box-shadow: inset 0 0 160px 40px rgba(220, 0, 0, 0.9); }
   body.aim-entity #crosshair::before, body.aim-entity #crosshair::after { background: #ff5050; mix-blend-mode: normal; }

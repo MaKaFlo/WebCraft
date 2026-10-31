@@ -2,7 +2,7 @@
 
 Ein Block-Spiel im Browser, das sich mit einem **Minecraft-Server** verbindet: **Paper** (als Plugin) oder **Fabric** (als Mod, damit auch für Vanilla). WebCraft-Spieler sind auf dem Server **echte Spieler**: Sie stehen in der Tab-Liste, bekommen Schaden, sterben, benutzen Befehle und Menüs von Plugins und Mods. Für den Server gibt es keinen Unterschied zu einem Minecraft-Spieler. So können Leute ohne Minecraft-Account mit Freunden auf dem Server spielen.
 
-Version 0.38.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
+Version 0.39.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
 
 ## Aufbau
 
@@ -128,10 +128,12 @@ Wenn Webseite und Plugin auf verschiedenen Domains laufen, in `config.yml` unter
 | `F` | Item in die zweite Hand |
 | `Q` / `Shift+Q` | Ein Item / ganzen Stapel wegwerfen |
 | `J` | Auto-Jump an/aus (Standard: an) |
-| `T` oder `/` | Chat und Befehle |
+| `T` oder `/` | Chat und Befehle (im offenen Chat lassen sich Plugin-Nachrichten wie "Klick hier zum Kaufen" anklicken) |
+| `V` | Sprachchat-Menü: einschalten, Gruppen, stumm, Mikrofon und Kopfhörer |
+| `Feststelltaste` (halten) | Sprechen (auf dem Mac `G`, im Sprachchat-Menü änderbar, auch Sprachaktivierung) |
 | `Esc` | Spielmenü, Einstellungen (auch Lautstärke), Textur-Studio |
 
-Im Inventar: Maus über ein Item zeigt seinen Namen. Shift+Klick verschiebt, `1`-`9` legt das Item unter der Maus auf die Hotbar. Im Kreativmodus: rechts im Inventar alle Items mit Suche. Klick legt 1 Stück in den gewählten Hotbar-Platz, Shift+Klick einen ganzen Stapel, `Entf` leert den Platz unter der Maus.
+Im Inventar: Maus über ein Item zeigt seinen Namen. Shift+Klick verschiebt, `1`-`9` legt das Item unter der Maus auf die Hotbar. Im Kreativmodus: rechts im Inventar alle Items mit Suche. Klick nimmt das Item an die Maus (danach auf einen Platz legen), Shift+Klick einen ganzen Stapel, `Entf` leert den Platz unter der Maus. Mit gedrückter Maustaste über Plätze ziehen verteilt den Stapel (rechts: je 1, links: gleichmäßig).
 
 ## Passwort
 
@@ -265,6 +267,10 @@ Das Bild wird auf 32×32 Pixel verkleinert (bei Items wird der Hintergrund entfe
 ### Noch offen
 
 - ⏳ Eigenen Skin hochladen (Idee)
+
+## Sprachchat 🎙️
+
+Mit `V` öffnet sich das Sprachchat-Menü (beim ersten Login erklärt ein kurzes Tutorial alles). Der Browser fragt einmal nach dem Mikrofon, das geht nur auf einer `https`-Seite. Läuft auf dem Server **Simple Voice Chat**, sprechen Browser-Spieler darüber: Java-Spieler mit dem Mod hören sie an ihrer Position und umgekehrt, die Gruppen sind die von Simple Voice Chat. Ohne Simple Voice Chat sprechen nur die Browser-Spieler untereinander (in der Nähe oder in Gruppen). Mit LuckPerms brauchen die Spieler die Rechte `voicechat.speak`, `voicechat.listen` und `voicechat.groups`, wie Java-Spieler auch.
 
 ## Gegen Griefing
 

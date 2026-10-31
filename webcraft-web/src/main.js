@@ -32,6 +32,9 @@ import { MotionBlur } from './motionblur.js';
 import { Signs } from './signs.js';
 import { startAdmin } from './admin.js';
 import { VoiceChat } from './voice.js';
+import { LocatorBar } from './locator.js';
+
+const locator = new LocatorBar();
 
 const SKIES = {
   NORMAL: 0x9fc9ff,
@@ -347,6 +350,9 @@ function connect(url, name) {
       case 'boss':
         bossBars.message(msg);
         break;
+      case 'wp':
+        locator.message(msg);
+        break;
       case 'sound':
         sounds.onDef(msg);
         break;
@@ -434,7 +440,7 @@ function connect(url, name) {
         interaction.onDigInfo(msg);
         break;
       case 'chat':
-        addChat(msg.msg);
+        addChat(msg.msg, undefined, msg.p);
         break;
       case 'notice':
         showNotice(msg.msg);
@@ -650,6 +656,7 @@ function enterGame() {
 
 function resetGame() {
   voice.disconnect();
+  locator.clear();
   tablist.show(false);
   world.clear();
   signs.clear();
@@ -870,13 +877,43 @@ ui.chatInput.addEventListener('keydown', (e) => {
   }
 });
 
-function addChat(text, cls) {
+function addChat(text, cls, parts) {
   const line = document.createElement('div');
   line.className = 'chat-line' + (cls ? ' ' + cls : '');
-  line.textContent = (mods.on('chattime') ? new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + '  ' : '') + text;
+  line.textContent = (mods.on('chattime') ? new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + '  ' : '') + (parts ? '' : text);
+  // Formatted lines: colors, styles, hover texts and clicks (shop buttons of plugins: "click here to buy")
+  for (const p of parts || []) {
+    const span = document.createElement('span');
+    span.textContent = p.x;
+    if (p.c) span.style.color = p.c;
+    if (p.b) span.style.fontWeight = '700';
+    if (p.i) span.style.fontStyle = 'italic';
+    const deco = [p.u && 'underline', p.s && 'line-through'].filter(Boolean).join(' ');
+    if (deco) span.style.textDecoration = deco;
+    if (p.h) span.title = p.h;
+    if (p.k) {
+      span.className = 'chat-click';
+      span.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); chatClick(p.k[0], p.k[1]); });
+    }
+    line.appendChild(span);
+  }
   ui.chatLog.appendChild(line);
   while (ui.chatLog.children.length > 60) ui.chatLog.firstChild.remove();
   setTimeout(() => line.classList.add('old'), 10000);
+}
+
+/** A click on a chat part, like Minecraft: run a command, put one into the chat line, open a link, copy text. */
+function chatClick(action, value) {
+  if (action === 'run') {
+    send({ t: 'chat', msg: value });
+    if (chatOpen) closeChat();
+  } else if (action === 'suggest') {
+    openChat(value);
+  } else if (action === 'url') {
+    if (/^https?:\/\//i.test(value) && confirm('Diesen Link öffnen?\n\n' + value)) window.open(value, '_blank', 'noopener');
+  } else if (action === 'copy') {
+    navigator.clipboard?.writeText(value).then(() => showNotice('📋 Kopiert'), () => {});
+  }
 }
 
 renderer.domElement.addEventListener('click', () => { if (connected) { ui.resume.hidden = true; lockPointer(); } });
@@ -1165,6 +1202,7 @@ function frame(now) {
     signs.update();
     const playing = connected && !dead && !inventory.open && !chatOpen && ui.pause.hidden && !studio.isOpen && !voice.menuOpen;
     voice.update(camera);
+    locator.update(player, !ui.hud.hidden && !dead && !stereoOn);
     if (talkBtn) talkBtn.hidden = !playing || !voice.s.enabled || voice.s.mode !== 'ptt' || stereoOn;
     touch?.update(playing, connected && (inventory.open || chatOpen));
     pad.poll(dt, { playing, overlay: inventory.open || chatOpen, menu: !ui.pause.hidden, dead });

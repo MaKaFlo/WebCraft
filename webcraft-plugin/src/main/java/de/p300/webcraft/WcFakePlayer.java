@@ -692,13 +692,13 @@ public final class WcFakePlayer {
             case ClientboundExplodePacket e -> e.playerKnockback().ifPresent(v -> session.knockback(v.x, v.y, v.z));
             case ClientboundSystemChatPacket c -> {
                 if (c.overlay()) session.notice(c.content().getString());
-                else session.chat(c.content().getString());
+                else session.chat(c.content());
             }
             case ClientboundPlayerChatPacket c -> {
                 Component content = c.unsignedContent().orElse(Component.literal(c.body().content()));
-                session.chat(c.chatType().decorate(content).getString());
+                session.chat(c.chatType().decorate(content));
             }
-            case ClientboundDisguisedChatPacket c -> session.chat(c.chatType().decorate(c.message()).getString());
+            case ClientboundDisguisedChatPacket c -> session.chat(c.chatType().decorate(c.message()));
             case ClientboundSetActionBarTextPacket a -> session.notice(a.text().getString());
             case ClientboundPlayerCombatKillPacket k -> session.died(k.message().getString());
             case ClientboundSetHealthPacket h -> session.statsDirty = true;
@@ -721,6 +721,7 @@ public final class WcFakePlayer {
             }
             case ClientboundSoundPacket snd -> session.sounds.add(snd);
             case ClientboundBossEventPacket b -> WcBossBars.send(session, b);
+            case net.minecraft.network.protocol.game.ClientboundTrackedWaypointPacket w -> WcWaypoints.send(session, w);
             case ClientboundSoundEntityPacket snd -> session.sounds.add(snd);
             case ClientboundTakeItemEntityPacket snd -> session.sounds.add(snd);
             // Every block change the server tells a normal client about (also /setblock, WorldEdit, pistons ...)
