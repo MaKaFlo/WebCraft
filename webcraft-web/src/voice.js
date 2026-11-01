@@ -321,7 +321,7 @@ export class VoiceChat {
   keyDown(e) {
     if (e.code === 'KeyV' && !e.repeat) { this.setMenu(!this.menuOpen); return true; }
     if (this.waitKey) {
-      this.s.key = e.code;
+      if (e.code !== 'Escape') this.s.key = e.code;   // Esc only cancels
       this.waitKey = false;
       this.save();
       this.renderMenu();

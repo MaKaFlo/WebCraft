@@ -42,7 +42,7 @@ const SKIES = {
   THE_END: 0x150f22,
 };
 // Settings (kept in the browser)
-const settings = { sens: 15, fov: 75, autoJump: true, vol: 60, music: 50, gyro: false, vr: false, eye: 64, lens: 60, hitboxes: false, chunks: false, lang: 'de' };
+const settings = { sens: 15, fov: 75, autoJump: true, vol: 60, music: 50, gyro: false, vr: false, eye: 64, lens: 60, hitboxes: false, chunks: false, lang: 'de', chatSize: 100, chatWidth: 560 };
 // Settings saved under the old name (gg.*) move over once
 try {
   for (const k of ['settings', 'server', 'name']) {
@@ -787,6 +787,10 @@ ui.resume.addEventListener('click', () => { ui.resume.hidden = true; lockPointer
 
 function syncSettingsUi() {
   $('s-sens').value = settings.sens; $('s-sens-v').textContent = settings.sens;
+  $('s-chat').value = settings.chatSize; $('s-chat-v').textContent = settings.chatSize + ' %';
+  $('s-chatw').value = settings.chatWidth; $('s-chatw-v').textContent = settings.chatWidth + ' px';
+  document.documentElement.style.setProperty('--chat-scale', settings.chatSize / 100);
+  document.documentElement.style.setProperty('--chat-width', settings.chatWidth + 'px');
   $('s-fov').value = settings.fov; $('s-fov-v').textContent = settings.fov + '°';
   $('s-autojump').checked = player.autoJump;
   $('s-gyro').checked = !!touch?.gyroOn;
@@ -814,6 +818,8 @@ $('s-music').addEventListener('input', (e) => {
 });
 $('m-textures').addEventListener('click', () => studio.open(inventory.selectedItem()?.k));
 $('s-sens').addEventListener('input', (e) => { settings.sens = +e.target.value; syncSettingsUi(); saveSettings(); });
+$('s-chat').addEventListener('input', (e) => { settings.chatSize = +e.target.value; syncSettingsUi(); saveSettings(); });
+$('s-chatw').addEventListener('input', (e) => { settings.chatWidth = +e.target.value; syncSettingsUi(); saveSettings(); });
 $('s-fov').addEventListener('input', (e) => {
   settings.fov = +e.target.value;
   camera.fov = settings.fov;

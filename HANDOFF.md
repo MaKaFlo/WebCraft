@@ -10,6 +10,7 @@ _Last update: 2026-10-31, version 0.39.0 (main). Tag pushes are refused by this 
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- After 0.39.0 (html only, same jar): chat font size and width as settings (`chatSize`, `chatWidth`, CSS vars `--chat-scale/--chat-width`), Esc no longer taken as push-to-talk key. Not tested headless (owner's credit ran out).
 - 0.39.0 (owner's wishes): **voice chat** (V menu like Simple Voice Chat: on/off, mute, deafen, push to talk key or
   voice activation, input/output device, volumes, groups with password and type; first-join tutorial; 🔊 over talking
   heads; touch 🎙️ button) through the server's Simple Voice Chat (`WcVoiceSvc`) or built in without it; **locator

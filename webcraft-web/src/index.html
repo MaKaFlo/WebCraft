@@ -91,9 +91,9 @@
   #players { top: 12px; right: 12px; min-width: 140px; }
   #players:empty { display: none; }
   .players-head { font-weight: 700; color: #ffb347; margin-bottom: 2px; }
-  #chat { position: fixed; left: 12px; bottom: 12px; width: min(560px, calc(100% - 24px)); }
+  #chat { position: fixed; left: 12px; bottom: 12px; width: min(var(--chat-width, 560px), calc(100% - 24px)); }
   #chat-log { display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px; }
-  .chat-line { align-self: flex-start; background: rgba(20, 18, 34, 0.55); color: #fff; font-size: 14px; padding: 3px 8px; transition: opacity 1s; }
+  .chat-line { align-self: flex-start; background: rgba(20, 18, 34, 0.55); color: #fff; font-size: calc(16px * var(--chat-scale, 1)); padding: 3px 8px; transition: opacity 1s; }
   .chat-line.sys { color: #ffb347; }
   .chat-line.old { opacity: 0; }
   .chat-click { cursor: pointer; }
@@ -108,7 +108,7 @@
   #sign-editor input:focus { background: rgba(255, 255, 255, 0.15); }
   #sign-editor .sign-hint { color: #eee; font-size: 13px; text-shadow: 1px 1px #000; text-align: center; padding: 0 16px; }
   #sign-editor button { font: 16px "WebCraft Pixel", monospace; padding: 8px 28px; }
-  #chat-input { background: rgba(20, 18, 34, 0.8); color: #fff; border: 2px solid #ffb347; }
+  #chat-input { background: rgba(20, 18, 34, 0.8); color: #fff; border: 2px solid #ffb347; font-size: calc(16px * var(--chat-scale, 1)); }
   #loading {
     position: fixed; left: 50%; top: 58%; transform: translateX(-50%); color: #fff; font-size: 16px;
     background: rgba(20, 18, 34, 0.6); padding: 8px 14px;
@@ -393,7 +393,7 @@
   #item-name.show, #notice.show { opacity: 1; }
   #dig-progress { position: fixed; left: 50%; top: calc(50% + 18px); width: 60px; height: 6px; transform: translateX(-50%); background: rgba(0,0,0,0.5); display: none; }
   #dig-progress i { display: block; height: 100%; width: 0; background: #fff; }
-  #chat { bottom: 12px; width: min(420px, calc(50% - 270px)); }
+  #chat { bottom: 12px; width: min(var(--chat-width, 560px), calc(50% - 270px)); }
   @media (max-width: 1100px) { #chat { bottom: 170px; width: min(560px, calc(100% - 24px)); } }
 
   /* ---------- inventory screen */
@@ -619,6 +619,10 @@
       <button type="button" class="mbtn danger" id="m-leave">Verbindung trennen</button>
     </div>
     <div class="menu-page" id="menu-settings" hidden>
+      <label class="setting">Chat-Schriftgröße <output id="s-chat-v"></output>
+        <input type="range" id="s-chat" min="80" max="200" step="10"></label>
+      <label class="setting">Chat-Breite <output id="s-chatw-v"></output>
+        <input type="range" id="s-chatw" min="300" max="1200" step="20"></label>
       <label class="setting">Mausempfindlichkeit <output id="s-sens-v"></output>
         <input type="range" id="s-sens" min="3" max="60" step="1"></label>
       <label class="setting">Sichtfeld <output id="s-fov-v"></output>
