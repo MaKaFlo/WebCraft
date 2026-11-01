@@ -31,7 +31,9 @@ to `wc.*`; the IndexedDB for own textures is still called `gg`.
 - No long dashes (em dash) in German texts. Emojis are fine.
 - **No internal hostnames, domains or IPs in the repo.** Addresses only come from environment
   variables (docker compose `.env`) or from what the user types into the login form.
-- Always deliver results as files (jar, html, zip), not only as code in the chat.
+- Always deliver results as files (jar, html, zip), not only as code in the chat. **Always include the jars (Paper
+  plugin + Fabric mod), even when only the browser side changed** (owner's wish 2026-11-01). Without Paper/JDK 25 in the
+  container the jars come from CI (push to main or a PR, artifact `webcraft`).
 - Stop test servers after testing.
 - Feedback mostly comes from a friend testing on the real server; reports are short and informal
   ("Schafe sind weiß", "man buggt fest"). Reproduce on a local test server before fixing.

@@ -172,6 +172,9 @@ _Last update: 2026-11-01, version 0.39.1 (branch `claude/ecstatic-johnson-z7k985
 
 ## Open wishes / next steps
 
+- Owner (2026-11-01): always deliver the jars too, also for browser-only changes. 0.39.1 jars not delivered yet
+  (container could not build them; CI builds on main/PR).
+
 - Sounds: maybe cave ambience (`ambient.cave` mood), under-water music, biome music (`music.overworld.*`), jukebox
   discs, item use sounds the server leaves to the client (bucket fill, flint and steel, hoe till ...).
 - Ideas offered to the owner: own skin upload. Possible: inventory navigation with the controller.
