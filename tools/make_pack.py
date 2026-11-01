@@ -699,7 +699,9 @@ EXTRA_BLOCKS = ['piston_top', 'piston_top_sticky', 'piston_side', 'piston_bottom
                 'observer_back_on', 'dispenser_front_vertical', 'dropper_front_vertical', 'hopper_outside', 'hopper_inside',
                 'daylight_detector_inverted_top', 'redstone_lamp_on', 'powered_rail_on', 'detector_rail_on', 'activator_rail_on',
                 'rail_corner', 'furnace_side', 'furnace_top', 'smooth_stone', 'cauldron_inner', 'cauldron_top', 'cauldron_bottom',
-                'cauldron_side', 'water_still', 'lava_still', 'powder_snow'] + [
+                'cauldron_side', 'water_still', 'lava_still', 'powder_snow', 'vault_front_off', 'vault_front_on', 'vault_side_off',
+                'vault_side_on', 'trial_spawner_side_inactive', 'trial_spawner_side_active', 'trial_spawner_top_inactive',
+                'trial_spawner_top_active'] + [
                 f'{c}_bed_{part}_{side}' for c in ('white', 'orange', 'magenta', 'light_blue', 'yellow', 'lime', 'pink', 'gray',
                                                    'light_gray', 'cyan', 'purple', 'blue', 'brown', 'green', 'red', 'black')
                 for part in ('head', 'foot') for side in ('up', 'east', 'west', 'south')]
