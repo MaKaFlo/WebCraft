@@ -43,11 +43,15 @@ export class Player {
     this.glideAcc = 0;     // time not yet used for elytra ticks
     this.kbx = 0; this.kbz = 0; // knockback, fades out
     this.frozen = false;   // dead or waiting for the world
+    this.crouchReady = 0;  // performance.now() from when the server has our crouching pose too
     this.pose = 'stand';   // 'stand', 'crouch' (sneaking or no room to stand) or 'crawl' (no room to crouch)
   }
 
   get height() {
     if (this.swimming || this.gliding || this.pose === 'crawl') return SWIM_HEIGHT;
+    // Just crouched with Shift: the server takes the new pose only at its next tick, after the moves of this one, so
+    // for 2 ticks we keep the standing height (else walking into a 1.5 gap right away got us teleported back)
+    if (this.pose === 'crouch' && performance.now() < this.crouchReady) return HEIGHT;
     return this.pose === 'crouch' ? CROUCH_HEIGHT : HEIGHT;
   }
 
@@ -66,6 +70,7 @@ export class Player {
     if (this.swimming || this.gliding || this.spectator) { this.pose = 'stand'; return; }
     const fits = (h) => !this.insideBlock(this.x, this.y, this.z, h);
     const want = this.keys.has('ShiftLeft') && !this.flying ? 'crouch' : 'stand';
+    if (want === 'crouch' && this.pose === 'stand') this.crouchReady = performance.now() + 100;
     if (want === 'stand' && fits(HEIGHT)) this.pose = 'stand';
     else if (fits(CROUCH_HEIGHT)) this.pose = 'crouch';
     else if (fits(SWIM_HEIGHT)) this.pose = 'crawl';
