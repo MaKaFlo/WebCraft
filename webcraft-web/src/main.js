@@ -525,11 +525,16 @@ function sendMove() {
   const r = (v) => Math.round(v * 1000) / 1000;
   // Position unrounded: standing at a wall (x = 15.6999), rounding gives 15.7 and the server (player box a
   // tiny bit wider) sees us inside the wall and teleports us back again and again ("stuck at the wall").
-  const m = { t: 'move', x: player.x, y: player.y, z: player.z, yaw: r(player.yaw), pitch: r(player.pitch), g: player.onGround };
+  // At block edges the server's one-step move can end elsewhere than our small steps: then send where it ends
+  // (else it teleports us back, "stuck at the edge"), our real position follows with the next packet
+  const pos = player.positionForServer(lastSent);
+  const fixed = pos.x !== player.x || pos.y !== player.y || pos.z !== player.z;
+  const m = { t: 'move', x: pos.x, y: pos.y, z: pos.z, yaw: r(player.yaw), pitch: r(player.pitch), g: fixed ? false : player.onGround };
   if (lastSent && lastSent.x === m.x && lastSent.y === m.y && lastSent.z === m.z
       && lastSent.yaw === m.yaw && lastSent.pitch === m.pitch && lastSent.g === m.g) return;
   lastSent = m;
   send(m);
+  m.fixed = fixed;   // after send: only for the next positionForServer
 }
 
 let lastInput = '';
@@ -1243,7 +1248,7 @@ function frame(now) {
       i: -2, type: 'player', x: player.x, y: player.y, z: player.z, yaw: player.yaw, pitch: player.pitch, body: player.yaw,
       w: 0.6, h: 1.8, skin: mySkin || undefined, slim: mySlim || undefined, hand: inventory.selectedItem()?.k, off: inventory.off?.k,
       uo: shieldHand() === 'L' || undefined,
-      sn: (player.keys.has('ShiftLeft') && !player.flying && !player.gliding) || undefined, use: interaction.using || undefined,
+      sn: (player.pose === 'crouch' && !player.gliding) || undefined, use: interaction.using || undefined,
       gl: player.gliding || undefined, sw: player.swimming || undefined, vy: player.vy / 20,
       arm: player.chest === 'elytra' ? [null, 'elytra', null, null] : undefined,
       n: mods.on('ownname') ? myName : undefined, wc: true,

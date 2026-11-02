@@ -31,7 +31,9 @@ to `wc.*`; the IndexedDB for own textures is still called `gg`.
 - No long dashes (em dash) in German texts. Emojis are fine.
 - **No internal hostnames, domains or IPs in the repo.** Addresses only come from environment
   variables (docker compose `.env`) or from what the user types into the login form.
-- Always deliver results as files (jar, html, zip), not only as code in the chat.
+- Always deliver results as files (jar, html, zip), not only as code in the chat. **Always include the jars (Paper
+  plugin + Fabric mod), even when only the browser side changed** (owner's wish 2026-11-01). Without Paper/JDK 25 in the
+  container the jars come from CI (push to main or a PR, artifact `webcraft`).
 - Stop test servers after testing.
 - Feedback mostly comes from a friend testing on the real server; reports are short and informal
   ("Schafe sind weiß", "man buggt fest"). Reproduce on a local test server before fixing.
@@ -236,6 +238,15 @@ Minecraft's `travelFallFlying` per 1/20 s tick (`glideTick`, velocity in blocks/
 `entities.js` lays the body along the pitch, `skins.js MODELS.elytra` (`entity/elytra`, Faithful
 `equipment/wings/elytra`) on the body when `arm[1]` is elytra, wing angles like `ElytraModel` (spread by velocity).
 
+Poses and edges (`player.js`): `updatePose()` like Minecraft's `updatePlayerPose`: Shift wants crouching (1.5 high, eyes
+1.27), standing (1.8) when it fits, else crouching, else crawling (0.6); sneak speed when crouched or crawling. So you sneak
+under stairs/slabs/snow and stay crouched there; the server does the same. Collision treats touching as free only within
+`TOUCH` (1e-7, like Minecraft); with 1e-4 the player could sink 1e-4 into blocks and the server (which sees that overlap)
+teleported him back at edges. The server moves a packet in one step (y first, then the longer horizontal axis, step 0.6),
+we in small sub-steps: `serverMove()` emulates that, `positionForServer()` (used by `main.js sendMove`) sends the server's
+own end point when ours would be "moved wrongly" (> 0.25 sideways, >= 0.5 up/down; not for creative), once in a row.
+Checked with a Node fuzz test (mock world, random terrain, sprint/jump, simulated server): 18 teleports in 38000 moves before, 0 after.
+
 Off hand and actions: `WcFakePlayer.useOn/useItem` try the main hand, then the off hand when nothing changed
 (`useState`: the clicked block and its neighbour, open screen, main hand item, using an item), like the vanilla client's
 hand loop. `flushMove()` applies the newest `move` before use/dig/attack (moves were only applied at the next tick, so a
@@ -350,7 +361,7 @@ WebSocket, JSON text messages `{t: "...", ...}` plus binary chunk messages.
 | `touch.js` | Phones/tablets (`isTouch`): joystick (8 directions as WASD keys, sprint at the edge), buttons, drag anywhere to look (pointer events on `document`, not on controls), gyro look (`setGyro`, deltas of heading/elevation from `deviceorientation`, `roll` for the 3D glasses), close button for inventory/chat |
 | `gamepad.js` | Gamepad API, console layout, polled per frame; `recent` = used within a minute (then `lockPointer` is skipped like on touch); d-pad/A/B navigate the game menu (`.pad-focus`) |
 | `vr.js` | 3D glasses: `StereoCamera` for world and hand scene, half-screen viewports, own HUD canvas (hotbar, hearts, food) and crosshair in the hand scene. Lens correction (setting 0-150 %, Cardboard K1 0.34 / K2 0.55 at 100 %): both eyes go into a render target (its own `viewport`/`scissor`), then a full-screen shader bends each half like a barrel. Only while playing (`stereoOn`); screens (inventory, menu, chat) show normally. Touch buttons are hidden then: a tap anywhere opens the game menu (`main.js`, capture-phase pointerdown; the click of that tap is swallowed; a gyro permission tap is skipped via `touch.permissionTap`), hint line in the VR HUD (`showHint`) |
-| `blockmodels.js` | Blocks drawn by their state (palette `p` = all state properties, sent by `BlockPalette.STATE_DRAWN` for pistons, repeaters, comparators, wire, observers, dispensers, hoppers, rails, lamps, levers, torches, signs, end rods, lightning rods, lanterns, cauldrons (level: water tinted, lava glowing; per-element `tint`/`glow`), beds (Faithful's per-side pictures `<color>_bed_<part>_<side>`, legs drawn in them), fences and fence gates (posts and bars; the server's shapes were whole planks)). `blockModel()` gives either `cube` (own picture per world side + `texUp` turn, used by the normal box path via `faceTile/faceRot`, keeps AO) or `elements` (boxes/quads in pixels like Minecraft models, built facing north, turned by `up`/`north`), baked once per id (`bakeModel`) into `Palette.quads`, drawn into the cross mesh with the light of the cell each face looks into. Extra pictures (`piston_inner`, `repeater_on`, `redstone_dust_line0` ...) come from `make_pack.py EXTRA_BLOCKS` |
+| `blockmodels.js` | Blocks drawn by their state (palette `p` = all state properties, sent by `BlockPalette.STATE_DRAWN` for pistons, repeaters, comparators, wire, observers, dispensers, hoppers, rails, lamps, levers, torches, signs, end rods, lightning rods, lanterns, tripwire hooks (plank + stick + ring, hanging down unless `attached`; old servers: facing from `fa`), cauldrons (level: water tinted, lava glowing; per-element `tint`/`glow`), beds (Faithful's per-side pictures `<color>_bed_<part>_<side>`, legs drawn in them), fences and fence gates (posts and bars; the server's shapes were whole planks)). `blockModel()` gives either `cube` (own picture per world side + `texUp` turn, used by the normal box path via `faceTile/faceRot`, keeps AO) or `elements` (boxes/quads in pixels like Minecraft models, built facing north, turned by `up`/`north`), baked once per id (`bakeModel`) into `Palette.quads`, drawn into the cross mesh with the light of the cell each face looks into. Extra pictures (`piston_inner`, `repeater_on`, `redstone_dust_line0` ...) come from `make_pack.py EXTRA_BLOCKS` |
 | `admin.js` | Admin page (see `WcAdmin`): new player, password change/delete, kick, link with a Minecraft player |
 | `signs.js` | Sign texts (`signs`) as canvas planes on the board (front/back, color, glow ink), rebuilt on block changes; editor for `sign_edit` (4 inputs, answers `sign`) |
 | `textures.js` | Atlas: 64×64 tiles of 32 px + 8×8 animation atlas; pack tiles; gray detection for tinting |

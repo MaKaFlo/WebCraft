@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-10-31, version 0.39.0 (main). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
+_Last update: 2026-11-02, version 0.39.2 (branch `claude/ecstatic-johnson-z7k985`, PR MaKaFlo/WebCraft#1 open, CI green on 0.39.1). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
 
 ## Current state
 
@@ -10,6 +10,21 @@ _Last update: 2026-10-31, version 0.39.0 (main). Tag pushes are refused by this 
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- 0.39.2: first test of 0.39.1 on a real local Paper server (headless browser, real key events): sneaking into a 1.5
+  gap works, no server teleports when sprint-jumping over single blocks or up/down steps; tripwire hook, vault, trial
+  spawner drawn. Found + fixed: pressing Shift right in front of a 1.5 gap got one teleport back (the server crouches
+  one tick later), so the client keeps the standing height for 100 ms after Shift (`player.js crouchReady`).
+  Test script: `t2.cjs` (scratchpad, not kept). Fabric not built locally (Maven Central 429), CI builds it.
+- 0.39.1 (friend's reports): **sneaking** is 1.5 high like Minecraft (fits under stairs/slabs/snow with 1.5 room,
+  stays crouched there, crawls in 0.6 gaps: `player.js updatePose`); **stuck at block edges when jumping**: two causes
+  found and fixed in `player.js`: the player could sink 1e-4 into blocks (server saw the overlap → teleport back), and the
+  server moves each packet in one step while we sub-step (falling off/landing on edges ended elsewhere → "moved wrongly"):
+  `positionForServer` sends the server's own end point then. Checked in a Node fuzz test with a simulated server (18 → 0
+  teleports), not on a real server. **Tripwire hook** has a model (was a floating box; server now sends its state, old jar:
+  facing only). **Vault / trial spawner** pictures were missing in texturen.zip (Faithful from raw.githubusercontent.com),
+  state pictures (`_off`, `_inactive`) are found now. Hook, vault, spawner checked headless with a mocked WebSocket
+  (Playwright `routeWebSocket`, no server needed). Jar changes compiled nowhere yet (this container has no Paper/JDK 25:
+  CI builds it on main).
 - After 0.39.0 (html only, same jar): chat font size and width as settings (`chatSize`, `chatWidth`, CSS vars `--chat-scale/--chat-width`), Esc no longer taken as push-to-talk key. Not tested headless (owner's credit ran out).
 - 0.39.0 (owner's wishes): **voice chat** (V menu like Simple Voice Chat: on/off, mute, deafen, push to talk key or
   voice activation, input/output device, volumes, groups with password and type; first-join tutorial; 🔊 over talking
@@ -162,6 +177,9 @@ _Last update: 2026-10-31, version 0.39.0 (main). Tag pushes are refused by this 
 
 ## Open wishes / next steps
 
+- Owner (2026-11-01): always deliver the jars too, also for browser-only changes. The proxy blocks CI artifact
+  downloads (Azure blob): give the owner the Actions run link.
+
 - Sounds: maybe cave ambience (`ambient.cave` mood), under-water music, biome music (`music.overworld.*`), jukebox
   discs, item use sounds the server leaves to the client (bucket fill, flint and steel, hoe till ...).
 - Ideas offered to the owner: own skin upload. Possible: inventory navigation with the controller.
@@ -175,6 +193,18 @@ _Last update: 2026-10-31, version 0.39.0 (main). Tag pushes are refused by this 
   the local `origin` was switched to the new URL on 2026-10-30).
 
 ## Local paths (session container, may be gone)
+
+- Session 2026-11-01 container: network limited (no api.adoptium.net, papermc, faithfulpack.net, Mojang, fabricmc).
+  Works: github.com git, raw.githubusercontent.com (Faithful: `Faithful-Resource-Pack/Faithful-Java-32x/java-latest`),
+  Maven Central, npm, PyPI. So only the web part could be built and tested.
+
+- Session 2026-11-02 (later): owner allowed papermc/mojang/adoptium/fabricmc hosts. JDK 25 in `/home/user/tools`,
+  `maven.maxhenkel.de` still blocked: voicechat-api 2.5.0 built from github.com/henkelmax/simple-voice-chat `api/`
+  with javac and `mvn install:install-file` into ~/.m2. Paper test server `/home/user/srv` (flat world, offline mode).
+- Session 2026-11-02: the cloud proxy breaks plain `ws://` to the owner's server even when the host is allowed (it
+  rewrites the 101's `Connection: Upgrade` to `close`, Chromium refuses, raw clients are cut off). Joining the real
+  server from a session needs `wss://` (the server has no https WebCraft endpoint yet). Own test server needs these
+  hosts allowed: api/fill.papermc.io, piston-meta/piston-data.mojang.com, libraries.minecraft.net, api.adoptium.net.
 
 - Test servers: `/home/user/srv` (Paper, scripts `*.cjs`, e.g. `mobgrid.cjs`, `skylight.cjs`, `emptyhand.cjs`),
   `/home/user/fsrv` (Fabric). JDK 25: `/home/user/tools/jdk-25.0.5+8` (Maven needs `JAVA_HOME` set to it).
