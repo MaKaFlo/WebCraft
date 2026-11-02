@@ -193,6 +193,11 @@ _Last update: 2026-11-01, version 0.39.1 (branch `claude/ecstatic-johnson-z7k985
   Works: github.com git, raw.githubusercontent.com (Faithful: `Faithful-Resource-Pack/Faithful-Java-32x/java-latest`),
   Maven Central, npm, PyPI. So only the web part could be built and tested.
 
+- Session 2026-11-02: the cloud proxy breaks plain `ws://` to the owner's server even when the host is allowed (it
+  rewrites the 101's `Connection: Upgrade` to `close`, Chromium refuses, raw clients are cut off). Joining the real
+  server from a session needs `wss://` (the server has no https WebCraft endpoint yet). Own test server needs these
+  hosts allowed: api/fill.papermc.io, piston-meta/piston-data.mojang.com, libraries.minecraft.net, api.adoptium.net.
+
 - Test servers: `/home/user/srv` (Paper, scripts `*.cjs`, e.g. `mobgrid.cjs`, `skylight.cjs`, `emptyhand.cjs`),
   `/home/user/fsrv` (Fabric). JDK 25: `/home/user/tools/jdk-25.0.5+8` (Maven needs `JAVA_HOME` set to it).
 - Texture sources: Faithful unpacked in `/home/user/faithful/x`, PPCE in `/tmp/ppce`. If gone, download again
