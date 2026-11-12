@@ -2,7 +2,7 @@
 
 Ein Block-Spiel im Browser, das sich mit einem **Minecraft-Server** verbindet: **Paper** (als Plugin) oder **Fabric** (als Mod, damit auch für Vanilla). WebCraft-Spieler sind auf dem Server **echte Spieler**: Sie stehen in der Tab-Liste, bekommen Schaden, sterben, benutzen Befehle und Menüs von Plugins und Mods. Für den Server gibt es keinen Unterschied zu einem Minecraft-Spieler. So können Leute ohne Minecraft-Account mit Freunden auf dem Server spielen.
 
-Version 0.39.2 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
+Version 0.40.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
 
 ## Aufbau
 
@@ -133,6 +133,21 @@ Wenn Webseite und Plugin auf verschiedenen Domains laufen, in `config.yml` unter
 | `Feststelltaste` (halten) | Sprechen (auf dem Mac `G`, im Sprachchat-Menü änderbar, auch Sprachaktivierung) |
 | `Esc` | Spielmenü, Einstellungen (auch Lautstärke), Textur-Studio |
 
+**VR-Brille** (Meta Quest, Pico, PC-VR im Browser; die Seite muss über **https://** kommen): Spielmenü → „🥽 VR starten“.
+
+| Controller | Was |
+|---|---|
+| Linker Stick (drücken) | Laufen (Rennen) |
+| Rechter Stick links/rechts | Drehen in 30°-Schritten |
+| Rechter Stick nach unten | Schleichen |
+| `A` (zweimal) | Springen (Fliegen) |
+| Rechter Trigger | Angreifen, Abbauen (halten); gezielt wird mit dem rechten Controller |
+| Linker Trigger | Bauen, Benutzen, Essen |
+| Griffe links/rechts | Hotbar |
+| `B` / `X` / `Y` | Inventar / Spielmenü / Item wegwerfen |
+
+Hotbar, Herzen und Essen sind am linken Handgelenk. Inventar, Menü und Chat sind Webseiten, die eine VR-Brille nicht zeigen kann: Dafür geht das Spiel kurz aus der VR, ein Klick auf „Zurück zum Spiel“ bzw. „🥽 zurück in VR“ setzt die Brille wieder auf.
+
 Im Inventar: Maus über ein Item zeigt seinen Namen. Shift+Klick verschiebt, `1`-`9` legt das Item unter der Maus auf die Hotbar. Im Kreativmodus: rechts im Inventar alle Items mit Suche. Klick nimmt das Item an die Maus (danach auf einen Platz legen), Shift+Klick einen ganzen Stapel, `Entf` leert den Platz unter der Maus. Mit gedrückter Maustaste über Plätze ziehen verteilt den Stapel (rechts: je 1, links: gleichmäßig).
 
 ## Passwort
@@ -262,6 +277,7 @@ Das Bild wird auf 32×32 Pixel verkleinert (bei Items wird der Hintergrund entfe
 - ⏸️ **Einzelspieler** (nur Paper, im Moment nicht auf der Anmeldeseite, der Server kann es noch): **Überleben:** die normale Server-Welt mit dem eigenen Inventar, aber man sieht keine anderen Spieler und ihren Chat (die anderen sehen einen weiter). **Kreativ:** eine eigene Welt mit demselben Seed wie die Server-Welt (mit eigenem Nether und End), nur man selbst kommt hinein, eigenes Inventar (Name `sp_Name`), unsichtbar für die anderen, Chat privat. Die Welten liegen in `world/dimensions/minecraft/wcsp_*`. Abschalten: `singleplayer: false` in der config.yml
 - ✅ **Mods** wie bei PvP-Clients (Esc → "Mods ..."), jeder einzeln an und aus: FPS, CPS, Tastenanzeige, Rüstung mit Haltbarkeit, Trank-Effekte, Uhrzeit, Tag-Zähler, Reichweite, Combo, Speicher, Minimap, Uhrzeit im Chat, Scoreboard ausblenden, Fullbright, Zoom (C), Freelook (Alt), Snaplook (V), kein Wackeln bei Schaden, kein Regen, Tageszeit, Partikel-Menge, Farben für Fadenkreuz, Block-Umrandung und Treffer, Screenshot (F2), Toggle Sprint und Toggle Sneak, Bewegungsunschärfe, Wegpunkte (B setzt einen, Liste im Mod-Menü), Item-Physik, eigenes Namensschild in F5. Eigene Umsetzung, kein Code anderer Clients
 - ✅ Bossbars wie in Minecraft (Wither, Enderdrache, Überfälle, Plugin-Bossbars)
+- ✅ VR-Brillen (WebXR, z.B. Meta Quest): Welt in der Brille, Kopf zum Umsehen, Controller zum Laufen, Zielen (Laser), Abbauen und Bauen, Hotbar am Handgelenk
 - ℹ️ Gyro und Controller brauchen im Browser **https://** (die Seite hinter HTTPS ausliefern)
 
 ### Noch offen

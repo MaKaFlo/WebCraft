@@ -25,6 +25,7 @@ import pixelFont from './mcfont.ttf';
 import { TouchControls, isTouch } from './touch.js';
 import { GamepadControls } from './gamepad.js';
 import { StereoView } from './vr.js';
+import { XrControls } from './xr.js';
 import { ModrinthPacks } from './modrinth.js';
 import { mods } from './mods.js';
 import { BossBars } from './bossbar.js';
@@ -287,6 +288,7 @@ function connect(url, name) {
         skinArmReady = !mySkin;
         applyLanguage();
         world.viewDistance = msg.viewDistance;
+        if (xr.supported) showNotice('🥽 VR-Brille erkannt: Spielmenü → VR starten');
         setWorld(msg);
         enterGame();
         voice.connect();
@@ -733,6 +735,8 @@ document.addEventListener('keyup', (e) => {
 
 function lockPointer() {
   if (dead || inventory.open || chatOpen || !ui.pause.hidden || studio.isOpen || voice.menuOpen) return;
+  // VR: back into the headset when this comes from a click (menu "Zurück zum Spiel"), else the next click does it
+  if (xr.wanted) { if (!xr.presenting) { if (navigator.userActivation?.isActive) xr.start(); else showResume(); } return; }
   if (touch || pad.recent) { ui.resume.hidden = true; return; }   // phones and controllers play without a mouse
   if (escDown) { lockAfterEsc = true; return; }
   // After Esc the browser only allows this on the next click; then we ask for that click
@@ -741,7 +745,9 @@ function lockPointer() {
 }
 
 function showResume() {
-  if (connected && !dead && !inventory.open && !chatOpen && ui.pause.hidden) ui.resume.hidden = false;
+  if (!(connected && !dead && !inventory.open && !chatOpen && ui.pause.hidden)) return;
+  ui.resume.textContent = xr.wanted ? '🥽 Klicken: zurück in VR' : '🖱️ Klicken zum Weiterspielen';
+  ui.resume.hidden = false;
 }
 document.addEventListener('pointerlockerror', showResume);
 
@@ -788,7 +794,7 @@ $('m-leave').addEventListener('click', () => {
   ui.pause.hidden = true;
   ws?.close(1000, 'Left');
 });
-ui.resume.addEventListener('click', () => { ui.resume.hidden = true; lockPointer(); });
+ui.resume.addEventListener('click', () => { ui.resume.hidden = true; if (xr.wanted) xr.start(); else lockPointer(); });
 
 function syncSettingsUi() {
   $('s-sens').value = settings.sens; $('s-sens-v').textContent = settings.sens;
@@ -972,6 +978,21 @@ const pad = new GamepadControls({
 const stereo = new StereoView(hand.scene);
 stereo.setEyeDistance(settings.eye);
 stereo.setLensStrength(settings.lens / 100);
+// VR headsets (WebXR): the headset draws the world, the controllers play (xr.js)
+const xr = new XrControls({
+  renderer, scene, player, interaction, inventory, hudTexture: stereo.hud.material.map, sendInput,
+  openInventory: () => inventory.setOpen(true),
+  openMenu: () => showMenu(),
+  drop: () => dropItem(false),
+  respawn: () => { if (!ui.death.hidden) ui.respawn.click(); },
+  notice: (text) => showNotice(text),
+  hint: (text, seconds) => stereo.showHint(text, seconds),
+  onSupported: () => { $('m-xr').hidden = false; if (connected) showNotice('🥽 VR-Brille erkannt: Spielmenü → VR starten'); },
+  onStart: () => { ui.resume.hidden = true; hideMenu(); stereo.showHint('X = Menü · B = Inventar', 8); },
+  onEnd: () => { if (xr.wanted) showResume(); },
+});
+$('m-xr').addEventListener('click', () => { if (xr.presenting) xr.stop(); else { hideMenu(); xr.start(); } });
+
 function setVr(on) {
   settings.vr = on;
   saveSettings();
@@ -1197,7 +1218,6 @@ function placeThirdPersonCamera() {
 }
 
 function frame(now) {
-  requestAnimationFrame(frame);
   const dt = Math.min(0.1, (now - last) / 1000);
   // Movement runs on real time like Minecraft's 20 ticks per second: on slow frames (meshing new chunks while
   // flying) a cap of 0.1 s turned the game into slow motion (elytra flight felt slow); the player sub-steps anyway
@@ -1216,11 +1236,12 @@ function frame(now) {
     locator.update(player, !ui.hud.hidden && !dead && !stereoOn);
     if (talkBtn) talkBtn.hidden = !playing || !voice.s.enabled || voice.s.mode !== 'ptt' || stereoOn;
     touch?.update(playing, connected && (inventory.open || chatOpen));
+    xr.update(dt, { playing, dead });
     pad.poll(dt, { playing, overlay: inventory.open || chatOpen, menu: !ui.pause.hidden, dead });
-    interaction.update(dt, (isLocked() || ((touch || pad.recent) && playing)) && !dead);
-    stereoOn = settings.vr && playing;
+    interaction.update(dt, (isLocked() || ((touch || pad.recent || xr.presenting) && playing)) && !dead);
+    stereoOn = settings.vr && playing && !xr.presenting;
     document.body.classList.toggle('vr-on', stereoOn);
-    if (stereoOn) stereo.updateHud(dt, inventory, world.palette, hud.stats);
+    if (stereoOn || xr.presenting) stereo.updateHud(dt, inventory, world.palette, hud.stats);
     hud.tick(dt);
 
     sendTimer += realDt;
@@ -1311,6 +1332,10 @@ function frame(now) {
   }
 
   const blur = connected ? mods.value('motionblur') : 0;
+  if (xr.presenting) {
+    renderer.render(scene, xr.camera);   // both eyes, by the headset
+    return;
+  }
   if (stereoOn) {
     stereo.render(renderer, scene, camera, hand, handLight, hand.visibleMode !== false && !view);
   } else if (blur > 0) {
@@ -1344,7 +1369,8 @@ function frame(now) {
   hudTime += dt;
   if (connected && hudTime > 0.2) { hudTime = 0; updateHud(); }
 }
-requestAnimationFrame(frame);
+// setAnimationLoop instead of requestAnimationFrame: in VR the headset sets the frame rate
+renderer.setAnimationLoop(frame);
 
 // Watchdog: if chunks around you stay missing, ask the server to send them again
 // ---------------------------------------------------------------- mods (menu "Mods ...")
@@ -1595,4 +1621,4 @@ function showTutorial(steps) {
   next();
 }
 
-window.wc = { get state() { return { connected, chatOpen, dead, view }; }, signs, player, world, entities, renderer, scene, camera, inventory, interaction, send, hud, sidebar, studio, pack, hand, sky, particles, weather, sounds, ambience, voice, mods };
+window.wc = { get state() { return { connected, chatOpen, dead, view }; }, signs, player, world, entities, renderer, scene, camera, inventory, interaction, send, hud, sidebar, studio, pack, hand, sky, particles, weather, sounds, ambience, voice, mods, xr, THREE };

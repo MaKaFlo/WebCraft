@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-11-02, version 0.39.2 (branch `claude/ecstatic-johnson-z7k985`, PR MaKaFlo/WebCraft#1 open, CI green on 0.39.1). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
+_Last update: 2026-11-12, version 0.40.0 (branch `claude/ecstatic-johnson-z7k985`, PR MaKaFlo/WebCraft#1 open). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
 
 ## Current state
 
@@ -10,6 +10,12 @@ _Last update: 2026-11-02, version 0.39.2 (branch `claude/ecstatic-johnson-z7k985
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- 0.40.0 (owner: "VR-Brille mit Controllern wird nicht erkannt"): WebXR (`xr.js`), button "🥽 VR starten" in the game
+  menu when `navigator.xr` supports immersive-vr (+ notice at login). Tested headless only with a fake `navigator.xr`,
+  fake session and fake xr-standard gamepads against the Paper test server (walk, snap turn, controller aim → dig_start
+  and use_on sent, grip hotbar, B → inventory ends the session, normal render loop still fine). NOT tested on a real
+  headset: check comfort, wrist HUD placement/readability, controller button numbers on Quest, re-entering VR after
+  the inventory. Hand/held item not drawn in VR.
 - 0.39.2: first test of 0.39.1 on a real local Paper server (headless browser, real key events): sneaking into a 1.5
   gap works, no server teleports when sprint-jumping over single blocks or up/down steps; tripwire hook, vault, trial
   spawner drawn. Found + fixed: pressing Shift right in front of a 1.5 gap got one teleport back (the server crouches

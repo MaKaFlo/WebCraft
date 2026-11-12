@@ -81,7 +81,13 @@ export class Interaction {
     this.lookEl.hidden = !text;
   }
 
+  /** Where the aim starts: the eyes, or the pointing controller in a VR headset (`aim`). */
+  origin() {
+    return this.aim ? this.aim.o : [this.player.x, this.player.eyeY, this.player.z];
+  }
+
   direction() {
+    if (this.aim) return this.aim.d;
     const yr = this.player.yaw * Math.PI / 180, pr = this.player.pitch * Math.PI / 180;
     return [-Math.sin(yr) * Math.cos(pr), -Math.sin(pr), Math.cos(yr) * Math.cos(pr)];
   }
@@ -89,7 +95,7 @@ export class Interaction {
   update(dt, active) {
     const P = this.world.palette;
     const [dx, dy, dz] = this.direction();
-    const ox = this.player.x, oy = this.player.eyeY, oz = this.player.z;
+    const [ox, oy, oz] = this.origin();
     this.target = active ? this.world.raycast(ox, oy, oz, dx, dy, dz, BLOCK_REACH) : null;
     const ent = active ? this.entities.raycast(ox, oy, oz, dx, dy, dz, ENTITY_REACH) : null;
     const blockDist = this.target ? (this.target.t ?? this.blockDistance(this.target, ox, oy, oz, dx, dy, dz)) : Infinity;
@@ -295,8 +301,8 @@ export class Interaction {
     const te = this.targetEntity;
     if (te) {
       const e = te.entity;
-      const [dx, dy, dz] = this.direction();
-      const hx = this.player.x + dx * te.t - e.x, hy = this.player.eyeY + dy * te.t - e.y, hz = this.player.z + dz * te.t - e.z;
+      const [dx, dy, dz] = this.direction(), [ox, oy, oz] = this.origin();
+      const hx = ox + dx * te.t - e.x, hy = oy + dy * te.t - e.y, hz = oz + dz * te.t - e.z;
       this.send({ t: 'interact', id: te.id, hx, hy, hz });
       this.onSwing();
       if (item && THROWN.test(item.k)) this.send({ t: 'use' });
