@@ -57,6 +57,9 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
     private String namePrefix;
     WcLinks links;
     private WcAccounts accounts;
+    private WcRenames renames;
+    private boolean selfRename;
+    private int renameWaitDays;
     private boolean passwords, selfRegister;
     private String webUrl;
     private WcAdmin admin;
@@ -97,7 +100,8 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         skins = new WcSkins(new File(getDataFolder(), "skins").toPath(), getLogger());
         links = new WcLinks(new File(getDataFolder(), "links.json").toPath(), getLogger());
         accounts = new WcAccounts(new File(getDataFolder(), "passwords.json").toPath(), getLogger());
-        admin = new WcAdmin(this, accounts, links, new WcAdmin.Platform() {
+        renames = new WcRenames(new File(getDataFolder(), "renames.json").toPath(), getLogger());
+        admin = new WcAdmin(this, accounts, links, renames, new WcAdmin.Platform() {
             public String namePrefix() { return namePrefix; }
             public List<String> online() {
                 List<String> out = new ArrayList<>();
@@ -105,7 +109,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                 return out;
             }
             public void whitelist(String account) {
-                if (Bukkit.hasWhitelist()) Bukkit.getOfflinePlayer(WcFakePlayer.uuidFor(account)).setWhitelisted(true);
+                if (Bukkit.hasWhitelist()) Bukkit.getOfflinePlayer(renames.uuidOf(account)).setWhitelisted(true);
             }
             public boolean kick(String account) {
                 for (WcSession x : sessions.values()) {
@@ -127,6 +131,20 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                     out.put(n, o.getUniqueId());
                 }
                 return out;
+            }
+            public boolean playedBefore(UUID uuid) { return Bukkit.getOfflinePlayer(uuid).hasPlayedBefore(); }
+            public UUID knownUuid(String name) {
+                for (OfflinePlayer o : Bukkit.getOfflinePlayers()) if (name.equalsIgnoreCase(o.getName())) return o.getUniqueId();
+                return null;
+            }
+            public boolean nameOnline(String name) { return Bukkit.getPlayerExact(name) != null; }
+            public void renamed(String oldAccount, String newAccount) {
+                for (WcSession x : new ArrayList<>(sessions.values())) {
+                    if (oldAccount.equalsIgnoreCase(x.account)) {
+                        relogin(x, "Du heißt jetzt " + newAccount + ". Du wirst neu verbunden ...", newAccount.substring(namePrefix.length()));
+                        return;
+                    }
+                }
             }
         });
         WcAssets assets = new WcAssets(new File(getDataFolder(), "assets").toPath(), getLogger());
@@ -176,6 +194,8 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         mojangAssets = getConfig().getBoolean("mojang-assets", false);
         passwords = getConfig().getBoolean("passwords", true);
         selfRegister = getConfig().getBoolean("self-register", true);
+        selfRename = getConfig().getBoolean("self-rename", true);
+        renameWaitDays = Math.max(0, getConfig().getInt("rename-wait-days", 7));
         webUrl = getConfig().getString("web-url", "");
     }
 
@@ -217,6 +237,10 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
                 s.helloSeen = true;
                 String name = str(json, "name"), skin = str(json, "skin"), pw = str(json, "pw");
                 boolean single = "single".equals(str(json, "mode")), creative = bool(json, "creative"), register = bool(json, "register");
+                if (name != null && !(single && creative) && renames.takenBy(namePrefix + name) != null) {
+                    fail(s, "Der Name " + name + " ist vergeben (ein Spieler hat sich umbenannt).");
+                    return;
+                }
                 if (!passwords || name == null || !NAME_PATTERN.matcher(name).matches()) {
                     login(s, name, skin, single, creative);
                     return;
@@ -370,7 +394,8 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         // Linked with a Minecraft account (/webcraft link): play as that account (same player, same items)
         WcLinks.Account linked = ownWorld ? null : links.of(accountName);
         String fullName = linked != null ? linked.name() : (ownWorld ? singlePlayer.prefix : namePrefix) + rawName;
-        UUID uuid = linked != null ? linked.uuid() : WcFakePlayer.uuidFor(fullName);
+        // A renamed account keeps its UUID (renames.json), so its player data and plugin data stay
+        UUID uuid = linked != null ? linked.uuid() : ownWorld ? WcFakePlayer.uuidFor(fullName) : renames.uuidOf(accountName);
         if (linked != null) {
             Player java = Bukkit.getPlayer(uuid);
             // Like Minecraft: the newest login wins (the Java client is closed; its data is saved on quit)
@@ -391,7 +416,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
             fail(s, "Name is already in use");
             return;
         }
-        OfflinePlayer account = Bukkit.getOfflinePlayer(linked != null ? uuid : WcFakePlayer.uuidFor(accountName));
+        OfflinePlayer account = Bukkit.getOfflinePlayer(linked != null ? uuid : renames.uuidOf(accountName));
         if (account.isBanned()) {
             fail(s, "You are banned from this server");
             return;
@@ -1405,6 +1430,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
         List<String> options = new ArrayList<>();
         if (args.length == 1) {
             if (sender.hasPermission("webcraft.link")) options.add("link");
+            if (sender instanceof Player tp && sessionOf(tp) != null && (selfRename || isAdmin)) options.add("name");
             if (isAdmin) options.addAll(ADMIN_SUBS);
         } else if (args.length == 2 && args[0].equalsIgnoreCase("link") && sender.hasPermission("webcraft.link")) {
             options.add("delete");
@@ -1426,6 +1452,21 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
             args = new String[] {"link", args[0]};
             sub = "link";
         }
+        if (sub.equals("name") && sender instanceof Player rp && sessionOf(rp) != null) {
+            WcSession s = sessionOf(rp);
+            if (!selfRename && !sender.hasPermission("webcraft.admin")) {
+                sender.sendMessage(Component.text("Namen ändern ist auf diesem Server aus. Frag einen Admin.", NamedTextColor.RED));
+            } else if (args.length < 2) {
+                sender.sendMessage(Component.text("Benutzung: /webcraft name <neuer Name>", NamedTextColor.RED));
+            } else if (s.account == null || (singlePlayer != null && singlePlayer.isSingle(s.name))) {
+                sender.sendMessage(Component.text("Im Einzelspieler-Kreativmodus geht das nicht.", NamedTextColor.RED));
+            } else {
+                String err = admin.renameSelf(s.account, rp.getUniqueId(), args[1],
+                        sender.hasPermission("webcraft.admin") ? 0 : renameWaitDays);
+                if (err != null) sender.sendMessage(Component.text(err, NamedTextColor.RED));
+            }
+            return true;
+        }
         if (sub.equals("link")) {
             if (!sender.hasPermission("webcraft.link")) {
                 sender.sendMessage(Component.text("Dafür hast du keine Berechtigung.", NamedTextColor.RED));
@@ -1437,7 +1478,7 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
             return true;
         }
         if (!sender.hasPermission("webcraft.admin")) {
-            sender.sendMessage(Component.text("Benutzung: /webcraft link [delete|<Code>]", NamedTextColor.RED));
+            sender.sendMessage(Component.text("Benutzung: /webcraft link [delete|<Code>]" + (selfRename ? " oder /webcraft name <neuer Name>" : ""), NamedTextColor.RED));
             return true;
         }
         switch (sub) {
@@ -1592,10 +1633,16 @@ public final class WcPlugin extends JavaPlugin implements WcHost {
 
     /** Closes a session with a message; the browser logs in again by itself. */
     private void relogin(WcSession s, String message) {
+        relogin(s, message, null);
+    }
+
+    /** Like {@link #relogin(WcSession, String)}; {@code newName}: the browser logs in with this name (after a rename). */
+    private void relogin(WcSession s, String message, String newName) {
         JsonObject err = new JsonObject();
         err.addProperty("t", "error");
         err.addProperty("msg", message);
         err.addProperty("relogin", true);
+        if (newName != null) err.addProperty("name", newName);
         s.send(err);
         Bukkit.getScheduler().runTask(this, () -> {
             s.conn.close(1000, "relogin");

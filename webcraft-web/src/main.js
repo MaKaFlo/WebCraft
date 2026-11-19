@@ -451,6 +451,8 @@ function connect(url, name) {
         // New account (or one from before passwords): set a password, typed twice
         if (msg.register) setRegistering(true);
         showLoginError(msg.msg);
+        // Renamed (/webcraft name): log in with the new name from now on
+        if (msg.name) { ui.name.value = msg.name; try { localStorage.setItem('wc.name', msg.name); } catch {} }
         // Account linked or unlinked: log in again by itself (the server then picks the right account)
         if (msg.relogin) setTimeout(() => { if (!connected && !ui.play.disabled) ui.play.click(); }, 1500);
         break;

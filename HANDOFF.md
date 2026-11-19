@@ -2,7 +2,7 @@
 
 Hand-over between Claude sessions. Read this first, keep it current (see CLAUDE.md, "Session handoff").
 
-_Last update: 2026-11-12, version 0.40.0 (branch `claude/ecstatic-johnson-z7k985`, PR MaKaFlo/WebCraft#1 open). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
+_Last update: 2026-11-19, version 0.41.0 (branch `claude/ecstatic-johnson-z7k985`, PR MaKaFlo/WebCraft#1 open). Tag pushes are refused by this session's git proxy: the owner makes tags/releases (v0.23.0 not yet tagged)._
 
 ## Current state
 
@@ -10,6 +10,13 @@ _Last update: 2026-11-12, version 0.40.0 (branch `claude/ecstatic-johnson-z7k985
 - Built-in textures: **Faithful 32x** (blocks, items, chests, armor, mobs, GUI buttons, pixel font), PPCE for cow,
   mooshroom, pig, rabbit, magma cube (newer layout in Faithful). License: `LICENSE-Faithful.txt`, credit in README.
 - Every mob has a textured model now (the block figures in `mobs.js` are only a fallback for packs without pictures).
+- 0.41.0 (owner's wish): account rename, `/webcraft name <neu>` and `/webcraft account rename` (`WcRenames`, keeps the
+  UUID). Tested on Paper with bots (items/password/UUID kept, old name blocked, 7-day wait, admin rename back, taken
+  and unknown names refused). Fabric compiled only. Admin web page has no rename button yet.
+- Side job 2026-11-12/19 (not in this repo): Bau-Event added to the owner's FlorianSMP plugin (subclass main
+  `FlorianSMPPlus` + `BauEvent`, jar 2.31.1 delivered as zip; sources in the scratchpad, may be gone).
+  Fabric build here needs `-I <init script with mavenLocal()>` because maven.maxhenkel.de is blocked
+  (voicechat-api 2.5.0 built from source into ~/.m2).
 - 0.40.0 (owner: "VR-Brille mit Controllern wird nicht erkannt"): WebXR (`xr.js`), button "🥽 VR starten" in the game
   menu when `navigator.xr` supports immersive-vr (+ notice at login). Tested headless only with a fake `navigator.xr`,
   fake session and fake xr-standard gamepads against the Paper test server (walk, snap turn, controller aim → dig_start

@@ -2,7 +2,7 @@
 
 Ein Block-Spiel im Browser, das sich mit einem **Minecraft-Server** verbindet: **Paper** (als Plugin) oder **Fabric** (als Mod, damit auch für Vanilla). WebCraft-Spieler sind auf dem Server **echte Spieler**: Sie stehen in der Tab-Liste, bekommen Schaden, sterben, benutzen Befehle und Menüs von Plugins und Mods. Für den Server gibt es keinen Unterschied zu einem Minecraft-Spieler. So können Leute ohne Minecraft-Account mit Freunden auf dem Server spielen.
 
-Version 0.40.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
+Version 0.41.0 · **Paper 26.3** oder **Fabric 26.3** · JDK 25
 
 ## Aufbau
 
@@ -158,6 +158,14 @@ Jedes WebCraft-Konto hat ein Passwort. Beim ersten Anmelden (auch bei Konten, di
 - Gespeichert wird nur ein Hash (PBKDF2) in `plugins/WebCraft/passwords.json` (Fabric: `config/webcraft/passwords.json`).
 - Abschalten: `passwords: false` in der config.yml (Fabric: `passwords=false`).
 
+## Namen ändern
+
+WebCraft-Spieler tippen im Spiel `/webcraft name <neuer Name>` (3-13 Zeichen: Buchstaben, Zahlen, _). Man wird kurz neu verbunden und heißt dann z.B. `wc_Lenchen` statt `wc_Lena`. Inventar, Ort, XP, Passwort, Verknüpfung mit Minecraft und alles, was andere Plugins zum Spieler speichern (Geld, Homes, Rechte ...), bleiben: der Spieler behält seine UUID, wie bei einer Namensänderung in Minecraft. Der alte Name ist danach für andere gesperrt.
+
+- Höchstens einmal pro 7 Tage (`rename-wait-days`, 0 = immer), Admins jederzeit. Abschalten: `self-rename: false` (Fabric: `self-rename=false`), dann nur noch über Admins.
+- Admins: `/webcraft account rename <alter-name> <neuer-name>` (auch für Spieler, die gerade nicht online sind).
+- Gespeichert in `plugins/WebCraft/renames.json` (Fabric: `config/webcraft/renames.json`).
+
 ## Konten im Spiel verwalten (nur OPs)
 
 Alles direkt im Spiel oder in der Konsole, ohne Website:
@@ -165,6 +173,7 @@ Alles direkt im Spiel oder in der Konsole, ohne Website:
 - `/webcraft account create <name> [passwort]`: neues WebCraft-Konto (kommt auf die Whitelist, falls an). Ohne Passwort würfelt der Server eins aus und zeigt es nur dir.
 - `/webcraft account password <name> [passwort]`: neues Passwort (ohne Angabe ausgewürfelt).
 - `/webcraft account reset <name>`: Passwort löschen, der Spieler legt beim nächsten Anmelden ein neues fest.
+- `/webcraft account rename <alter-name> <neuer-name>`: Konto umbenennen (Items, Passwort und UUID bleiben).
 - `/webcraft account link <name> <minecraft-spieler>`: mit einem Minecraft-Spieler verknüpfen, der schon auf dem Server war (gleiche Items, gleicher Ort).
 - `/webcraft account unlink <name>`: Verknüpfung lösen.
 - `/webcraft account list`: alle Konten, mit Verknüpfung und wer online ist.

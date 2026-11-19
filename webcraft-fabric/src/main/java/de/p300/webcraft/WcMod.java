@@ -113,7 +113,9 @@ public final class WcMod implements ModInitializer, WcHost {
     private WcSkins skins;
     private WcLinks links;
     private WcAccounts accounts;
-    private boolean passwords, selfRegister;
+    private boolean passwords, selfRegister, selfRename;
+    private int renameWaitDays;
+    private WcRenames renames;
     private String webUrl;
     private WcAdmin admin;
     private WcLang lang;
@@ -163,7 +165,8 @@ public final class WcMod implements ModInitializer, WcHost {
         skins = new WcSkins(new File(dataFolder, "skins").toPath(), logger);
         links = new WcLinks(new File(dataFolder, "links.json").toPath(), logger);
         accounts = new WcAccounts(new File(dataFolder, "passwords.json").toPath(), logger);
-        admin = new WcAdmin(this, accounts, links, new WcAdmin.Platform() {
+        renames = new WcRenames(new File(dataFolder, "renames.json").toPath(), logger);
+        admin = new WcAdmin(this, accounts, links, renames, new WcAdmin.Platform() {
             public String namePrefix() { return namePrefix; }
             public List<String> online() {
                 List<String> out = new ArrayList<>();
@@ -173,7 +176,7 @@ public final class WcMod implements ModInitializer, WcHost {
             public void whitelist(String account) {
                 var players = server.getPlayerList();
                 if (!players.isUsingWhitelist()) return;
-                players.getWhiteList().add(new net.minecraft.server.players.UserWhiteListEntry(new NameAndId(WcFakePlayer.uuidFor(account), account)));
+                players.getWhiteList().add(new net.minecraft.server.players.UserWhiteListEntry(new NameAndId(renames.uuidOf(account), account)));
                 try {
                     players.getWhiteList().save();
                 } catch (IOException e) {
@@ -208,6 +211,20 @@ public final class WcMod implements ModInitializer, WcHost {
                 out.keySet().removeIf(n -> n.toLowerCase().startsWith(namePrefix.toLowerCase()));
                 for (WcSession x : sessions.values()) if (x.name != null) out.remove(x.name);
                 return out;
+            }
+            public boolean playedBefore(UUID uuid) { return usercache().containsValue(uuid); }
+            public UUID knownUuid(String name) {
+                for (var e : usercache().entrySet()) if (e.getKey().equalsIgnoreCase(name)) return e.getValue();
+                return null;
+            }
+            public boolean nameOnline(String name) { return server.getPlayerList().getPlayerByName(name) != null; }
+            public void renamed(String oldAccount, String newAccount) {
+                for (WcSession x : new ArrayList<>(sessions.values())) {
+                    if (oldAccount.equalsIgnoreCase(x.account)) {
+                        relogin(x, "Du heißt jetzt " + newAccount + ". Du wirst neu verbunden ...", newAccount.substring(namePrefix.length()));
+                        return;
+                    }
+                }
             }
         });
         WcAssets assets = new WcAssets(new File(dataFolder, "assets").toPath(), logger);
@@ -263,6 +280,8 @@ public final class WcMod implements ModInitializer, WcHost {
         mojangAssets = Boolean.parseBoolean(p.getProperty("mojang-assets", "false").trim());
         passwords = Boolean.parseBoolean(p.getProperty("passwords", "true").trim());
         selfRegister = Boolean.parseBoolean(p.getProperty("self-register", "true").trim());
+        selfRename = Boolean.parseBoolean(p.getProperty("self-rename", "true").trim());
+        try { renameWaitDays = Math.max(0, Integer.parseInt(p.getProperty("rename-wait-days", "7").trim())); } catch (NumberFormatException e) { renameWaitDays = 7; }
         webUrl = p.getProperty("web-url", "").trim();
     }
 
@@ -366,6 +385,13 @@ public final class WcMod implements ModInitializer, WcHost {
                 JsonObject[] refused = new JsonObject[1];
                 // Password first (slow hash), then the skin of the chosen Minecraft account (asks Mojang): not on the server thread
                 java.util.concurrent.CompletableFuture.runAsync(() -> {
+                    if (name != null && renames.takenBy(namePrefix + name) != null) {
+                        JsonObject e = new JsonObject();
+                        e.addProperty("t", "error");
+                        e.addProperty("msg", "Der Name " + name + " ist vergeben (ein Spieler hat sich umbenannt).");
+                        refused[0] = e;
+                        return;
+                    }
                     if (passwords && name != null && NAME_PATTERN.matcher(name).matches()) {
                         WcAccounts.Result r = accounts.check(namePrefix + name, pw, register, selfRegister);
                         refused[0] = WcAccounts.refusal(r);
@@ -545,7 +571,8 @@ public final class WcMod implements ModInitializer, WcHost {
         // Linked with a Minecraft account (/webcraft link): play as that account (same player, same items)
         WcLinks.Account linked = links.of(accountName);
         String fullName = linked != null ? linked.name() : accountName;
-        UUID uuid = linked != null ? linked.uuid() : WcFakePlayer.uuidFor(fullName);
+        // A renamed account keeps its UUID (renames.json), so its player data and mod data stay
+        UUID uuid = linked != null ? linked.uuid() : renames.uuidOf(accountName);
         if (linked != null) {
             ServerPlayer java = server.getPlayerList().getPlayer(uuid);
             if (java != null && !byPlayer.containsKey(uuid)) {
@@ -573,7 +600,7 @@ public final class WcMod implements ModInitializer, WcHost {
             fail(s, "Name is already in use");
             return;
         }
-        NameAndId id = new NameAndId(linked != null ? uuid : WcFakePlayer.uuidFor(accountName), linked != null ? fullName : accountName);
+        NameAndId id = new NameAndId(linked != null ? uuid : renames.uuidOf(accountName), linked != null ? fullName : accountName);
         if (players.getBans().isBanned(id)) {
             fail(s, "You are banned from this server");
             return;
@@ -1469,6 +1496,9 @@ public final class WcMod implements ModInitializer, WcHost {
                     .then(Commands.literal("link").executes(ctx -> link(ctx, null))
                             .then(Commands.literal("delete").executes(ctx -> link(ctx, "delete")))
                             .then(Commands.argument("code", StringArgumentType.word()).executes(ctx -> link(ctx, StringArgumentType.getString(ctx, "code")))))
+                    // WebCraft players: rename the own account
+                    .then(Commands.literal("name")
+                            .then(Commands.argument("name", StringArgumentType.word()).executes(this::renameSelf)))
                     .then(Commands.literal("status").requires(admin).executes(this::status))
                     .then(Commands.literal("reload").requires(admin).executes(this::reload))
                     .then(Commands.literal("kick").requires(admin)
@@ -1559,12 +1589,56 @@ public final class WcMod implements ModInitializer, WcHost {
         return 1;
     }
 
+    /** /webcraft name <new name>: a WebCraft player renames the own account (keeps the UUID and everything). */
+    private int renameSelf(CommandContext<CommandSourceStack> ctx) {
+        ServerPlayer p = ctx.getSource().getPlayer();
+        WcSession s = p == null ? null : byPlayer.get(p.getUUID());
+        if (s == null || s.account == null) {
+            ctx.getSource().sendFailure(Component.literal("Nur für WebCraft-Spieler."));
+            return 0;
+        }
+        boolean isAdmin = Commands.hasPermission(Commands.LEVEL_GAMEMASTERS).test(ctx.getSource());
+        if (!selfRename && !isAdmin) {
+            ctx.getSource().sendFailure(Component.literal("Namen ändern ist auf diesem Server aus. Frag einen Admin."));
+            return 0;
+        }
+        String err = admin.renameSelf(s.account, p.getUUID(), StringArgumentType.getString(ctx, "name"), isAdmin ? 0 : renameWaitDays);
+        if (err != null) {
+            ctx.getSource().sendFailure(Component.literal(err));
+            return 0;
+        }
+        return 1;
+    }
+
+    /** Name -> UUID of everybody in the server's usercache.json. */
+    private Map<String, UUID> usercache() {
+        Map<String, UUID> out = new HashMap<>();
+        try {
+            var file = server.getServerDirectory().resolve("usercache.json");
+            if (java.nio.file.Files.exists(file)) {
+                for (var e : com.google.gson.JsonParser.parseString(java.nio.file.Files.readString(file)).getAsJsonArray()) {
+                    var o = e.getAsJsonObject();
+                    out.put(o.get("name").getAsString(), UUID.fromString(o.get("uuid").getAsString()));
+                }
+            }
+        } catch (Exception ex) {
+            logger.log(java.util.logging.Level.FINE, "Could not read usercache.json", ex);
+        }
+        return out;
+    }
+
     /** Closes a session with a message; the browser logs in again by itself. */
     private void relogin(WcSession s, String message) {
+        relogin(s, message, null);
+    }
+
+    /** Like {@link #relogin(WcSession, String)}; {@code newName}: the browser logs in with this name (after a rename). */
+    private void relogin(WcSession s, String message, String newName) {
         JsonObject err = new JsonObject();
         err.addProperty("t", "error");
         err.addProperty("msg", message);
         err.addProperty("relogin", true);
+        if (newName != null) err.addProperty("name", newName);
         s.send(err);
         server.execute(() -> {
             s.conn.close(1000, "relogin");
@@ -1657,7 +1731,7 @@ public final class WcMod implements ModInitializer, WcHost {
     private int whitelist(CommandContext<CommandSourceStack> ctx) {
         String name = StringArgumentType.getString(ctx, "name");
         String fullName = name.startsWith(namePrefix) ? name : namePrefix + name;
-        NameAndId id = new NameAndId(WcFakePlayer.uuidFor(fullName), fullName);
+        NameAndId id = new NameAndId(renames.uuidOf(fullName), fullName);
         var list = server.getPlayerList().getWhiteList();
         list.add(new net.minecraft.server.players.UserWhiteListEntry(id));
         try {
