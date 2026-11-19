@@ -124,7 +124,8 @@ export class Palette {
     this.liquidH[i] = e.lh ?? 0.875;
     this.liquidFall[i] = e.lf ? 1 : 0;
     this.props[i] = e.p || null;
-    this.model[i] = blockModel(name, e.p);
+    // Old servers send only `fa` for the tripwire hook (no state properties)
+    this.model[i] = blockModel(name, name === 'tripwire_hook' ? { facing: e.fa, ...e.p } : e.p);
     this.applyTiles(i);
 
     let color = COLOR_OVERRIDES[name] ?? e.c;
@@ -154,12 +155,14 @@ export class Palette {
       return -1;
     };
     const names = textureCandidates(name);
-    let top = find(...names.flatMap((n) => [n + '_top', n]));
-    let side = find(...names.flatMap((n) => [n + '_side', n]));
+    // Vault and trial spawner only have pictures per state (vault_side_off, trial_spawner_top_inactive ...)
+    const st = (n, face) => [n + face, n + face + '_off', n + face + '_inactive'];
+    let top = find(...names.flatMap((n) => [...st(n, '_top'), n]));
+    let side = find(...names.flatMap((n) => [...st(n, '_side'), n]));
     let bottom = find(...names.flatMap((n) => [n + '_bottom', n]));
     this.tileTop[i] = top >= 0 ? top : builtTop;
     this.tileSide[i] = side >= 0 ? side : builtSide;
-    this.tileFront[i] = find(...names.map((n) => n + '_front'));
+    this.tileFront[i] = find(...names.flatMap((n) => st(n, '_front')));
     this.tileBottom[i] = bottom >= 0 ? bottom : (top >= 0 && name !== 'grass_block' ? top : builtTop);
     let packed = (top >= 0 ? 1 : 0) | (side >= 0 ? 2 : 0) | (bottom >= 0 || (top >= 0 && name !== 'grass_block') ? 4 : 0);
     // Gray pictures of grass, leaves, water ... get the block color like in Minecraft

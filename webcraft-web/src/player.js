@@ -3,6 +3,7 @@
 const HALF_W = 0.3;
 const HEIGHT = 1.8;
 const SWIM_HEIGHT = 0.6;   // lying in the water, like Minecraft's swimming pose
+const CROUCH_HEIGHT = 1.5; // sneaking: fits under stairs, slabs, snow layers ... with 1.5 blocks of room
 const EYE = 1.62;
 const GRAVITY = 32;
 const JUMP_SPEED = 9.0;
@@ -12,9 +13,11 @@ const SNEAK = 1.3;
 const SWIM = 5.6;          // sprint-swimming
 const STEP = 0.6;
 const EPS = 1e-4;
+const TOUCH = 1e-7;
 
 // Floating point: start + d - start is not always exactly d, so compare with a tolerance
 const blocked = (moved, wanted) => Math.abs(moved - wanted) > 1e-6;
+const shift = (b, x, y, z) => [b[0] + x, b[1] + y, b[2] + z, b[3] + x, b[4] + y, b[5] + z];
 
 export class Player {
   constructor(world) {
@@ -40,12 +43,42 @@ export class Player {
     this.glideAcc = 0;     // time not yet used for elytra ticks
     this.kbx = 0; this.kbz = 0; // knockback, fades out
     this.frozen = false;   // dead or waiting for the world
+    this.crouchReady = 0;  // performance.now() from when the server has our crouching pose too
+    this.pose = 'stand';   // 'stand', 'crouch' (sneaking or no room to stand) or 'crawl' (no room to crouch)
   }
 
-  get height() { return this.swimming || this.gliding ? SWIM_HEIGHT : HEIGHT; }
+  get height() {
+    if (this.swimming || this.gliding || this.pose === 'crawl') return SWIM_HEIGHT;
+    // Just crouched with Shift: the server takes the new pose only at its next tick, after the moves of this one, so
+    // for 2 ticks we keep the standing height (else walking into a 1.5 gap right away got us teleported back)
+    if (this.pose === 'crouch' && performance.now() < this.crouchReady) return HEIGHT;
+    return this.pose === 'crouch' ? CROUCH_HEIGHT : HEIGHT;
+  }
 
   /** Where the eyes should be: lying 0.4, sneaking 1.27 (Minecraft's crouch), else 1.62. */
-  get eyeTarget() { return this.swimming || this.gliding ? 0.4 : this.keys.has('ShiftLeft') && !this.flying ? 1.27 : EYE; }
+  get eyeTarget() {
+    if (this.swimming || this.gliding || this.pose === 'crawl') return 0.4;
+    return this.pose === 'crouch' ? 1.27 : EYE;
+  }
+
+  /**
+   * Like Minecraft's updatePlayerPose: Shift wants the crouching pose (1.5 high), else standing (1.8); a pose that
+   * does not fit where we are falls back to crouching, then to crawling (0.6). So you can sneak under stairs or
+   * slabs and stay crouched there when Shift is let go. The server does the same with its player.
+   */
+  updatePose() {
+    if (this.swimming || this.gliding || this.spectator) { this.pose = 'stand'; return; }
+    const fits = (h) => !this.insideBlock(this.x, this.y, this.z, h);
+    const want = this.keys.has('ShiftLeft') && !this.flying ? 'crouch' : 'stand';
+    if (want === 'crouch' && this.pose === 'stand') this.crouchReady = performance.now() + 100;
+    if (want === 'stand' && fits(HEIGHT)) this.pose = 'stand';
+    else if (fits(CROUCH_HEIGHT)) this.pose = 'crouch';
+    else if (fits(SWIM_HEIGHT)) this.pose = 'crawl';
+    else this.pose = want;   // stuck in blocks: unstuck() moves us out
+  }
+
+  /** Moving slowly like sneaking (also when crouched or crawling because there is no room). */
+  get slow() { return (this.pose === 'crouch' || this.pose === 'crawl') && !this.flying; }
 
   // The eyes glide to their height like in Minecraft (halfway each tick), so sneaking goes down instead of jumping
   get eyeY() { return this.y + (this.eyeH ?? this.eyeTarget); }
@@ -174,6 +207,7 @@ export class Player {
     const target = this.eyeTarget;
     this.eyeH = this.eyeH === undefined ? target : this.eyeH + (target - this.eyeH) * (1 - Math.exp(-dt * 14));
     if (this.frozen || !this.groundLoaded()) return; // wait in the air until the world is there
+    this.updatePose();
     this.unstuck();
     if (!this.canFly) this.flying = false;
     if (this.spectator) this.flying = true;
@@ -188,7 +222,8 @@ export class Player {
     const fwd = (k.has('KeyW') ? 1 : 0) - (k.has('KeyS') ? 1 : 0);
     const side = (k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0);
     const sneaking = k.has('ShiftLeft');
-    const sprinting = this.sprinting && fwd > 0 && !sneaking;
+    this.updatePose();
+    const sprinting = this.sprinting && fwd > 0 && !sneaking && !this.slow;
 
     const liquidAt = (dy) => this.world.isLiquid(Math.floor(this.x), Math.floor(this.y + dy), Math.floor(this.z));
     this.inLiquid = liquidAt(0.4);
@@ -209,7 +244,7 @@ export class Player {
     const len = Math.hypot(wx, wz);
     if (len > 0) { wx /= len; wz /= len; }
 
-    let speed = sprinting ? SPRINT : sneaking && !this.flying ? SNEAK : WALK;
+    let speed = sprinting ? SPRINT : this.slow ? SNEAK : WALK;
     if (this.flying) speed = sprinting ? 21.6 : 10.9;
     if (this.inLiquid) speed *= 0.5;
     // Swimming goes where you look (look down to dive), the forward part tilted by the pitch
@@ -331,6 +366,86 @@ export class Player {
     return false;
   }
 
+  /**
+   * Where Minecraft's server ends up when it moves our player from `from` to `to` in one go (handleMovePlayer:
+   * Entity.collide = y first, then the longer horizontal axis, step up 0.6 when on the ground or landing). We move
+   * in small sub-steps, the server in one step per packet: at block edges (landing on a ledge while jumping,
+   * corners) the two can end up apart. More than 0.25 blocks sideways counts as "moved wrongly" there and the
+   * server teleports us back: we stuck at the edge for a moment.
+   */
+  serverMove(from, to, onGround) {
+    const h = this.height;
+    let box = [from.x - HALF_W, from.y, from.z - HALF_W, from.x + HALF_W, from.y + h, from.z + HALF_W];
+    const move = (b, v) => {
+      let [dx, dy, dz] = v;
+      if (dy !== 0) { dy = this.clip(b, 1, dy); b = shift(b, 0, dy, 0); }
+      const zFirst = Math.abs(dx) < Math.abs(dz);
+      if (zFirst && dz !== 0) { dz = this.clip(b, 2, dz); b = shift(b, 0, 0, dz); }
+      if (dx !== 0) { dx = this.clip(b, 0, dx); b = shift(b, dx, 0, 0); }
+      if (!zFirst && dz !== 0) { dz = this.clip(b, 2, dz); b = shift(b, 0, 0, dz); }
+      return [b, dx, dy, dz];
+    };
+    const want = [to.x - from.x, to.y - from.y, to.z - from.z];
+    let [b, dx, dy, dz] = move(box, want);
+    const hit = blocked(dx, want[0]) || blocked(dz, want[2]);
+    if (hit && (onGround || (blocked(dy, want[1]) && want[1] < 0))) {
+      // Step up like Minecraft: up to 0.6 higher, across, back down onto what is there
+      const start = onGround ? box : shift(box, 0, dy, 0);
+      const up = this.clip(start, 1, STEP);
+      let [s2, sx, , sz] = move(shift(start, 0, up, 0), [want[0], 0, want[2]]);
+      const down = this.clip(s2, 1, -up);
+      s2 = shift(s2, 0, down, 0);
+      if (sx * sx + sz * sz > dx * dx + dz * dz + EPS) b = s2;
+    }
+    return { x: (b[0] + b[3]) / 2, y: b[1], z: (b[2] + b[5]) / 2 };
+  }
+
+  /**
+   * The position to send when the server last has us at `from` ({x, y, z, g}): our own one, or, when the server
+   * would call it "moved wrongly" (more than 0.25 blocks off sideways, or 0.5 up/down) and teleport us back, the
+   * spot its own move ends at. That one it accepts, and the next packet brings it to our real position (falling
+   * off an edge: the server first lands on the edge we just left, then falls down with the next packet).
+   * Creative and spectator players are not checked by the server.
+   */
+  positionForServer(from) {
+    const to = { x: this.x, y: this.y, z: this.z };
+    // Only once in a row: if the server can't reach us in one more step either, it should decide (teleport)
+    if (!from || this.canFly || this.spectator || from.fixed) return to;
+    const r = this.serverMove(from, to, from.g);
+    const dy = r.y - to.y;
+    const off = (r.x - to.x) ** 2 + (r.z - to.z) ** 2 + (Math.abs(dy) >= 0.5 ? dy * dy : 0);
+    return off > 0.04 ? r : to;
+  }
+
+  /** How far box b ([x0, y0, z0, x1, y1, z1]) can move along an axis before it hits a block (Shapes.collide). */
+  clip(b, axis, delta) {
+    if (delta === 0) return 0;
+    const lo = b.slice(0, 3), hi = b.slice(3);
+    const from = lo.map((v, i) => Math.floor(Math.min(v, v + (i === axis ? delta : 0))) - (i === 1 ? 1 : 0));
+    const to = hi.map((v, i) => Math.floor(Math.max(v, v + (i === axis ? delta : 0)) - TOUCH));
+    for (let bx = from[0]; bx <= to[0]; bx++) {
+      for (let by = from[1]; by <= to[1]; by++) {
+        for (let bz = from[2]; bz <= to[2]; bz++) {
+          const list = this.world.collisionBoxes(bx, by, bz);
+          if (!list) continue;
+          const at = [bx, by, bz];
+          for (const c of list) {
+            // the other two axes have to overlap, else this box is not in the way
+            let apart = false;
+            for (let i = 0; i < 3 && !apart; i++) {
+              if (i !== axis && (hi[i] <= at[i] + c[i] + TOUCH || lo[i] >= at[i] + c[i + 3] - TOUCH)) apart = true;
+            }
+            if (apart) continue;
+            const c0 = at[axis] + c[axis], c1 = at[axis] + c[axis + 3];
+            if (delta > 0 && hi[axis] <= c0 + TOUCH) delta = Math.min(delta, c0 - hi[axis]);
+            else if (delta < 0 && lo[axis] >= c1 - TOUCH) delta = Math.max(delta, c1 - lo[axis]);
+          }
+        }
+      }
+    }
+    return delta;
+  }
+
   /** Move along one axis (0=x, 1=y, 2=z) and stop at blocks. Returns distance actually moved. */
   moveAxis(axis, delta) {
     if (delta === 0) return 0;
@@ -347,9 +462,9 @@ export class Player {
     const minY = pos[1], maxY = pos[1] + this.height;
     const minZ = pos[2] - HALF_W, maxZ = pos[2] + HALF_W;
 
-    const x0 = Math.floor(minX), x1 = Math.floor(maxX - EPS);
-    const y0 = Math.floor(minY) - 1, y1 = Math.floor(maxY - EPS);
-    const z0 = Math.floor(minZ), z1 = Math.floor(maxZ - EPS);
+    const x0 = Math.floor(minX), x1 = Math.floor(maxX - TOUCH);
+    const y0 = Math.floor(minY) - 1, y1 = Math.floor(maxY - TOUCH);
+    const z0 = Math.floor(minZ), z1 = Math.floor(maxZ - TOUCH);
     // Our box before this move: blocks we are already inside don't stop us (so we can walk out)
     const sx0 = this.x - HALF_W, sx1 = this.x + HALF_W, sy0 = this.y, sy1 = this.y + this.height;
     const sz0 = this.z - HALF_W, sz1 = this.z + HALF_W;
@@ -362,9 +477,11 @@ export class Player {
           for (const b of list) {
             // Block shape in world coordinates (stairs have two boxes, so you can walk up them)
             const bx0 = bx + b[0], bx1 = bx + b[3], by0 = by + b[1], by1 = by + b[4], bz0 = bz + b[2], bz1 = bz + b[5];
-            if (maxX <= bx0 + EPS || minX >= bx1 - EPS) continue;
-            if (maxY <= by0 + EPS || minY >= by1 - EPS) continue;
-            if (maxZ <= bz0 + EPS || minZ >= bz1 - EPS) continue;
+            // Touching counts as free only within 1e-7 like Minecraft's collision: with EPS here we could move
+            // up to 1e-4 into a block, the server saw us overlapping it and teleported us back at edges and walls
+            if (maxX <= bx0 + TOUCH || minX >= bx1 - TOUCH) continue;
+            if (maxY <= by0 + TOUCH || minY >= by1 - TOUCH) continue;
+            if (maxZ <= bz0 + TOUCH || minZ >= bz1 - TOUCH) continue;
             if (sx1 > bx0 + EPS && sx0 < bx1 - EPS && sy1 > by0 + EPS && sy0 < by1 - EPS
               && sz1 > bz0 + EPS && sz0 < bz1 - EPS) continue;
             if (axis === 0) pos[0] = delta > 0 ? Math.min(pos[0], bx0 - HALF_W - EPS) : Math.max(pos[0], bx1 + HALF_W + EPS);

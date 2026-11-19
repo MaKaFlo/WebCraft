@@ -104,6 +104,14 @@ public final class WcLinks {
         save();
     }
 
+    /** Moves the link of a WebCraft account to its new name (rename). */
+    public synchronized void move(String from, String to) {
+        Account a = links.remove(key(from));
+        if (a == null) return;
+        links.put(key(to), a);
+        save();
+    }
+
     /** Removes the link of a WebCraft account. Returns the Java account it had, or null. */
     public synchronized Account unlink(String webcraftAccount) {
         Account a = links.remove(key(webcraftAccount));

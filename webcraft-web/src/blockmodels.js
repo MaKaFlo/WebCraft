@@ -42,6 +42,24 @@ function attached(p) {
   return { up: UP, north: f };
 }
 
+// Tripwire hook like Minecraft's model: a plank on the wall, a stick with the ring pointing away from it.
+// Hanging down when no wire is attached, level when one is (`attached` only comes with the server's state).
+function tripwireHook(p) {
+  const H = 'block/tripwire_hook', W = 'block/oak_planks';
+  const on = p.attached === 'true';
+  const rot = { a: 'x', d: on ? 0 : -40, o: [8, on ? 4 : 5, 14] };
+  const y = on ? 3.5 : 4.5;
+  const st = { t: H, uv: [7, 10, 9, 16] }, side = { t: H, uv: [7, 10, 8, 16] };
+  const ring = { t: H, uv: [5, 3, 11, 9] }, rim = { t: H, uv: [5, 3, 11, 4] };
+  const els = [
+    { f: [6, on ? 0 : 1, 14], t: [10, on ? 8 : 9, 16], faces: allFaces(W) },
+    { f: [7.5, y, 9.5], t: [8.5, y + 1, 14], rot, faces: { up: st, down: st, east: side, west: side } },
+    { f: [5, y + 0.1, 3.5], t: [11, y + 0.9, 9.5], rot, faces: { up: ring, down: ring, north: rim, south: rim, east: rim, west: rim } },
+  ];
+  // facing = where the hook points (away from the wall), the model's wall is at south
+  return { elements: els, up: UP, north: DIR[p.facing] || NORTH };
+}
+
 function diode(name, p) {
   const on = p.powered === 'true';
   const torch = on ? 'block/redstone_torch' : 'block/redstone_torch_off';
@@ -326,6 +344,7 @@ export function blockModel(name, p) {
     // facing = away from the wall
     return { elements: [s], up: UP, north: DIR[p.facing] || NORTH };
   }
+  if (name === 'tripwire_hook') return tripwireHook(p);
   if (/_sign$/.test(name) && !/hanging/.test(name)) return sign(name, p);
   if (/cauldron$/.test(name)) return cauldron(name, p);
   if (/_fence_gate$/.test(name)) return fenceGate(p);

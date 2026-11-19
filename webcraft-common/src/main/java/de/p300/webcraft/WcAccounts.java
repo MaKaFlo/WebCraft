@@ -114,6 +114,15 @@ public final class WcAccounts {
         }
     }
 
+    /** Moves the password of an account to a new name (rename). */
+    public synchronized void move(String from, String to) {
+        Entry e = entries.remove(key(from));
+        if (e == null) return;
+        entries.put(key(to), e);
+        lockedUntil.remove(key(from));
+        save();
+    }
+
     /** Removes the password (an admin reset): the next login sets a new one. */
     public synchronized boolean reset(String account) {
         boolean had = entries.remove(key(account)) != null;

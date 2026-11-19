@@ -18,6 +18,10 @@ name-prefix: "wc_"
 passwords: true
 # false: only accounts an admin made on the admin page (/webcraft admin) can log in.
 self-register: true
+# Players may rename their own WebCraft account with /webcraft name <new name> (admins: /webcraft account rename).
+self-rename: true
+# Days between two renames of the same player (0 = no waiting).
+rename-wait-days: 7
 # Address of your WebCraft page (e.g. https://example.org/), used for the admin page link of /webcraft admin.
 web-url: ""
 

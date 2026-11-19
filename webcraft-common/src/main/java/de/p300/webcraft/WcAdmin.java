@@ -38,6 +38,18 @@ public final class WcAdmin {
 
         /** Minecraft (Java) players that were on the server: name -> UUID. */
         Map<String, java.util.UUID> minecraftPlayers();
+
+        /** Whether a player with this UUID has been on the server (has player data). */
+        default boolean playedBefore(java.util.UUID uuid) { return false; }
+
+        /** The UUID the server knows for a player name (any case), or null. */
+        default java.util.UUID knownUuid(String name) { return null; }
+
+        /** Whether a player (WebCraft or Minecraft) with this name is online right now. */
+        default boolean nameOnline(String name) { return false; }
+
+        /** A WebCraft account was renamed: an online session logs in again with the new name. */
+        default void renamed(String oldAccount, String newAccount) { kick(oldAccount); }
     }
 
     private static final Pattern NAME = Pattern.compile("^[A-Za-z0-9_]{3,13}$");
@@ -46,14 +58,16 @@ public final class WcAdmin {
     private final WcHost host;
     private final WcAccounts accounts;
     private final WcLinks links;
+    private final WcRenames renames;
     private final Platform platform;
     private final SecureRandom random = new SecureRandom();
     private final Map<String, Long> tokens = new HashMap<>();
 
-    public WcAdmin(WcHost host, WcAccounts accounts, WcLinks links, Platform platform) {
+    public WcAdmin(WcHost host, WcAccounts accounts, WcLinks links, WcRenames renames, Platform platform) {
         this.host = host;
         this.accounts = accounts;
         this.links = links;
+        this.renames = renames;
         this.platform = platform;
     }
 
@@ -108,7 +122,7 @@ public final class WcAdmin {
         void line(String text, String kind);
     }
 
-    public static final String ACCOUNT_USAGE = "/webcraft account <create|password|reset|link|unlink|list> ...";
+    public static final String ACCOUNT_USAGE = "/webcraft account <create|password|reset|rename|link|unlink|list> ...";
 
     /** {@code /webcraft account ...} (admins only, main thread). args[0] = "account". */
     public void command(String[] args, Reply out) {
@@ -183,6 +197,13 @@ public final class WcAdmin {
                 host.logger().info("WebCraft: linked " + account + " with " + mcName + " (" + uuid + ")");
                 out.line(account + " ist jetzt mit " + mcName + " verknüpft: gleicher Spieler, gleiche Items.", "ok");
             }
+            case "rename" -> {
+                String to = args.length > 3 ? strip(args[3]) : null;
+                if (name == null || to == null) { out.line("Benutzung: /webcraft account rename <alter-name> <neuer-name>", "err"); return; }
+                String err = rename(account, to, null);
+                if (err != null) out.line(err, "err");
+                else out.line(account + " heißt jetzt " + platform.namePrefix() + to + ". Inventar, Ort und Passwort bleiben.", "ok");
+            }
             case "unlink" -> {
                 if (account == null) { out.line("Benutzung: /webcraft account unlink <name>", "err"); return; }
                 boolean had = links.unlink(account) != null;
@@ -196,7 +217,7 @@ public final class WcAdmin {
     /** Tab completion of /webcraft account ... (args[0] = "account"). */
     public List<String> complete(String[] args) {
         List<String> out = new java.util.ArrayList<>();
-        if (args.length == 2) out.addAll(List.of("create", "password", "reset", "link", "unlink", "list"));
+        if (args.length == 2) out.addAll(List.of("create", "password", "reset", "rename", "link", "unlink", "list"));
         else if (args.length == 3 && !args[1].equalsIgnoreCase("create") && !args[1].equalsIgnoreCase("list")) {
             for (String n : accounts.names()) out.add(strip(n));
             for (String n : platform.online()) out.add(strip(n));
@@ -206,6 +227,63 @@ public final class WcAdmin {
         String start = args[args.length - 1].toLowerCase(java.util.Locale.ROOT);
         out.removeIf(o -> !o.toLowerCase(java.util.Locale.ROOT).startsWith(start));
         return new java.util.ArrayList<>(new java.util.TreeSet<>(out));
+    }
+
+    // ------------------------------------------------------------------ renaming accounts
+
+    /**
+     * Renames a WebCraft account (with prefix) to {@code newName} (without prefix). The player keeps the UUID (so
+     * the player data and plugin data stay), the password and the link with a Minecraft account move along. An
+     * online player logs in again with the new name. {@code uuid}: the UUID the account plays with when known
+     * (an online unlinked player), else it is looked up. Returns an error message, or null when it worked.
+     */
+    public String rename(String oldAccount, String newName, java.util.UUID uuid) {
+        String prefix = platform.namePrefix();
+        if (newName == null || !NAME.matcher(newName).matches()) return "Der Name braucht 3-13 Zeichen: Buchstaben, Zahlen oder _.";
+        String newAccount = prefix + newName;
+        boolean sameKey = newAccount.equalsIgnoreCase(oldAccount);
+        if (newAccount.equals(oldAccount)) return "Das ist schon der Name.";
+        boolean online = platform.online().stream().anyMatch(oldAccount::equalsIgnoreCase);
+        // The UUID of the account itself (not of a linked Minecraft account)
+        java.util.UUID own;
+        if (renames.renamed(oldAccount) || links.of(oldAccount) != null) own = renames.uuidOf(oldAccount);
+        else if (uuid != null) own = uuid;
+        else {
+            java.util.UUID known = platform.knownUuid(oldAccount);
+            own = known != null ? known : renames.uuidOf(oldAccount);
+        }
+        if (!online && !accounts.hasPassword(oldAccount) && !platform.playedBefore(own) && links.of(oldAccount) == null)
+            return "Das Konto " + oldAccount + " gibt es nicht.";
+        if (!sameKey) {
+            java.util.UUID free = WcRenames.offline(newAccount);
+            String taken = renames.takenBy(newAccount);
+            if (accounts.hasPassword(newAccount) || links.of(newAccount) != null || renames.renamed(newAccount)
+                    || (taken != null && !taken.equalsIgnoreCase(oldAccount))
+                    || (!free.equals(own) && (platform.playedBefore(free) || platform.knownUuid(newAccount) != null))
+                    || platform.nameOnline(newAccount))
+                return "Der Name " + newName + " ist schon vergeben.";
+        }
+        accounts.move(oldAccount, newAccount);
+        links.move(oldAccount, newAccount);
+        renames.moved(oldAccount, newAccount, own);
+        host.logger().info("WebCraft: account " + oldAccount + " renamed to " + newAccount + " (keeps UUID " + own + ")");
+        platform.renamed(oldAccount, newAccount);
+        return null;
+    }
+
+    /**
+     * A player renames the own account ({@code /webcraft name <neu>}): at most once per {@code waitDays}
+     * (0 = any time). Returns an error message, or null when it worked.
+     */
+    public String renameSelf(String account, java.util.UUID uuid, String newName, int waitDays) {
+        java.util.UUID own = renames.renamed(account) || links.of(account) != null ? renames.uuidOf(account) : uuid;
+        long since = System.currentTimeMillis() - renames.lastRename(own);
+        long wait = waitDays * 24L * 3600_000L;
+        if (waitDays > 0 && since < wait) {
+            long hours = (wait - since + 3599_999L) / 3600_000L;
+            return "Du kannst deinen Namen erst wieder in " + (hours > 48 ? (hours + 23) / 24 + " Tagen" : hours + " Stunden") + " ändern.";
+        }
+        return rename(account, newName, own);
     }
 
     /** "wc_max" or "Max" -> "Max" (the name without the prefix). */
